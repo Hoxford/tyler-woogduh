@@ -1,0 +1,1 @@
+"./tm4c1233h6pm_startup_ccs.obj" "./main.obj" "./innedmd_adc.obj" "./ineedmd_led.obj" "./ineedmd_bluetooth_radio.obj" "./board.obj" "../tm4c1233h6pm.cmd" -l"libc.a" -ldriverlib.lib 
