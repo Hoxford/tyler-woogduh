@@ -164,13 +164,11 @@ hold_until_short_removed(void){
 		EKGSPIDisable();
 		//power down the ADC
 	    ineedmd_adc_Power_Off();
-		// clocks down the processor to REALLY slow ( 30khz) and
-		set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
-		//gois into a processor wait loop
+
 		//
-		// Set the Timer0B load value to 1ms.
+		// Set the Timer0B load value to 10s.
 		//
-		TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() * 10 );
+		TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
 		//
 		// Enable processor interrupts.
 		//
@@ -184,7 +182,11 @@ hold_until_short_removed(void){
 		//
 		IntEnable(INT_TIMER0B);
 		//
-		// Enable Timer0B.
+		// clocks down the processor to REALLY slow ( 500khz) and
+		//
+		set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
+		//
+		// Enable Timer0(A)
 		//
 		TimerEnable(TIMER0_BASE, TIMER_A);
 
