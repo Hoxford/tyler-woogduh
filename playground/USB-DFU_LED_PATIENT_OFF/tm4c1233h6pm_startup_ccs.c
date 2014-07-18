@@ -298,3 +298,20 @@ IntDefaultHandler(void)
     {
     }
 }
+
+//*****************************************************************************
+//
+// This is the code that gets called when the reset pin is shorted set
+// It will call the asm reset code which completly restarts the system.
+//
+//*****************************************************************************
+static void
+Reset_me(void)
+{
+    //
+    // Go into an infinite loop.
+    //
+    while(1)
+    {
+    }
+}
