@@ -133,7 +133,7 @@ all: USB-DFU_LED_PATIENT_OFF.out
 USB-DFU_LED_PATIENT_OFF.out: $(OBJS) $(CMD_SRCS) $(LDS_SRCS) $(GEN_CMDS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: ARM Linker'
-	"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 --abi=eabi -me --fp_mode=strict -g --define=PART_TM4C1233H4PM --define=TARGET_IS_BLIZZARD_RA3 --display_error_number --diag_warning=225 --diag_wrap=off -z -m"USB-DFU_LED_PATIENT_OFF.map" --heap_size=0 --stack_size=2048 -i"C:/ti/TivaWare_C_Series-2.1.0.12573/driverlib/ccs/Debug" -i"c:/ti/ccsv6/tools/compiler/arm_5.1.5/lib" -i"c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --reread_libs --warn_sections --display_error_number --diag_wrap=off --xml_link_info="USB-DFU_LED_PATIENT_OFF_linkInfo.xml" --rom_model -o "USB-DFU_LED_PATIENT_OFF.out" $(ORDERED_OBJS)
+	"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=FPv4SPD16 --abi=eabi -me --fp_mode=strict -g --define=PART_TM4C1233H4PM --define=TARGET_IS_BLIZZARD_RA3 --undefine=DO_LED_TEST --undefine=DO_CHECK_BATT --display_error_number --diag_warning=225 --diag_wrap=off -z -m"USB-DFU_LED_PATIENT_OFF.map" --heap_size=0 --stack_size=2048 -i"C:/ti/TivaWare_C_Series-2.1.0.12573/driverlib/ccs/Debug" -i"c:/ti/ccsv6/tools/compiler/arm_5.1.5/lib" -i"c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --reread_libs --warn_sections --display_error_number --diag_wrap=off --xml_link_info="USB-DFU_LED_PATIENT_OFF_linkInfo.xml" --rom_model -o "USB-DFU_LED_PATIENT_OFF.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

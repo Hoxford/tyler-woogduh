@@ -78,27 +78,32 @@
 
 
 
-extern void PowerInitFunction(void);
-extern void PortFunctionInit(void);
-extern void wait_time (unsigned int);
-extern void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
-extern void set_system_speed (unsigned int);
+void Set_Timer0_Sleep();
+void PowerInitFunction(void);
+void PortFunctionInit(void);
+void ConfigureSleep(void);
+void wait_time (unsigned int);
+void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
+void set_system_speed (unsigned int);
 
-extern void GPIOEnable(void);
-extern void BatMeasureADCEnable(void);
-extern void EKGSPIEnable(void);
-extern void RadioUARTEnable(void);
-extern void LEDI2CEnable(void);
-extern void XTALControlPin(void);
-extern void USBPortEnable(void);
-extern void ConfigureSleep(void);
-extern void Set_Timer0_Sleep(void);
+void GPIOEnable(void);
+void BatMeasureADCEnable(void);
+void EKGSPIEnable(void);
+void RadioUARTEnable(void);
+void RadioUARTDisable(void);
+int iRadio_Power_On(void);
+int iRadio_interface_enable(void);
+void LEDI2CEnable(void);
+void XTALControlPin(void);
+void USBPortEnable(void);
 
-extern void GPIODisable(void);
-extern void BatMeasureADCDisable(void);
-extern void EKGSPIDisable(void);
-extern void RadioUARTDisable(void);
-extern void LEDI2CDisable(void);
-extern void USBPortDisnable(void);
+void GPIODisable(void);
+void BatMeasureADCDisable(void);
+bool bIs_battery_low(void);
+void EKGSPIDisable(void);
+
+void LEDI2CDisable(void);
+void USBPortDisnable(void);
+int iBoard_init(void);
 
 #endif //  __BOARD_H__

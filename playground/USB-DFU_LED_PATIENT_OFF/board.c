@@ -350,6 +350,44 @@ RadioUARTDisable(void)
 	MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
 }
 
+//*****************************************************************************
+// name: iRadioPowerOn
+// description: sets the gpio pin to the radio high to turn on the radio
+// param description: none
+// return value description: 1 if success
+//*****************************************************************************
+int
+iRadio_Power_On(void)
+{
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_ENABLE, INEEDMD_PORTE_RADIO_ENABLE);
+  return 1;
+}
+
+//*****************************************************************************
+// name: iRadio_interface_enable
+// description: enables the serial interface to the external radio interface
+// param description: none
+// return value description: 1 if success
+//*****************************************************************************
+int iRadio_interface_enable(void)
+{
+  //set flow control
+  UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+
+  // Enables the communication FIFO
+  UARTFIFOEnable(INEEDMD_RADIO_UART);
+  //And the Radio UART
+  UARTEnable(INEEDMD_RADIO_UART);
+
+  return 1;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 void
 SDCardSPIInit(void)
 {

@@ -10,14 +10,14 @@
 /*
 *do a hardware reset by pulling reset low
 */
-void ineedmd_radio_reset(void)
-{
-	//toggle reset pin
-	GPIOPinWrite(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST, 0x00);
-	wait_time(1);
-	GPIOPinWrite(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST, INEEDMD_PORTE_RADIO_REST);
-	//wait 18 device clock cycles - 9 usec
-}
+//void ineedmd_radio_reset(void)
+//{
+//	//toggle reset pin
+//	GPIOPinWrite(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST, 0x00);
+//	wait_time(1);
+//	GPIOPinWrite(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST, INEEDMD_PORTE_RADIO_REST);
+//	//wait 18 device clock cycles - 9 usec
+//}
 
 
 

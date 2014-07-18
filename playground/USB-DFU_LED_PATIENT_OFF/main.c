@@ -89,61 +89,61 @@ void led_test(void)
 
 
 
-void bluetooth_setup(void)
-{
-    uint32_t i;
-	char  *send_string;
-	//char *recieve_string;
-	
-
-
-	ineedmd_radio_power(true);
-
-	ineedmd_radio_reset();
-
-	//
-    // Configure the UART for 115,200, 8-N-1 operation.
-    // This function uses SysCtlClockGet() to get the system clock
-    // frequency.  This could be also be a variable or hard coded value
-    // instead of a function call.
-    //
-    UARTConfigSetExpClk( UART1_BASE, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
-
-    UARTEnable(UART1_BASE);
-
-
-    //tell the radio we are using BT SSP pairing
-    send_string = "SET BT SSP 1 1\n";
-		for (i = 0; i<strlen(send_string); i++)
-	{
-		UARTCharPut(UART1_BASE, send_string[i]);
-		while(UARTBusy(UART1_BASE)){}
-	}
-	//tells the radio we are using SPP protocol
-	send_string = "SET PROFILE SPP\n";
-		for (i = 0; i<strlen(send_string); i++)
-	{
-		UARTCharPut(UART1_BASE, send_string[i]);
-		while(UARTBusy(UART1_BASE)){}
-	}
-	
-	// sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
-	send_string = "SET CONTOL BATTERY 3300 3100 3400 01\n";
-		for (i = 0; i<strlen(send_string); i++)
-	{
-		UARTCharPut(UART1_BASE, send_string[i]);
-		while(UARTBusy(UART1_BASE)){}
-	}
-
-	//commits these changes to the radio
-	send_string = "SET\n";
-		for (i = 0; i<strlen(send_string); i++)
-	{
-		UARTCharPut(UART1_BASE, send_string[i]);
-		while(UARTBusy(UART1_BASE)){}
-	}
-	
-}
+//void bluetooth_setup(void)
+//{
+//    uint32_t i;
+//	char  *send_string;
+//	//char *recieve_string;
+//
+//
+//
+//	ineedmd_radio_power(true);
+//
+//	ineedmd_radio_reset();
+//
+//	//
+//    // Configure the UART for 115,200, 8-N-1 operation.
+//    // This function uses SysCtlClockGet() to get the system clock
+//    // frequency.  This could be also be a variable or hard coded value
+//    // instead of a function call.
+//    //
+//    UARTConfigSetExpClk( UART1_BASE, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+//
+//    UARTEnable(UART1_BASE);
+//
+//
+//    //tell the radio we are using BT SSP pairing
+//    send_string = "SET BT SSP 1 1\n";
+//		for (i = 0; i<strlen(send_string); i++)
+//	{
+//		UARTCharPut(UART1_BASE, send_string[i]);
+//		while(UARTBusy(UART1_BASE)){}
+//	}
+//	//tells the radio we are using SPP protocol
+//	send_string = "SET PROFILE SPP\n";
+//		for (i = 0; i<strlen(send_string); i++)
+//	{
+//		UARTCharPut(UART1_BASE, send_string[i]);
+//		while(UARTBusy(UART1_BASE)){}
+//	}
+//
+//	// sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
+//	send_string = "SET CONTOL BATTERY 3300 3100 3400 01\n";
+//		for (i = 0; i<strlen(send_string); i++)
+//	{
+//		UARTCharPut(UART1_BASE, send_string[i]);
+//		while(UARTBusy(UART1_BASE)){}
+//	}
+//
+//	//commits these changes to the radio
+//	send_string = "SET\n";
+//		for (i = 0; i<strlen(send_string); i++)
+//	{
+//		UARTCharPut(UART1_BASE, send_string[i]);
+//		while(UARTBusy(UART1_BASE)){}
+//	}
+//
+//}
 
 /*
  * this routeen puts us in really deep sleep and waits till the short is removed - ist power up
@@ -356,7 +356,9 @@ void main(void) {
 	ineedmd_adc_Start_Internal_Reference();
 	ineedmd_adc_Start_High();
 
-	hold_until_short_removed();
+#if DO_SHORT_HOLD
+    hold_until_short_removed();
+#endif //DO_SHORT_HOLD
 
     BatMeasureADCEnable();
     LEDI2CEnable();
@@ -369,10 +371,13 @@ void main(void) {
     while(1)
 
     {
-
+#ifdef DO_LED_TEST
     	led_test();
+#endif //DO_LED_TEST
 
+#ifdef DO_CHECK_BATT
     	check_battery();
+#endif //DO_CHECK_BATT
 
     	check_for_update();
 

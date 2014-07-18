@@ -21,6 +21,7 @@
 // defines
 //*****************************************************************************
 #define WD_TIMEOUT  5  //Watch dog time out value in secons
+
 //*****************************************************************************
 // variables
 //*****************************************************************************
@@ -84,21 +85,6 @@ main(void)
   iInit_wd(WD_TIMEOUT);
   iBoard_init();
 
-//  ineedmd_adc_Start_Low();
-//  //power on ADC, disable continuous conversions
-//  ineedmd_adc_Power_On();
-//  //turn off continuous conversion for register read/writes
-//  ineedmd_adc_Stop_Continuous_Conv();
-//
-//  ineedmd_adc_Enable_Lead_Detect();
-//
-//  //increase comparator threshold for lead off detect
-//  uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
-//  ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1));
-//
-//  //start conversions
-//  ineedmd_adc_Start_Internal_Reference();
-//  ineedmd_adc_Start_High();
   iADC_setup();
 
   //power on the radio
