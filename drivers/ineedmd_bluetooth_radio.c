@@ -39,7 +39,7 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
-#define SET_CONTROL_ECHO  "\r\nSET CONTROL ECHO x\r\n"
+#define SET_CONTROL_ECHO  "\r\nSET CONTROL ECHO %d\r\n"
   #define SET_CONTROL_ECHO_BANNER_ON      0x01  //Bit 0 If this bit is set, the start-up banner is visible.
   #define SET_CONTROL_ECHO_BANNER_OFF     0x00
   #define SET_CONTROL_ECHO_COMMAND_ON     0x02  //Bit 1 If this bit is set, characters are echoed back to client in command mode.
@@ -170,8 +170,8 @@ void ineedmd_radio_send_string(char *send_string)
 void bluetooth_setup(void)
 {
   uint32_t i;
-  char cSet_Control;
-  char  *send_string;
+
+  char  *send_string = NULL;
   char cRcv_buff[BG_SIZE];
 
   memset(cRcv_buff, 0x00, BG_SIZE);
@@ -201,9 +201,26 @@ void bluetooth_setup(void)
   UARTEnable(UART1_BASE);
 
   //set the radio echo
-  cSet_Control = itoa(SET_CONTROL_ECHO_SETTING, 16);
+//  itoa(SET_CONTROL_ECHO_SETTING, &cSet_Control, 16);
+//  send_string = (char *) calloc(strlen(SET_CONTROL_ECHO), sizeof(char));
+  i = strlen(SET_CONTROL_ECHO);
+  send_string = malloc(i);
 
-  ineedmd_radio_send_string(SET_CONTROL_ECHO);
+
+
+  memcpy(send_string, SET_CONTROL_ECHO, i);
+
+  snprintf(send_string, i, SET_CONTROL_ECHO, 1);
+
+  snprintf(send_string, i, "\r\nSET CONTROL ECHO %d\r\n", 1);
+
+  memcpy(cRcv_buff, send_string, i);
+
+  //itoa(1, cSet_Control, 16);
+
+  snprintf(cRcv_buff, i, SET_CONTROL_ECHO, 1);
+
+  ineedmd_radio_send_string(cRcv_buff);
 
   //tell the radio we are using BT SSP pairing
 //  send_string = "SET BT SSP 1 1\n\r";
