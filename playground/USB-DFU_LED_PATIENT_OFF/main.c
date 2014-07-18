@@ -56,7 +56,7 @@ Timer0BIntHandler(void)
     //
     // Clear the timer interrupt flag.
     //
-    TimerIntClear(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
     //
     // Set a flag to indicate that the interrupt occurred.
@@ -150,15 +150,22 @@ void led_test(void)
  */
 void
 hold_until_short_removed(void){
+
+	uint32_t uiLead_statusA;
+	uint32_t uiLead_statusB;
 	//check the state of the short on the ekg connector
 	//check the USB for a short
 	//if not go back to sleep
 	//if wake up  open up the system clocks and go for it...
 	//
 
+	uiLead_statusA = ineedmd_adc_Check_Lead_Off();
 	
+	uiLead_statusB = ineedmd_adc_Check_Lead_Off();
 
-	while(ineedmd_adc_Check_Lead_Off() != 0xAAFF)
+#define LEAD_SHORT 0x020F
+#define LEAD_OPEN  0x0A0F
+	while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT)
 	{
 	    //disable the spi port
 		EKGSPIDisable();
@@ -168,7 +175,12 @@ hold_until_short_removed(void){
 		//
 		// Set the Timer0B load value to 10s.
 		//
-		TimerLoadSet(TIMER0_BASE, TIMER_B, 500000 );
+
+	    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+	    ROM_IntMasterEnable();
+	    ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+		TimerLoadSet(TIMER0_BASE, TIMER_A, 500000 );
+
 		//
 		// Enable processor interrupts.
 		//
@@ -176,30 +188,31 @@ hold_until_short_removed(void){
 		//
 		// Configure the Timer0 interrupt for timer timeout.
 		//
-		TimerIntEnable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
+		TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 		//
 		// Enable the Timer0A interrupt on the processor (NVIC).
 		//
-		IntEnable(INT_TIMER0B);
+		IntEnable(INT_TIMER0A);
 		//
 		// clocks down the processor to REALLY slow ( 500khz) and
 		//
-		set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
+//		set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
 		//
 		// Enable Timer0(A)
 		//
-		TimerEnable(TIMER0_BASE, TIMER_B);
+		TimerEnable(TIMER0_BASE, TIMER_A);
 
-		MAP_SysCtlSleep();
-		
+//		MAP_SysCtlSleep();
+		SysCtlSleep();
+
 		//comming out we turn the processor all the way up
 		set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
 
 		TimerDisable(TIMER0_BASE, TIMER_A);
-		IntDisable(INT_TIMER0B);
+		IntDisable(INT_TIMER0A);
 		IntMasterDisable();
-		
-		
+
+
 		GPIOEnable();
 		EKGSPIEnable();
 		//when done set the CS high
@@ -323,6 +336,12 @@ check_battery(void){
 
 }
 
+int iReset_me_init(void)
+{
+	return 1;
+
+}
+
 /*
  * main.c
  */
@@ -357,6 +376,8 @@ void main(void) {
 	//start conversions
 	ineedmd_adc_Start_Internal_Reference();
 	ineedmd_adc_Start_High();
+
+	iReset_me_init();
 
 #if DO_SHORT_HOLD
     hold_until_short_removed();
