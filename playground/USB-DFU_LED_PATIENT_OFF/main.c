@@ -168,17 +168,17 @@ hold_until_short_removed(void){
 		//
 		// Set the Timer0B load value to 10s.
 		//
-		TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
+		TimerLoadSet(TIMER0_BASE, TIMER_B, 500000 );
 		//
 		// Enable processor interrupts.
 		//
 		IntMasterEnable();
 		//
-		// Configure the Timer0B interrupt for timer timeout.
+		// Configure the Timer0 interrupt for timer timeout.
 		//
-		TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+		TimerIntEnable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
 		//
-		// Enable the Timer0B interrupt on the processor (NVIC).
+		// Enable the Timer0A interrupt on the processor (NVIC).
 		//
 		IntEnable(INT_TIMER0B);
 		//
@@ -188,7 +188,7 @@ hold_until_short_removed(void){
 		//
 		// Enable Timer0(A)
 		//
-		TimerEnable(TIMER0_BASE, TIMER_A);
+		TimerEnable(TIMER0_BASE, TIMER_B);
 
 		MAP_SysCtlSleep();
 		

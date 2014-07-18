@@ -147,7 +147,7 @@ Set_Timer0_Sleep()
     //
     // The Timer0 peripheral must be enabled for use.
     //
-    TimerConfigure(TIMER0_BASE, TIMER_CFG_ONE_SHOT);
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_ONE_SHOT);
 	
 }
 
