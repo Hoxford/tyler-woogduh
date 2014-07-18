@@ -1,2 +1,7 @@
 project/ccs/Debug/
 project/ccs/.settings/org.eclipse.core.resources.prefs
+*.out
+*.xml
+*.obj
+*.pp
+playground/USB-DFU_LED_PATIENT_OFF/Debug__TI/makefile
