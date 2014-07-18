@@ -10,7 +10,8 @@
 // Set us to debug mode
 #define DEBUG_CODE
 //
-
+#define DO_SHORT_HOLD
+#define DO_LED_TEST
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -48,21 +49,9 @@
 #include "ineedmd_bluetooth_radio.h"
 
 
-static volatile bool g_bIntFlag = false;
+//static volatile bool g_bIntFlag = false;
 
-void
-Timer0BIntHandler(void)
-{
-    //
-    // Clear the timer interrupt flag.
-    //
-    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
-    //
-    // Set a flag to indicate that the interrupt occurred.
-    //
-    g_bIntFlag = true;
-}
 void led_test(void)
 {
 
@@ -165,7 +154,7 @@ hold_until_short_removed(void){
 
 #define LEAD_SHORT 0x020F
 #define LEAD_OPEN  0x0A0F
-	while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT)
+	while(ineedmd_adc_Check_Lead_Off() != LEAD_OPEN)
 	{
 	    //disable the spi port
 		EKGSPIDisable();
@@ -179,7 +168,7 @@ hold_until_short_removed(void){
 	    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
 	    ROM_IntMasterEnable();
 	    ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-		TimerLoadSet(TIMER0_BASE, TIMER_A, 500000 );
+		TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
 
 		//
 		// Enable processor interrupts.
@@ -196,14 +185,14 @@ hold_until_short_removed(void){
 		//
 		// clocks down the processor to REALLY slow ( 500khz) and
 		//
-//		set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
+		set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
 		//
 		// Enable Timer0(A)
 		//
 		TimerEnable(TIMER0_BASE, TIMER_A);
 
-//		MAP_SysCtlSleep();
-		SysCtlSleep();
+		MAP_SysCtlSleep();
+		//SysCtlSleep();
 
 		//comming out we turn the processor all the way up
 		set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
@@ -253,7 +242,7 @@ check_for_update(void){
 	//check the state of the short on the ekg connector
 	//checks the short on the update_pin GPIO
 	//if short call the map_usbupdate() to force a USB update.
-	while(ineedmd_adc_Check_Lead_Off() != 0xaaff)
+	while(ineedmd_adc_Check_Lead_Off() != LEAD_OPEN)
 	{
         #define SYSTICKS_PER_SECOND 100
 		ROM_FPULazyStackingEnable();
@@ -336,11 +325,6 @@ check_battery(void){
 
 }
 
-int iReset_me_init(void)
-{
-	return 1;
-
-}
 
 /*
  * main.c
@@ -355,6 +339,7 @@ void main(void) {
     RadioUARTEnable();
     EKGSPIEnable();
 	ConfigureSleep(); 
+	Set_Timer0_Sleep();
 
 	//when done set the CS high
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
@@ -377,26 +362,22 @@ void main(void) {
 	ineedmd_adc_Start_Internal_Reference();
 	ineedmd_adc_Start_High();
 
-	iReset_me_init();
 
-#if DO_SHORT_HOLD
+//#if DO_SHORT_HOLD
     hold_until_short_removed();
-#endif //DO_SHORT_HOLD
+//#endif //DO_SHORT_HOLD
 
     BatMeasureADCEnable();
     LEDI2CEnable();
     XTALControlPin();
     USBPortEnable();
-	Set_Timer0_Sleep();
 
 	bluetooth_setup();
 
     while(1)
 
     {
-#ifdef DO_LED_TEST
     	led_test();
-#endif //DO_LED_TEST
 
 #ifdef DO_CHECK_BATT
     	check_battery();

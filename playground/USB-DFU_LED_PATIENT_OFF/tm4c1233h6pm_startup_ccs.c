@@ -23,6 +23,11 @@
 //*****************************************************************************
 
 #include <stdint.h>
+#include <stdbool.h>
+#include "driverlib/timer.h"
+#include <inc/tm4c1233h6pm.h>
+#include <inc/hw_memmap.h>
+
 
 //*****************************************************************************
 //
@@ -33,6 +38,7 @@ void ResetISR(void);
 static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
+static void Timer0AIntHandler(void);
 
 //*****************************************************************************
 //
@@ -102,7 +108,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // ADC Sequence 2
     IntDefaultHandler,                      // ADC Sequence 3
     IntDefaultHandler,                      // Watchdog timer
-    IntDefaultHandler,                      // Timer 0 subtimer A
+    Timer0AIntHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
     IntDefaultHandler,                      // Timer 1 subtimer A
     IntDefaultHandler,                      // Timer 1 subtimer B
@@ -314,4 +320,13 @@ Reset_me(void)
     while(1)
     {
     }
+}
+
+static void
+Timer0AIntHandler(void)
+{
+    //
+    // Clear the timer interrupt flag.
+    //
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 }
