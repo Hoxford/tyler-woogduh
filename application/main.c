@@ -85,6 +85,8 @@ main(void)
   iInit_wd(WD_TIMEOUT);
   iBoard_init();
 
+//  check_battery();
+
   iADC_setup();
 
   //power on the radio
@@ -99,6 +101,8 @@ main(void)
 #endif //DEBUG
 
     check_battery();
+
+
 //
 //    check_for_update();
   }

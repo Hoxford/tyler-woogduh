@@ -102,6 +102,7 @@ void EKGSPIDisable(void);
 
 void LEDI2CDisable(void);
 void USBPortDisnable(void);
+int iHW_delay(uint32_t uiDelay);
 int iBoard_init(void);
 
 #endif //  __BOARD_H__

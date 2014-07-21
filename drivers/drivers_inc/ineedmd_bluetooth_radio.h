@@ -11,6 +11,6 @@
 void ineedmd_radio_power(bool);
 void ineedmd_radio_reset(void);
 void ineedmd_radio_soft_reset(void);
-void ineedmd_radio_send_string(char *send_string);
+void ineedmd_radio_send_string(char *send_string, bool bIs_response);
 void bluetooth_setup(void);
 #endif /* INEEDMD_BLUETOOTH_RADIO_H_ */

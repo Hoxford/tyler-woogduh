@@ -396,6 +396,15 @@ int iRadio_interface_enable(void)
 
   // Enables the communication FIFO
   UARTFIFOEnable(INEEDMD_RADIO_UART);
+
+  //perform a delay
+  iHW_delay(1);
+
+  //
+  // Configure the UART for 115,200, 8-N-1 operation.
+  // This function uses SysCtlClockGet() to get the system clock
+  // frequency.
+  UARTConfigSetExpClk( UART1_BASE, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
   //And the Radio UART
   UARTEnable(INEEDMD_RADIO_UART);
 
@@ -531,6 +540,24 @@ USBPortDisable(void)
     //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
     // USB block need the processor at full speed to complete the initiaisation.
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
+}
+
+//*****************************************************************************
+// name: iHW_delay
+// description: performs a blocking hardware based delay. the delay is in 100ms
+//  "chunks"
+// param description:  uint32_t number of 100ms cycles to delay
+// return value description: the number of cycles delayed
+//*****************************************************************************
+int
+iHW_delay(uint32_t uiDelay)
+{
+  int i;
+  for(i = 0; i < uiDelay; i++)
+  {
+    MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
+  }
+  return i;
 }
 
 #if 0
