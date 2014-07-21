@@ -336,6 +336,10 @@ void main(void) {
     PowerInitFunction();
     GPIOEnable();
 	//enable the radio - so that it is out of reset and the battery charger is running...
+
+    LEDI2CEnable();
+    ineedmd_led_pattern(LED_OFF);
+
     RadioUARTEnable();
     EKGSPIEnable();
 	ConfigureSleep(); 
