@@ -57,20 +57,20 @@ void led_test(void)
 
     //ints to use in switch stmt
 
-    ineedmd_led_pattern(POWER_ON_BATGOOD);
-    ineedmd_led_pattern(POWER_ON_BATLOW);
-    ineedmd_led_pattern(BAT_CHARGING);
-    ineedmd_led_pattern(BT_CONNECTED);
-    ineedmd_led_pattern(BT_ATTEMPTING);
-    ineedmd_led_pattern(BT_FAILED);
-    ineedmd_led_pattern(USB_CONNECTED);
-    ineedmd_led_pattern(USB_FAILED);
+    //ineedmd_led_pattern(POWER_ON_BATGOOD);
+    //ineedmd_led_pattern(POWER_ON_BATLOW);
+    //ineedmd_led_pattern(BAT_CHARGING);
+    //ineedmd_led_pattern(BT_CONNECTED);
+    //ineedmd_led_pattern(BT_ATTEMPTING);
+    //ineedmd_led_pattern(BT_FAILED);
+    //ineedmd_led_pattern(USB_CONNECTED);
+    //ineedmd_led_pattern(USB_FAILED);
     ineedmd_led_pattern(DATA_TRANSFER);
     ineedmd_led_pattern(TRANSFER_DONE);
-    ineedmd_led_pattern(STORAGE_WARNING);
-    ineedmd_led_pattern(LEAD_LOOSE);
-    ineedmd_led_pattern(ACQUIRE_UPLOAD_DATA);
-    ineedmd_led_pattern(PATIENT_ALERT);
+    //ineedmd_led_pattern(STORAGE_WARNING);
+    //ineedmd_led_pattern(LEAD_LOOSE);
+    //ineedmd_led_pattern(ACQUIRE_UPLOAD_DATA);
+    //ineedmd_led_pattern(PATIENT_ALERT);
     ineedmd_led_pattern(LED_OFF);
 
 }
@@ -387,7 +387,7 @@ void main(void) {
     	check_battery();
 #endif //DO_CHECK_BATT
 
-    	check_for_update();
+    	//check_for_update();
 
     }
 }
