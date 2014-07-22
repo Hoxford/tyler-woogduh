@@ -62,7 +62,6 @@ check_battery(void){
   bIs_batt_low = bIs_battery_low();
   //if the input port is not high bat alarm!
 
-//  if( GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT) == INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT)
   if(bIs_batt_low == true)
   {
     // shut down the LEDs
@@ -74,7 +73,7 @@ check_battery(void){
     // clocks down the processor to REALLY slow ( 30khz) and
     set_system_speed (INEEDMD_CPU_SPEED_REALLY_SLOW);
 
-    //check batter low status
+    //check battery low status
     bIs_batt_low = bIs_battery_low();
 
     //loop until the battery is no longer in low power

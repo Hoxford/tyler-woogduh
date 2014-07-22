@@ -85,7 +85,7 @@ main(void)
   iInit_wd(WD_TIMEOUT);
   iBoard_init();
 
-//  check_battery();
+  check_battery();
 
   iADC_setup();
 
