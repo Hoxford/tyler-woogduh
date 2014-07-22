@@ -35,6 +35,12 @@
 //
 //*****************************************************************************
 
+#ifndef __BOARD_C__
+#define __BOARD_C__
+//*****************************************************************************
+// includes
+//*****************************************************************************
+#include "file.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "utils_inc/proj_debug.h"
@@ -43,19 +49,26 @@
 #include "inc/hw_memmap.h"
 #include "inc/hw_gpio.h"
 #include "inc/hw_sysctl.h"
-#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "driverlib/debug.h"
+#include "driverlib/gpio.h"
+#include "driverlib/i2c.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "driverlib/gpio.h"
-#include "driverlib/i2c.h"
-#include "driverlib/uart.h"
 #include "driverlib/ssi.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/uart.h"
 #include "driverlib/usb.h"
-#include "driverlib/debug.h"
+
 
 #include "inc/tm4c1233h6pm.h"
 
+
+//*****************************************************************************
+// defines
+//*****************************************************************************
+//#def EXAMPLE_DEF  value  //def description
 
 //
 //a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
@@ -183,16 +196,31 @@ GPIODisable(void)
 void
 BatMeasureADCEnable(void)
 {
+#if 0
+    uint32_t uiData;
     //Enable the ADC Clock
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+
+    MAP_SysCtlPeripheralEnable(BATTERY_SYSCTL_PERIPH_ADC);
+
+    MAP_GPIOPinTypeADC(INEEDMD_BATTERY_PORT, INEEDMD_BATTERY_MEASUREMENT_IN_PIN);
+
+//    MAP_SysCtlADCSpeedSet(SYSCTL_ADCSPEED_1MSPS); //(p215 ROM-LM guide)
+//    MAP_ADCSequenceDisable(BATTERY_ADC, 3);
+
+//    ROM_ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+    ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+    ROM_ADCSequenceStepConfigure(BATTERY_ADC, 3, 0, BATTERY_ADC_CTL_CH0 );
+    ROM_ADCIntClear(BATTERY_ADC, 3);
+
+    ROM_ADCSequenceEnable(BATTERY_ADC, 3);
+
+    ROM_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+
     //let is stabalise with a majik delay
     MAP_SysCtlDelay(1000);
     // Enable pin PE3 for ADC AIN0
     //
-    MAP_GPIOPinTypeADC(GPIO_PORTE_BASE, INEEDMD_PORTE_BATTERY_MEASUREMENT_IN_PIN);
-  // Enable pin PA7 for GPIOOutput
-    //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
-
+#endif
 
 }
 
@@ -217,15 +245,29 @@ BatMeasureADCDisable(void)
 // param description:
 // return value description:
 //*****************************************************************************
+void
+BatMeasureADCRead(void)
+{
+
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 bool
 bIs_battery_low(void)
 {
   uint8_t uiLow_batt;
   bool bIs_batt_low = false;
 
-  uiLow_batt = GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT);
 
-  if(uiLow_batt == INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT)
+
+  uiLow_batt = GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN);
+
+  if(uiLow_batt == INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN)
   {
     bIs_batt_low = true;
   }
@@ -290,14 +332,15 @@ EKGSPIDisable(void)
 
 
 //*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
+// name: RadioUARTEnable
+// description: configures and enables the usart for the BT radio
+// param description: none
+// return value description: none
 //*****************************************************************************
 void
 RadioUARTEnable(void)
 {
+  //TODO: abstract all the direct references to the processor I/O
   //
     //RADIO_CONFIG
     //
@@ -306,33 +349,33 @@ RadioUARTEnable(void)
     //
     // Enable pin PE0 for GPIOOutput - this is the reet for the radio.
     //
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST);
+    MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_RESET_PIN);
      //
     // Enable pin PE1 for GPIOInput
     // Not mapping this to an interupt yet as the IC is not yet written
-    MAP_GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT);
+    MAP_GPIOPinTypeGPIOInput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN);
     // Enable pin PE2 for GPIOOutput
     //
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_ENABLE);
+    MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_ENABLE_PIN);
 
     //de-exert,sets it low, reset pin, aka run mode
-    MAP_GPIOPinWrite(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_ENABLE, 0x00);
+    MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_ENABLE_PIN, 0x00);
     //
     // Enable pin PF0 for UART1 U1RTS
     // First open the lock and select the bits we want to modify in the GPIO commit register.
     //
-    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-    HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = 0x1;
+    HWREG(INEEDMD_RADIO_SERIAL_PORT + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(INEEDMD_RADIO_SERIAL_PORT + GPIO_O_CR) = 0x1;
     //
     // Now modify the configuration of the pins that we unlocked.
     //
     MAP_GPIOPinConfigure(GPIO_PF0_U1RTS);
-    MAP_GPIOPinTypeUART(GPIO_PORTF_BASE, GPIO_PIN_0);
+    MAP_GPIOPinTypeUART(INEEDMD_RADIO_SERIAL_PORT, GPIO_PIN_0);
     //
     // Enable pin PF1 for UART1 U1CTS
     //
     MAP_GPIOPinConfigure(GPIO_PF1_U1CTS);
-    MAP_GPIOPinTypeUART(GPIO_PORTF_BASE, GPIO_PIN_1);
+    MAP_GPIOPinTypeUART(INEEDMD_RADIO_SERIAL_PORT, GPIO_PIN_1);
     //
     // Enable pin PC5 for UART1 U1TX and PC4 for U1RX
     //
@@ -347,7 +390,7 @@ RadioUARTEnable(void)
     //
     MAP_GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4);
   //re set up the UART so it's timings are about correct
-    UARTConfigSetExpClk( UART1_BASE, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+    UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
     UARTEnable(INEEDMD_RADIO_UART);
 //  while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
@@ -379,7 +422,7 @@ RadioUARTDisable(void)
 int
 iRadio_Power_On(void)
 {
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_ENABLE, INEEDMD_PORTE_RADIO_ENABLE);
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN);
   return 1;
 }
 
@@ -600,6 +643,8 @@ int
 iBoard_init(void)
 {
   PowerInitFunction();
+//  set_system_speed (INEEDMD_CPU_SPEED_FULL_EXTERNAL);
+
   GPIOEnable();
   EKGSPIEnable();
 
@@ -614,3 +659,4 @@ iBoard_init(void)
 
   return 1;
 }
+#endif //__BOARD_C__

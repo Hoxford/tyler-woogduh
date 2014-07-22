@@ -109,7 +109,7 @@ void ineedmd_radio_power(bool power_up)
 	else
 	{
 		//otherwise sets it to low
-		GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_ENABLE, 0x00);
+		GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
 
 		// Disables the UART
 		UARTDisable(INEEDMD_RADIO_UART);
@@ -127,7 +127,7 @@ void ineedmd_radio_power(bool power_up)
 void ineedmd_radio_reset(void)
 {
   //exerts the processor rest pin
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST,  INEEDMD_PORTE_RADIO_REST );
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_RESET_PIN,  INEEDMD_RADIO_RESET_PIN );
 
 
 	//as we dont know the state of the processor or the timers we will do the delay in cpu clock cycles
@@ -136,7 +136,7 @@ void ineedmd_radio_reset(void)
 	MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
 
 	//de-exert,sets it low, reset pin
-	GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST, 0x00);
+	GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_RESET_PIN, 0x00);
 }
 
 //*****************************************************************************
@@ -290,7 +290,7 @@ void bluetooth_setup(void)
   //format the send string with the BT address
   snprintf(cSend_buff, BG_SIZE, SET_BT_NAME, uiBT_addr[4], uiBT_addr[5]);
   //send the new address
-  ineedmd_radio_send_string(cSend_buff, true);
+  ineedmd_radio_send_string(cSend_buff, false);
 
 }
 

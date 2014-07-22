@@ -47,28 +47,39 @@
 #define INEEDMD_PORTA_ADC_START_PIN 0x02
 #define INEEDMD_PORTA_ADC_nCS_PIN 0x08
 
-#define INEEDMD_PORTE_BATTERY_MEASUREMENT_IN_PIN 0x08
-#define INEEDMD_PORTE_RADIO_REST  0x01
-#define INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT 0x02
-#define INEEDMD_PORTE_RADIO_ENABLE 0x04
+//battery port mappings
+#define INEEDMD_BATTERY_PORT                 GPIO_PORTE_BASE
+#define INEEDMD_BATTERY_MEASUREMENT_IN_PIN   GPIO_PIN_3
+#define BATTERY_ADC                          ADC0_BASE
+#define BATTERY_ADC_CTL_CH0                  ADC_CTL_CH0
+#define BATTERY_SYSCTL_PERIPH_ADC            SYSCTL_PERIPH_ADC0
+//#define BATTERY_SYSCTL_PERIPH_GPIO           SYSCTL_PERIPH_GPIOE
+
+//BT Radio mappings
+#define INEEDMD_RADIO_PORT                     GPIO_PORTE_BASE
+#define INEEDMD_RADIO_SERIAL_PORT              GPIO_PORTF_BASE
+#define INEEDMD_RADIO_RESET_PIN                GPIO_PIN_0
+#define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1
+#define INEEDMD_RADIO_ENABLE_PIN               GPIO_PIN_2
+#define INEEDMD_RADIO_UART                     UART1_BASE
 
 #define INEEDMD_PORTD_XTAL_ENABLE 0x20
 
 
 //port mappings to make easier to read names...
-#define INEEDMD_ADC_SPI SSI0_BASE
-#define INEEDMD_FLASH_SPI SSI1_BASE
-#define INEEDMD_LED_I2C I2C0_BASE
-#define INEEDMD_RADIO_UART UART1_BASE
-#define INEEDMD_USB USB0_BASE
+#define INEEDMD_ADC_SPI     SSI0_BASE
+#define INEEDMD_FLASH_SPI   SSI1_BASE
+#define INEEDMD_LED_I2C     I2C0_BASE
+
+#define INEEDMD_USB         USB0_BASE
 
 //subsystem block number - just used to make some coding functions easer.
-#define INEEDMD_CPU 0x00
-#define INEEDMD_ADC 0x01
-#define INEEDMD_FLASH 0x02
-#define INEEDMD_LED 0x03
-#define INEEDMD_RADIO 0x04
-#define INEED_USB 0x05
+#define INEEDMD_CPU    0x00
+#define INEEDMD_ADC    0x01
+#define INEEDMD_FLASH  0x02
+#define INEEDMD_LED    0x03
+#define INEEDMD_RADIO  0x04
+#define INEED_USB      0x05
 
 //subsystem block number - just used to make some coding functions easer.
 #define INEEDMD_CPU_SPEED_FULL_EXTERNAL 0x00
