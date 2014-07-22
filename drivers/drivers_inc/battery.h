@@ -39,5 +39,6 @@
 // function declarations
 //*****************************************************************************
 void check_battery(void); //battery power check function
+uint32_t measure_battery(void); // run the ADC to measure the battery
 
 #endif //__BATTERY_H__

@@ -44,7 +44,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "utils_inc/proj_debug.h"
-#include "board.h"
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_gpio.h"
@@ -61,8 +60,8 @@
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
 
-
 #include "inc/tm4c1233h6pm.h"
+#include "board.h"
 
 
 //*****************************************************************************
@@ -118,6 +117,13 @@ void set_system_speed (unsigned int how_fast)
     case INEEDMD_CPU_SPEED_FULL_INTERNAL:
       //setting to run on the PLL from the internal clock and switch off the external xtal pads and pin this gives us an 80 Mhz clock
       SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+      // switch off the external oscillator
+      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+      break;
+
+    case INEEDMD_CPU_SPEED_HALF_INTERNAL:
+      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 40Mhz
+      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
       break;
@@ -196,10 +202,10 @@ GPIODisable(void)
 void
 BatMeasureADCEnable(void)
 {
-#if 0
-    uint32_t uiData;
-    //Enable the ADC Clock
 
+    //uint32_t uiData;
+
+    //Enable the ADC Clock
     MAP_SysCtlPeripheralEnable(BATTERY_SYSCTL_PERIPH_ADC);
 
     MAP_GPIOPinTypeADC(INEEDMD_BATTERY_PORT, INEEDMD_BATTERY_MEASUREMENT_IN_PIN);
@@ -208,19 +214,16 @@ BatMeasureADCEnable(void)
 //    MAP_ADCSequenceDisable(BATTERY_ADC, 3);
 
 //    ROM_ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
-    ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
-    ROM_ADCSequenceStepConfigure(BATTERY_ADC, 3, 0, BATTERY_ADC_CTL_CH0 );
-    ROM_ADCIntClear(BATTERY_ADC, 3);
 
-    ROM_ADCSequenceEnable(BATTERY_ADC, 3);
+    MAP_ADCSequenceDisable(BATTERY_ADC, 3);
+    MAP_ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+    MAP_ADCSequenceStepConfigure(BATTERY_ADC, 3, 0, BATTERY_ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END );
+    MAP_ADCIntClear(BATTERY_ADC, 3);
 
-    ROM_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+    MAP_ADCSequenceEnable(BATTERY_ADC, 3);
 
-    //let is stabalise with a majik delay
-    MAP_SysCtlDelay(1000);
-    // Enable pin PE3 for ADC AIN0
-    //
-#endif
+    //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+
 
 }
 
@@ -316,6 +319,9 @@ EKGSPIEnable(void)
   SSIConfigSetExpClk(INEEDMD_ADC_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
   SSIEnable(INEEDMD_ADC_SPI);
 //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
+
+  //when done set the CS high the ADC needs the CS pin high to work properly
+   MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 }
 
 
@@ -642,19 +648,32 @@ PortFunctionInit(void)
 int
 iBoard_init(void)
 {
-  PowerInitFunction();
-//  set_system_speed (INEEDMD_CPU_SPEED_FULL_EXTERNAL);
 
+  //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
+  SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+
+  // set the brown out interupt and power down voltage
+  PowerInitFunction();
+
+  // switch on the GPIO
   GPIOEnable();
+
+  //start the SPI bus to the capture ADC
   EKGSPIEnable();
 
-  //when done set the CS high
-  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
-
+  //start the radio UART
   RadioUARTEnable();
+
+  //and the ASC enable to measure the battery
   BatMeasureADCEnable();
+
+  //start the LED driver so that we can flash and dance
   LEDI2CEnable();
+
+  //start the pin that allows us to shut down the external oscillator... savng some power
   XTALControlPin();
+
+  //setup the USB port.  This can't be used in this clock mode.
   USBPortEnable();
 
   return 1;

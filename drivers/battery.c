@@ -11,9 +11,19 @@
 //*****************************************************************************
 #include <stdint.h>
 #include <stdbool.h>
-#include "board.h"
+
+#include "inc/hw_memmap.h"
+#include "inc/tm4c1233h6pm.h"
+
+#include "driverlib/rom_map.h"
+#include "driverlib/adc.h"
+#include "driverlib/sysctl.h"
+
 #include "ineedmd_led.h"
 #include "ineedmd_adc.h"
+
+#include "battery.h"
+#include "board.h"
 
 //*****************************************************************************
 // defines
@@ -47,20 +57,38 @@
 // functions
 //*****************************************************************************
 
-//*****************************************************************************
-// name: check_battery
-// description: checks the state of the battery. If the battery is low the
-//  function parks the bus and clocks the processor low.
-// param description: none
-// return value description: none
-//*****************************************************************************
+/*
+****************************************************************************
+* name: check_battery
+* description: checks the state of the battery. If the battery is low the
+*  function parks the bus and clocks the processor low.
+* param description: none
+* return value description: none
+*****************************************************************************
+*/
 void
-check_battery(void){
+check_battery(void)
+{
+
   bool bIs_batt_low;
+
   //check the state of the low battery pin and if it is low the we park the bus...
+  // There are 2 possible battery low indications..
+  //          the bat_low pin from the radio
+  //          The ADC that measures the battery voltage
+
 
   bIs_batt_low = bIs_battery_low();
-  //if the input port is not high bat alarm!
+  if(measure_battery()>BATTERY_LOW_ADC_VALUE )
+    {
+      bIs_batt_low = true;
+      ineedmd_led_pattern(POWER_ON_BATGOOD);
+    }
+  if(measure_battery()<BATTERY_CRITICAL_ADC_VALUE )
+    {
+      bIs_batt_low = true;
+      ineedmd_led_pattern(POWER_ON_BATLOW);
+    }
 
   if(bIs_batt_low == true)
   {
@@ -83,14 +111,42 @@ check_battery(void){
       bIs_batt_low = bIs_battery_low();
     }
   }
-  //comming out we turn the processor all the way up
-  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
-  //stART the conversions
-  ineedmd_adc_Start_High();
-  //start down the reference
-  ineedmd_adc_Start_Internal_Reference();
-  // clocks down the processor to REALLY slow ( 30khz) and
 
 
+}
 
+uint32_t
+measure_battery()
+{
+  uint32_t i;
+  uint32_t pui32ADCValue;
+  uint32_t average_pui32ADCValue;
+
+  if (MAP_SysCtlClockGet()>20000000)
+  {
+    return 1;
+  }
+  average_pui32ADCValue = 0;
+  for ( i = 0; i <16; i++)
+  {
+    ADCProcessorTrigger(BATTERY_ADC, 3);
+    //
+    // Wait for conversion to be completed.
+    //
+    while(!ADCIntStatus(BATTERY_ADC, 3, false))
+    {
+    }
+    //
+    // Clear the ADC interrupt flag.
+    //
+    ADCIntClear(BATTERY_ADC, 3);
+    //
+    // Read ADC Value.
+    //
+    ADCSequenceDataGet(BATTERY_ADC, 3, &pui32ADCValue);
+    average_pui32ADCValue = average_pui32ADCValue+ pui32ADCValue;
+  }
+  average_pui32ADCValue = average_pui32ADCValue>>4;
+
+  return average_pui32ADCValue;
 }

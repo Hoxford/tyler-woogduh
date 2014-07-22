@@ -53,6 +53,9 @@
 #define BATTERY_ADC                          ADC0_BASE
 #define BATTERY_ADC_CTL_CH0                  ADC_CTL_CH0
 #define BATTERY_SYSCTL_PERIPH_ADC            SYSCTL_PERIPH_ADC0
+#define BATTERY_CRITICAL_ADC_VALUE           0x00000866
+#define BATTERY_LOW_ADC_VALUE                0x00000900
+
 //#define BATTERY_SYSCTL_PERIPH_GPIO           SYSCTL_PERIPH_GPIOE
 
 //BT Radio mappings
@@ -84,8 +87,9 @@
 //subsystem block number - just used to make some coding functions easer.
 #define INEEDMD_CPU_SPEED_FULL_EXTERNAL 0x00
 #define INEEDMD_CPU_SPEED_FULL_INTERNAL 0x01
-#define INEEDMD_CPU_SPEED_SLOW_INTERNAL 0x02
-#define INEEDMD_CPU_SPEED_REALLY_SLOW 0x03
+#define INEEDMD_CPU_SPEED_HALF_INTERNAL 0x02
+#define INEEDMD_CPU_SPEED_SLOW_INTERNAL 0x03
+#define INEEDMD_CPU_SPEED_REALLY_SLOW 0x04
 
 
 
