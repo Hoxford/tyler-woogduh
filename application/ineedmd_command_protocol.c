@@ -11,6 +11,9 @@
 //*****************************************************************************
 // includes
 //*****************************************************************************
+#include <stdint.h>
+#include <string.h>
+#include <stdbool.h>
 #include "app_inc/ineedmd_command_protocol.h"
 
 //*****************************************************************************
@@ -23,6 +26,9 @@
 #define STATUS_SLEEP 0x20
 #define STATUS_ON 0x40
 #define STATUS_POWER 0x60
+
+#define printf  debug_out
+#define sprintf  debug_out
 
 //*****************************************************************************
 // variables
@@ -55,10 +61,31 @@ static const char status0x15[] = { 0x9C, 0x03, 0x0E, 0x16, 0x03, 0x10, 0x0A, 0x9
 // function declarations
 //*****************************************************************************
 
+int debug_out(char * cOut_buff,...);
+int SearchArrCmd(char cArrCmd);
+void writeDataToPort(char * cOut_buff);
 //*****************************************************************************
 // functions
 //*****************************************************************************
 
+//todo: define this
+int debug_out(char * cOut_buff,...)
+{
+  return 1;
+}
+
+//todo: define this
+int SearchArrCmd(char cArrCmd)
+{
+  return 1;
+}
+
+
+//TODO: define this
+void writeDataToPort(char * cOut_buff)
+{
+  return;
+}
 //*****************************************************************************
 // name: parseCommand
 // description: The function is called if the data packet received is of a command.
@@ -76,7 +103,7 @@ void parseCommand(unsigned char szCommand[],int cntCommand)
   */
   int dataFlag = 0;
   int dataCnt = 0;
-  int SearchArrCmd(const char);
+
   int indexCmd;
   int i; // just used for parsing the szCommand[]
   char data[6];
@@ -307,6 +334,9 @@ void parseCommand(unsigned char szCommand[],int cntCommand)
 // param description:
 // return value description:
 //*****************************************************************************
-
+int iIneedmd_command_process(void)
+{
+  return 1;
+}
 
 #endif //__INEEDMD_COMMAND_PROTOCOL_C__

@@ -65,6 +65,7 @@
 #define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1
 #define INEEDMD_RADIO_ENABLE_PIN               GPIO_PIN_2
 #define INEEDMD_RADIO_UART                     UART1_BASE
+#define INEEDMD_RADIO_UART_INT                 INT_UART1
 
 #define INEEDMD_PORTD_XTAL_ENABLE 0x20
 
@@ -106,6 +107,10 @@ void RadioUARTEnable(void);
 void RadioUARTDisable(void);
 int iRadio_Power_On(void);
 int iRadio_interface_enable(void);
+int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
+int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
+int iRadio_interface_int_enable(void);
+void vRadio_interface_int_service(uint16_t uiInt_id);
 void LEDI2CEnable(void);
 void XTALControlPin(void);
 void USBPortEnable(void);
