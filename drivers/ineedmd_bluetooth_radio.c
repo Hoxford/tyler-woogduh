@@ -85,7 +85,6 @@
  * Function Section
  *
  */
-int iIneedmd_radio_rcv_string(char *cRcv_string);
 int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr);
 
 /* ineedmd_radio_power
@@ -160,40 +159,31 @@ void ineedmd_radio_soft_reset(void)
 
 /*
  * send message to the radio
+ * This function in it's current state just passes the parameters to the HAL.
+ * It is meant to be here for future api, rtos, parsing use.
  */
-void ineedmd_radio_send_string(char *send_string, bool bIs_response)
+void ineedmd_radio_send_string(char *send_string, uint16_t uiBuff_size)
 {
-	uint32_t i;
-	char cRcv_buff[128];
-	for (i = 0; i<strlen(send_string); i++)
-	{
-		UARTCharPut(INEEDMD_RADIO_UART, send_string[i]);
-	}
+  int i;
 
-	if(bIs_response == true)
-	{
-	  iIneedmd_radio_rcv_string(cRcv_buff);
-	}
-
+  i = iRadio_send_string(send_string, uiBuff_size);
+#if DEBUG
+  if(i < strlen(send_string))
+  {
+    while(1);
+  }
+#endif //DEBUG
 }
 
 /*
  * get message from the radio
  */
-int iIneedmd_radio_rcv_string(char *cRcv_string)
+int iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i;
-  for(i = 0; i != BG_SIZE; i++)
-  {
-    //receive a character from the USART
-    cRcv_string[i] = UARTCharGet(INEEDMD_RADIO_UART);
 
-    //check if the end of the radio frame is received
-    if(cRcv_string[i] == '\n')
-    {
-      break;
-    }
-  }
+  i = iRadio_rcv_string(cRcv_string, uiBuff_size);
+
   return i;
 }
 
@@ -229,7 +219,7 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
 /*
  * Setup the radio
  */
-void bluetooth_setup(void)
+int  iIneedMD_radio_setup(void)
 {
   uint32_t iEC;
 
@@ -250,32 +240,32 @@ void bluetooth_setup(void)
   ineedmd_radio_reset();
 
   //reset the radio to factory defaults
-  ineedmd_radio_send_string(SET_RESET, false);
+  ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
   iHW_delay(10);
   //hardware power reset the radio
   ineedmd_radio_reset();
 
   //set the radio echo
   snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
-  ineedmd_radio_send_string(cSend_buff, false);
+  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
   //tell the radio we are using BT SSP pairing
   memset(cSend_buff, 0x00, BG_SIZE);
   snprintf(cSend_buff, BG_SIZE, SET_BT_SSP, SET_BT_SSP_CPBLTES_DISP_AND_YN, SET_BT_SSP_MITM_PROT);
-  ineedmd_radio_send_string(cSend_buff, false);
+  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
   //tells the radio we are using SPP protocol
-  ineedmd_radio_send_string(SET_PROFILE_SPP, false);
+  ineedmd_radio_send_string(SET_PROFILE_SPP, strlen(SET_PROFILE_SPP));
 
   // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
   memset(cSend_buff, 0x00, BG_SIZE);
   snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
-  ineedmd_radio_send_string(cSend_buff, false);
+  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
   //get BT address
-  ineedmd_radio_send_string(SET_BT_BDADDR, false);
+  ineedmd_radio_send_string(SET_BT_BDADDR, strlen(SET_BT_BDADDR));
   memset(cRcv_buff, 0x00, BG_SIZE);
-  iEC = iIneedmd_radio_rcv_string(cRcv_buff);
+  iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
   //parse string for the BT address
   iEC = iIneedmd_parse_addr(cRcv_buff, uiBT_addr);
@@ -290,10 +280,30 @@ void bluetooth_setup(void)
   //format the send string with the BT address
   snprintf(cSend_buff, BG_SIZE, SET_BT_NAME, uiBT_addr[4], uiBT_addr[5]);
   //send the new address
-  ineedmd_radio_send_string(cSend_buff, false);
+  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
+  //enable the interrupt to the radio
+  iRadio_interface_int_enable();
+
+  return 1;
 }
 
+/*
+ * Check for BT connection
+ */
+int  iIneedMD_radio_check_for_connection(void)
+{
+
+  return 1;
+}
+
+/*
+ * Main radio process
+ */
+int iIneedMD_radio_process(void)
+{
+  return 1;
+}
 /*
  * Get status from the radio
  */

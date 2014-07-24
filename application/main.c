@@ -16,12 +16,14 @@
 #include "battery.h"
 #include "ineedmd_bluetooth_radio.h"
 #include "ineedmd_led.h"
+#include "app_inc/ineedmd_command_protocol.h"
 
 //*****************************************************************************
 // defines
 //*****************************************************************************
 #define WD_TIMEOUT  5  //Watch dog time out value in secons
 
+#define iIneedmd_connection_process  iIneedMD_radio_process
 //*****************************************************************************
 // variables
 //*****************************************************************************
@@ -85,25 +87,21 @@ main(void)
   iInit_wd(WD_TIMEOUT);
   iBoard_init();
 
-  check_battery();
+//  check_battery();
 
   iADC_setup();
 
   //power on the radio
-  bluetooth_setup();
+  iIneedMD_radio_setup();
 
   while(1)
   {
     iPet_the_dog();
 
-#ifdef DEBUG
-    led_test();
-#endif //DEBUG
+    iIneedmd_command_process();
 
-    check_battery();
-
-
-//
+//    led_test();
+//    check_battery();
 //    check_for_update();
   }
   return 1;

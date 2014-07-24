@@ -23,6 +23,12 @@
 //*****************************************************************************
 
 #include <stdint.h>
+#include <stdbool.h>
+
+#include "inc/hw_memmap.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/uart.h"
+#include "board.h"
 
 //*****************************************************************************
 //
@@ -309,5 +315,30 @@ IntDefaultHandler(void)
 static void
 vUART1_Rx_and_Tx(void)
 {
+  uint32_t ui32Status;
+
+  //
+  // Get the interrrupt status.
+  //
+  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+
+  if((ui32Status & UART_INT_RX) == UART_INT_RX)
+  {
+    vRadio_interface_int_service(UART_INT_RX);
+  }
+
+  if((ui32Status & UART_INT_RT) == UART_INT_RT)
+  {
+    vRadio_interface_int_service(UART_INT_RT);
+  }
+
+  //
+  // Clear the asserted interrupts.
+  //
+  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+
+  //
+  // Loop while there are characters in the receive FIFO.
+  //
   return;
 }

@@ -43,6 +43,7 @@
 #include "file.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include "utils_inc/proj_debug.h"
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -398,8 +399,6 @@ RadioUARTEnable(void)
   //re set up the UART so it's timings are about correct
     UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
     UARTEnable(INEEDMD_RADIO_UART);
-//  while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
-
 }
 
 
@@ -466,32 +465,112 @@ int iRadio_interface_enable(void)
 // param description:
 // return value description:
 //*****************************************************************************
+int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
+{
+  uint32_t i;
+  i = strlen(cSend_string);
+  if(i != uiBuff_size)
+  {
+    return 0;
+  }
+
+  for (i = 0; i<uiBuff_size; i++)
+  {
+    UARTCharPut(INEEDMD_RADIO_UART, cSend_string[i]);
+  }
+  return i;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
+{
+  int i;
+
+  for(i = 0; i < uiBuff_size; i++)
+  {
+    //receive a character from the USART
+    cRcv_string[i] = UARTCharGet(INEEDMD_RADIO_UART);
+
+    //check if the end of the radio frame is received
+    if(cRcv_string[i] == '\n')
+    {
+      break;
+    }
+  }
+  return i;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int iRadio_interface_int_enable(void)
+{
+  //
+  // Enable the UART interrupt.
+  //
+  ROM_IntEnable(INEEDMD_RADIO_UART_INT);
+  ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT);
+  return 1;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vRadio_interface_int_service(uint16_t uiInt_id)
+{
+  char cRcv_string[1024];
+  memset(cRcv_string, 0x00, 1024);
+
+  if(uiInt_id == UART_INT_RX)
+  {
+
+  }
+
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 void
 SDCardSPIInit(void)
 {
-    //
-    //SPI 1 is used for the FLASH
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
-    //
-    // Enable pin PD2 for SSI1 SSI1RX
-    //
-    MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
-    //
-    // Enable pin PD3 for SSI1 SSI1TX
-    //
-    MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
-    //
-    // Enable pin PD0 for SSI1 SSI1CLK
-    //
-    MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
-    //
-    // Enable pin PD1 for SSI1 SSI1FSS
-    //
-    MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
+  //
+  //SPI 1 is used for the FLASH
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+  //
+  // Enable pin PD2 for SSI1 SSI1RX
+  //
+  MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
+  //
+  // Enable pin PD3 for SSI1 SSI1TX
+  //
+  MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
+  //
+  // Enable pin PD0 for SSI1 SSI1CLK
+  //
+  MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
+  //
+  // Enable pin PD1 for SSI1 SSI1FSS
+  //
+  MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
   SSIEnable(INEEDMD_FLASH_SPI);
   SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
   SSIEnable(INEEDMD_FLASH_SPI);
