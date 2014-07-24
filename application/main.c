@@ -98,7 +98,9 @@ main(void)
   {
     iPet_the_dog();
 
-    iIneedmd_command_process();
+//    iIneedMD_radio_process();
+
+//    iIneedmd_command_process();
 
 //    led_test();
 //    check_battery();

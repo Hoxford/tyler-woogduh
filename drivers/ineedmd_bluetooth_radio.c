@@ -78,8 +78,15 @@
   #define SET_CONTROL_BATT_MASK    INEEDMED_PIO_MASK
 #define SET_SET           "\r\nSET\r\n"  //retruns the settings of the BT radio *warning: large return string*
 #define SET_RESET         "\r\nSET RESET\r\n"  //resets the radio to factory default settings
+#define SSP PASSKEY       "\r\nSSP PASSKEY %x : %x : %x : %x : %x : %x "
 
 #define BG_SIZE  256
+
+/******************************************************************************
+* variables
+******************************************************************************/
+volatile bool bIs_data;
+volatile bool bIs_connection = false;
 
 /*
  * Function Section
@@ -259,7 +266,8 @@ int  iIneedMD_radio_setup(void)
 
   // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
   memset(cSend_buff, 0x00, BG_SIZE);
-  snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
+  iEC = snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
+
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
   //get BT address
@@ -282,6 +290,9 @@ int  iIneedMD_radio_setup(void)
   //send the new address
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
+  //set the connection status to false while waiting for an outside connection
+  bIs_connection = false;
+
   //enable the interrupt to the radio
   iRadio_interface_int_enable();
 
@@ -302,6 +313,17 @@ int  iIneedMD_radio_check_for_connection(void)
  */
 int iIneedMD_radio_process(void)
 {
+  bool bIs_connection = false;
+  bool bIs_data = false;
+
+  if(bIs_connection == true)
+  {
+
+    if(bIs_data == true)
+    {
+
+    }
+  }
   return 1;
 }
 /*

@@ -111,6 +111,7 @@ int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
 int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
 int iRadio_interface_int_enable(void);
 void vRadio_interface_int_service(uint16_t uiInt_id);
+bool bRadio_is_data(void);
 void LEDI2CEnable(void);
 void XTALControlPin(void);
 void USBPortEnable(void);

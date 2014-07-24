@@ -70,6 +70,11 @@
 //*****************************************************************************
 //#def EXAMPLE_DEF  value  //def description
 
+
+/******************************************************************************
+* variables
+******************************************************************************/
+volatile bool bIs_usart_data = false;
 //
 //a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
 //
@@ -529,14 +534,27 @@ int iRadio_interface_int_enable(void)
 //*****************************************************************************
 void vRadio_interface_int_service(uint16_t uiInt_id)
 {
-  char cRcv_string[1024];
-  memset(cRcv_string, 0x00, 1024);
+  char cRcv_string[256];
+  memset(cRcv_string, 0x00, 256);
 
   if(uiInt_id == UART_INT_RX)
   {
+    bIs_usart_data = true;
 
+    iRadio_rcv_string(cRcv_string, 256);
   }
+}
 
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+bool bRadio_is_data(void)
+{
+  return bIs_usart_data;
 }
 
 //*****************************************************************************
