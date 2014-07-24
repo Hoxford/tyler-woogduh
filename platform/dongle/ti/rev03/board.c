@@ -566,6 +566,35 @@ bool bRadio_is_data(void)
 void
 SDCardSPIInit(void)
 {
+<<<<<<< HEAD
+    //
+    //SPI 1 is used for the FLASH
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+    //
+    // Enable pin PD2 for SSI1 SSI1RX
+    //
+    MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
+    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
+    //
+    // Enable pin PD3 for SSI1 SSI1TX
+    //
+    MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
+    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
+    //
+    // Enable pin PD0 for SSI1 SSI1CLK
+    //
+    MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
+    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
+    //
+    // Enable pin PD1 for SSI1 SSI1FSS
+    //
+    MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
+    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
+    SSIEnable(INEEDMD_FLASH_SPI);
+    SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+    SSIEnable(INEEDMD_FLASH_SPI);
+    //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+=======
   //
   //SPI 1 is used for the FLASH
   MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
@@ -593,6 +622,7 @@ SDCardSPIInit(void)
   SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
   SSIEnable(INEEDMD_FLASH_SPI);
   //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+>>>>>>> c6570f0db7f4ad6b9598586869f2bcbc97c44eb2
 
 }
 
