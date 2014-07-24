@@ -492,10 +492,10 @@ SDCardSPIInit(void)
     //
     MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
     MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
-  SSIEnable(INEEDMD_FLASH_SPI);
-  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
-  SSIEnable(INEEDMD_FLASH_SPI);
-  //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+    SSIEnable(INEEDMD_FLASH_SPI);
+    SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+    SSIEnable(INEEDMD_FLASH_SPI);
+    //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
 
 }
 
