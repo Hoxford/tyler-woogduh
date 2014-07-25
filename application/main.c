@@ -98,7 +98,7 @@ main(void)
   {
     iPet_the_dog();
 
-//    iIneedMD_radio_process();
+    iIneedMD_radio_process();
 
 //    iIneedmd_command_process();
 

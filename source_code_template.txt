@@ -65,12 +65,12 @@ int example_function(param_1, param_2); //short function declaration description
 // functions
 //*****************************************************************************
 
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 int example_function(param_1, param_2)
 {
 }

@@ -534,14 +534,14 @@ int iRadio_interface_int_enable(void)
 //*****************************************************************************
 void vRadio_interface_int_service(uint16_t uiInt_id)
 {
-  char cRcv_string[256];
-  memset(cRcv_string, 0x00, 256);
+//  char cRcv_string[256];
+//  memset(cRcv_string, 0x00, 256);
 
   if(uiInt_id == UART_INT_RX)
   {
     bIs_usart_data = true;
 
-    iRadio_rcv_string(cRcv_string, 256);
+//    iRadio_rcv_string(cRcv_string, 256);
   }
 }
 
@@ -566,7 +566,6 @@ bool bRadio_is_data(void)
 void
 SDCardSPIInit(void)
 {
-<<<<<<< HEAD
     //
     //SPI 1 is used for the FLASH
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
@@ -594,7 +593,7 @@ SDCardSPIInit(void)
     SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
     SSIEnable(INEEDMD_FLASH_SPI);
     //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
-=======
+
   //
   //SPI 1 is used for the FLASH
   MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
@@ -622,7 +621,7 @@ SDCardSPIInit(void)
   SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
   SSIEnable(INEEDMD_FLASH_SPI);
   //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
->>>>>>> c6570f0db7f4ad6b9598586869f2bcbc97c44eb2
+
 
 }
 
