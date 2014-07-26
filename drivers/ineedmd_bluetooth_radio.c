@@ -44,6 +44,7 @@
 #define INEEDMD_FULL_BATT_VOLTAGE    3400
 #define INEEDMED_PIO_MASK            01
 
+#define RESET             "\r\nRESET\r\n"
 #define SET_SET           "\r\nSET\r\n"  //retruns the settings of the BT radio *warning: large return string*
 
 //#define SET_BT_NAME       "\r\nSET BT NAME IneedMD-00:07:80:0D:73:E0\r\n"
@@ -93,7 +94,7 @@
 #define SSP_PASSKEY  "\r\nSSP PASSKEY %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY_PARSE  "%s %s %x %c %x %c %x %c %x %c %x %c %x %d %c"
 #define SSP_PASSKEY_PARSE_NUM_ELEMENTS  15
-#define SET_RESET         "\r\nSET RESET\r\n"  //resets the radio to factory default settings
+#define SET_RESET         "\r\nSET RESET\r\n"  //returns the factory settings of the module.
 #define RING              "\r\nRING 0 %x:%x:%x:%x:%x:%x 1 RFCOMM\r\n"
 
 #define BT_MACADDR_NUM_BYTES  6
@@ -217,6 +218,59 @@ int iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 }
 
 /*
+ * get message from the radio
+ */
+int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
+{
+  int i = 0;
+  bool bSetup_is_data;
+  char *cEnd_of_frame;
+  uint32_t ui32Status;
+  iRadio_interface_int_enable();
+  MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
+  bSetup_is_data = bRadio_is_data();
+
+//  while(MAP_UARTCharsAvail(INEEDMD_RADIO_UART))
+  while(bSetup_is_data == true)
+  {
+    if(i == uiBuff_size)
+    {
+      break;
+    }
+
+    if(i == 170)
+    {
+      i = 170;
+    }
+    iRadio_rcv_char(&cRcv_string[i]);
+
+    if(cRcv_string[i] == '\n')
+    {
+      cEnd_of_frame = &cRcv_string[i - 7];
+      if((cEnd_of_frame[0] == 'R') &&
+         (cEnd_of_frame[1] == 'E') &&
+         (cEnd_of_frame[2] == 'A') &&
+         (cEnd_of_frame[3] == 'D') &&
+         (cEnd_of_frame[4] == 'Y'))
+      {
+        return i;
+      }
+    }
+
+    ++i;
+
+    iRadio_interface_int_disable();
+    iRadio_interface_int_enable();
+    ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+    MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+    bSetup_is_data = bRadio_is_data();
+  }
+
+  iRadio_interface_int_disable();
+  return i;
+}
+
+/*
  * parses a received string for a BT address
  */
 int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
@@ -274,7 +328,6 @@ int iIneed_md_parse_ssp(char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_k
 int  iIneedMD_radio_setup(void)
 {
   uint32_t iEC;
-
 //  char  *send_string = NULL;
   char cSend_buff[BG_SIZE];
   char cRcv_buff[BG_SIZE];
@@ -291,12 +344,11 @@ int  iIneedMD_radio_setup(void)
 
   //hardware power reset the radio
   ineedmd_radio_reset();
+  wait_time(10);
 
-  //reset the radio to factory defaults
-  ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
-  iHW_delay(10);
-  //hardware power reset the radio
-  ineedmd_radio_reset();
+  //get the "welcome" output from radio
+//  iRadio_interface_int_buffer(cRcv_buff);
+  iIneedmd_radio_int_rcv_string(cRcv_buff, BG_SIZE);
 
   //set the radio echo
   snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
@@ -318,12 +370,12 @@ int  iIneedMD_radio_setup(void)
   // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
   memset(cSend_buff, 0x00, BG_SIZE);
   iEC = snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
-
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
   //get BT address
   ineedmd_radio_send_string(SET_BT_BDADDR, strlen(SET_BT_BDADDR));
   memset(cRcv_buff, 0x00, BG_SIZE);
+  iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
   iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
   //parse string for the BT address
@@ -336,10 +388,13 @@ int  iIneedMD_radio_setup(void)
   }
   memset(cSend_buff, 0x00, BG_SIZE);
 
-  //format the send string with the BT address
+  //format the send string with the BT name
   snprintf(cSend_buff, BG_SIZE, SET_BT_NAME, uiBT_addr[4], uiBT_addr[5]);
-  //send the new address
+  //send the new name
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+
+  //reset the radio to make the settings take hold
+  ineedmd_radio_send_string(RESET, strlen(RESET));
 
   //set the connection status to false while waiting for an outside connection
   bIs_connection = false;

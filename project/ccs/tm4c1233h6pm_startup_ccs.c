@@ -327,18 +327,15 @@ vUART1_Rx_and_Tx(void)
     vRadio_interface_int_service(UART_INT_RX);
   }
 
-  if((ui32Status & UART_INT_RT) == UART_INT_RT)
-  {
-    vRadio_interface_int_service(UART_INT_RT);
-  }
+//  if((ui32Status & UART_INT_RT) == UART_INT_RT)
+//  {
+    vRadio_interface_int_service_timeout(ui32Status);
+//  }
 
   //
   // Clear the asserted interrupts.
   //
   MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
 
-  //
-  // Loop while there are characters in the receive FIFO.
-  //
   return;
 }

@@ -75,6 +75,7 @@
 * variables
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
+volatile bool bIs_usart_timeout = false;
 //
 //a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
 //
@@ -500,14 +501,37 @@ int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
   {
     //receive a character from the USART
     cRcv_string[i] = UARTCharGet(INEEDMD_RADIO_UART);
+//    cRcv_string[i] = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
 
     //check if the end of the radio frame is received
     if(cRcv_string[i] == '\n')
+//    if(cRcv_string[i] == NULL)
     {
       break;
     }
   }
   return i;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int iRadio_rcv_char(char *cRcv_char)
+{
+
+//  *cRcv_char = UARTCharGet(INEEDMD_RADIO_UART);
+  *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+//  *cRcv_char = 0xFF;
+
+  while(*cRcv_char == 0xFF)
+  {
+    wait_time(1);
+    *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+  }
+  return 1;
 }
 
 //*****************************************************************************
@@ -532,6 +556,22 @@ int iRadio_interface_int_enable(void)
 // param description:
 // return value description:
 //*****************************************************************************
+int iRadio_interface_int_disable(void)
+{
+  //
+  // Enable the UART interrupt.
+  //
+  ROM_IntDisable(INEEDMD_RADIO_UART_INT);
+  ROM_UARTIntDisable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT);
+  return 1;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 void vRadio_interface_int_service(uint16_t uiInt_id)
 {
 //  char cRcv_string[256];
@@ -542,6 +582,22 @@ void vRadio_interface_int_service(uint16_t uiInt_id)
     bIs_usart_data = true;
 
 //    iRadio_rcv_string(cRcv_string, 256);
+  }
+
+
+}
+
+void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
+{
+  if((uiInt_id & UART_INT_RT) == UART_INT_RT)
+  {
+    bIs_usart_timeout = true;
+
+//    iRadio_rcv_string(cRcv_string, 256);
+  }
+  else
+  {
+    bIs_usart_timeout = false;
   }
 }
 
