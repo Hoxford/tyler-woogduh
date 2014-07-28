@@ -9,5 +9,5 @@
 	<linkerCommandFile value="tm4c1233h6pm.cmd"/>
 	<rts value="libc.a"/>
 	<createSlaveProjects value=""/>
-	<templateProperties value="id=com_ti_rtsc_tirtostivac_example_271.projectspec.helloWorld_TivaTM4C1233H6PM,type=rtsc,products=com.ti.rtsc.TIRTOStivac,platform=ti.platforms.tiva:$DeviceId$,buildProfile=release,isHybrid=true,configuroOptions=--compileOptions &quot;-g --optimize_with_debug&quot;,"/>
+	<templateProperties value="id=com_ti_rtsc_tirtostivac_example_249.projectspec.hello_TivaTM4C1233H6PM,type=rtsc,products=com.ti.rtsc.TIRTOStivac,platform=ti.platforms.tiva:$DeviceId$,buildProfile=release,isHybrid=true,configuroOptions=--compileOptions &quot;-g --optimize_with_debug&quot;,"/>
 </projectOptions>
