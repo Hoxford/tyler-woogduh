@@ -1,7 +1,7 @@
 import serial
 import time
 
-ser = serial.Serial(3)
+ser = serial.Serial(port ='/dev/tty.usbserial', baudrate =115200)
 print "opened port and running main()"
 
 ser.timeout = 1
@@ -10,7 +10,7 @@ ser.timeout = 1
 def get_status():
     
     ser.write('\x9C\x01\x0A\x11\x00\x00\x00\x00\x00\xC9')
-   
+    print "Get Status Command - 9C 01 0A 11 00 00 00 00 00 C9"
     print "requesting status..."
 
 
@@ -42,8 +42,9 @@ def set_pwr(pwr):
 
         if pwr == "hibernate":
             ser.write('\x9C\x01\x12\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
-            
+        
             print "requesting to enter hibernate mode; time 0"
+            print "Packet sent for hibernate - 9C 01 12 12 00 00 00 00 00 00 00 00 00 00 00 00 00 C9"
         elif pwr == "sleep":
             ser.write('\x9C\x01\x12\x12\x00\x00\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
             
@@ -92,6 +93,7 @@ def set_pwr(pwr):
 def off_alarm():
     if timeSet != 'True':
         ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+        print "Packet sent for True Condition - 9C 01 12 12 00 00 60 00 00 00 00 00 00 00 00 00 00 C9"
         print"turning off all alarms; time 0"
     else:
         ser.write('\x9C\x01\x12\x12\x00\x00\x40\x00\x00')
@@ -105,6 +107,7 @@ def get_dataset_info():
     
     ser.write('\x9C\x01\x0A\x13\x00\x00\x00\x00\x00\xC9')
     print "requesting information of data set"
+    print "Packet sent - 9C 01 0A 13 00 00 00 00 00 C9"
     
 
 #4 DATA SET TRANSFER
@@ -119,6 +122,7 @@ def transfer_dataset(datasetID):
         ser.write(byte1.decode('hex'))
         ser.write(byte2.decode('hex'))
         ser.write('\xC9')
+        print "Packet sent - 9C 01 0A 14 00 00 00 "+byte1+" "+byte2+" C9"
 
 #5 ERASE DATA SET
 def erase_dataset(datasetID):
@@ -132,7 +136,7 @@ def erase_dataset(datasetID):
         ser.write(byte1.decode('hex'))
         ser.write(byte2.decode('hex'))
         ser.write('\xC9')
-
+        print "Packet sent - 9C 01 0A 15 00 00 00 "+byte1+" "+byte2+" C9"
 
 #6 CAPTURE DATA SET FOR GIVEN TIME
 def capture_data(seconds):
@@ -155,7 +159,7 @@ def capture_data(seconds):
         ser.write(byte2.decode('hex'))
         ser.write(byte3.decode('hex'))
         ser.write('\xC9')
-        print "6"
+        print "command sent to capture data"
     elif len(hexVal) == 5:
         byte1 = '0' + hexVal[:1]
         byte2 = hexVal [1:3]
@@ -165,7 +169,7 @@ def capture_data(seconds):
         ser.write(byte2.decode('hex'))
         ser.write(byte3.decode('hex'))
         ser.write('\xC9')
-        print "5"
+        print "command sent to capture data"
     elif len(hexVal) == 4:
         byte1 = hexVal [:2]
         byte2 = hexVal [2:4]
@@ -173,7 +177,7 @@ def capture_data(seconds):
         ser.write(byte1.decode('hex'))
         ser.write(byte2.decode('hex'))
         ser.write('\xC9')
-        print "4"
+        print "command sent to capture data"
     elif len(hexVal) == 3:
         byte1= '0' + hexVal[:1]
         byte2 = hexVal[1:3]
@@ -181,16 +185,17 @@ def capture_data(seconds):
         ser.write(byte1.decode('hex'))
         ser.write(byte2.decode('hex'))
         ser.write('\xC9')
-        print "3"
+        print "command sent to capture data"
     elif len(hexVal) == 2:
         ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00')
         ser.write(hexVal.decode('hex'))
         ser.write('\xC9')
-        print "2"
+        print "command sent to capture data"
     elif len(hexVal) == 1:
         ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00')
         ser.write(hexVal)
         ser.write('\xC9')
+        print "Packet sent - 9C 01 0A 16 00 00 00 00 31 C9"
         print "1"
 
 #7 DISPLAY REAL TIME DATA MEASUREMENTS
@@ -199,11 +204,13 @@ def get_rtData(TF):
     if TF == "T":
         ser.write('\x9C\x01\x0A\x17\x00\x00\x00\x00\xFF\xC9')
         print "begin streaming of real time data"
+        print "Packet sent - 9C 01 0A 17 00 00 00 00 FF C9"
     elif TF =="F":
         ser.write('\x9C\x01\x0A\x17\x00\x00\x00\x00\x00\xC9')
         print "do not stream real time data"
+        print "Packet sent - 9C 01 0A 17 00 00 00 00 00 C9"
     else:
-        ser.write('\x9C\x01\x0A\x17\x00\x00\x00\x00\x09\xC9')
+        ser.write('\x9C\x01\x0A\x17\x00\x00\x09\xC9')
         print "not a valid input for this function"
 
 
@@ -211,55 +218,33 @@ def get_rtData(TF):
 # MAIN 
 def main():
     global timeSet
-    timeSet = 'False'
+    timeSet = 'False'   
     
     entry = raw_input('Enter any key... ')
-##    get_status()
-
 ##    set_time(3613939200)
-##    
+##    get_status() #0x11
+##    capture_data(1) #0x16
+##    off_alarm()#0x12
 ##    set_pwr("hibernate")
 ##    set_pwr("sleep")
-##    set_pwr("on")
 ##    set_pwr("highPower")
-##    
-##    off_alarm()
-##    
-##    get_dataset_info()
-##    
+##    set_pwr("on")
+    get_dataset_info() #0x13
 ##    transfer_dataset("A3B0")
 ##    erase_dataset("11A0")
 ##    get_rtData("T")
-    get_rtData("F")
-##
-##    capture_data(1)
-##    
+##    get_rtData("F")
 ##    capture_data(28)
 ##    capture_data(2949)
 ##    capture_data(35785)
 ##    capture_data(572570)
 ##    capture_data(9161135)
-    
-
+##    ser.write('helloworld')
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " +ser.readline()
+    #ser.flushInput()
     exit = raw_input('Enter any key to exit... ')
-
-##    ser.close()
-##    
-##    capture_data(572570)
-##    capture_data(9161135)
-##    
-##
-##    exit = raw_input('Enter any key to exit... ')
-##
-##    ser.close()
-##    
-##    capture_data(572570)
-##    capture_data(9161135)
-##    
-##
-##    exit = raw_input('Enter any key to exit... ')
-
- #   ser.close()
+    ser.close()
     
 if  __name__ =='__main__':
     main()
