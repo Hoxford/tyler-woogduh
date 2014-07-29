@@ -1,6 +1,7 @@
 import serial
 import time
 
+
 ser = serial.Serial(port ='/dev/tty.usbserial', baudrate =115200)
 print "opened port and running main()"
 
@@ -219,32 +220,127 @@ def get_rtData(TF):
 def main():
     global timeSet
     timeSet = 'False'   
+
+    ser.flushInput()
     
     entry = raw_input('Enter any key... ')
-##    set_time(3613939200)
-##    get_status() #0x11
-##    capture_data(1) #0x16
-##    off_alarm()#0x12
-##    set_pwr("hibernate")
-##    set_pwr("sleep")
-##    set_pwr("highPower")
-##    set_pwr("on")
-    get_dataset_info() #0x13
-##    transfer_dataset("A3B0")
-##    erase_dataset("11A0")
-##    get_rtData("T")
-##    get_rtData("F")
-##    capture_data(28)
-##    capture_data(2949)
-##    capture_data(35785)
-##    capture_data(572570)
-##    capture_data(9161135)
-##    ser.write('helloworld')
+    set_time(3613939200)
     read = raw_input("Enter any key to read .. ")
-    print "DATA READ: " +ser.readline()
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    get_status() #0x11
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    capture_data(1) #0x16
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    off_alarm()#0x12
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    set_pwr("hibernate")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    set_pwr("sleep")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    set_pwr("highPower")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    set_pwr("on")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter aney key... ')
+    get_dataset_info() #0x13
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    transfer_dataset("A3B0")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+ 
+    entry = raw_input('Enter any key... ')
+    erase_dataset("11A0")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    get_rtData("T")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    get_rtData("F")
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    capture_data(28)
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    capture_data(2949)
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    capture_data(35785)
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    capture_data(572570)
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    capture_data(9161135)
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+
+    entry = raw_input('Enter any key... ')
+    ser.write('helloworld')
+    read = raw_input("Enter any key to read .. ")
+    print "DATA READ: " + ser.readline()
+ 
+    
+ 
+ 
+   
+   
+ 
+    
+ 
+  
+
+ 
+  
+    
+   
+  
+  
     #ser.flushInput()
     exit = raw_input('Enter any key to exit... ')
     ser.close()
     
 if  __name__ =='__main__':
     main()
+
+
+
+    
