@@ -44,7 +44,19 @@
 #define INEEDMD_FULL_BATT_VOLTAGE    3400
 #define INEEDMED_PIO_MASK            01
 
+#define INEEDMD_CMND_SOF    0x9C
+#define INEEDMD_CMND_EOF    0xC9
+
 #define RESET             "\r\nRESET\r\n"
+#define SDP               "\r\nSDP %s %s %s\r\nSDP\r\n"
+  #define SDP_REMOTE_DEV_ADDR    cRemore_dev_addr_string
+  #define SDP_SERVICE_NAME       "< I SERVICENAME S “%s” >"
+    #define SDP_SERVICE_NAME_BLUETOOTH_SPP  "Bluetooth SPP"
+    #define SDP_SERVICE_NAME_TBD            "?????????????"
+      #define SDP_SERVICE_NAME_ID    SDP_SERVICE_NAME_BLUETOOTH_SPP
+  #define  SDP_PROTOCOL_DESCRIPTOR_LIST  "< I PROTOCOLDESCRIPTORLIST < < U L2CAP> < U RFCOMM I %s > > >"
+    #define  SDP_PROTOCOL_DESCRIPTOR_RFCOMM_CHANNEL_01    "01"
+      #define  SDP_PROTOCOL_DESCRIPTOR_RFCOMM_CHANNEL  SDP_PROTOCOL_DESCRIPTOR_RFCOMM_CHANNEL_01
 #define SET_SET           "\r\nSET\r\n"  //retruns the settings of the BT radio *warning: large return string*
   #define ENDOF_SET_SETTINGS         "SET\r\n"
   #define ENDOF_SET_SETTINGS_STRLEN  5
@@ -69,7 +81,10 @@
   #define SET_BT_SSP_MITM_NO_PROT    0  //no man in the middle protection
   #define SET_BT_SSP_MITM_PROT       1  //man in the middle protection required
     #define SET_BT_SSP_MITM          SET_BT_SSP_MITM_PROT
-#define SET_PROFILE_SPP   "\r\nSET PROFILE SPP\r\n"
+#define SET_PROFILE_SPP   "\r\nSET PROFILE SPP %s\r\n"
+  #define SET_PROFILE_SPP_ON   "ON"
+  #define SET_PROFILE_SPP_OFF  "OFF"
+    #define SET_PROFILE_SPP_PARAM  SET_PROFILE_SPP_ON
 #define SET_CONTROL_BATT  "\r\nSET CONTROL BATTERY %d %d %d %.2d\r\n"
   #define SET_CONTROL_BATT_LOW     INEEDMD_LOW_BATT_VOLTAGE
   #define SET_CONTROL_BATT_SHTDWN  INEEDMD_SHTDWN_BATT_VOLTAGE
@@ -92,17 +107,19 @@
   #define SET_CONTROL_MUX_MODE_DISABLE  0
   #define SET_CONTROL_MUX_MODE_ENABLE   1
     #define SET_CONTROL_MUX_MODE  SET_CONTROL_MUX_MODE_ENABLE
+#define SET_CONTROL_MUX_HEX_DISABLE
 #define SSP_CONFIRM  "\r\nSSP CONFIRM %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY  "\r\nSSP PASSKEY %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY_PARSE  "%s %s %x %c %x %c %x %c %x %c %x %c %x %d %c"
 #define SSP_PASSKEY_PARSE_NUM_ELEMENTS  15
-#define SET_RESET         "\r\nSET RESET\r\n"  //returns the factory settings of the module.
+#define SET_RESET         "\r\nSET RESET\r\n"  //sets and returns the factory settings of the module.
 #define READY             "READY.\r\n"
 #define READY_STRLEN      8
 #define RING              "\r\nRING 0 %x:%x:%x:%x:%x:%x 1 RFCOMM\r\n"
 
 #define BT_MACADDR_NUM_BYTES  6
 #define BG_SIZE              1024
+#define BG_SEND_SIZE         256
 
 /******************************************************************************
 * variables
@@ -110,9 +127,12 @@
 volatile bool bIs_data;
 volatile bool bIs_connection = false;
 
-uint8_t   uiBT_addr[6];
-uint8_t   uiRemote_dev_addr[6];
+uint8_t   uiBT_addr[6];        //BT module mac address
+char      cBT_addr_string[18]; //BT module mac address in string format
+uint8_t   uiRemote_dev_addr[6];        //remote BT module mac address
+char      cRemore_dev_addr_string[18]; //remote BT module mac address in string format
 uint32_t  uiRemote_dev_key = 0;
+uint8_t   uiSet_control_mux_hex_disable[] = {0xBF, 0xFF, 0x00, 0x11, 0x53, 0x45, 0x54, 0x20, 0x43, 0x4f, 0x4e, 0x54, 0x52, 0x4f, 0x4c, 0x20, 0x4d, 0x55, 0x58, 0x20, 0x30, 0x00};
 
 /*
  * Function Section
@@ -212,6 +232,26 @@ void ineedmd_radio_send_string(char *send_string, uint16_t uiBuff_size)
 }
 
 /*
+ * send a raw hex message to the radio
+ * This function in it's current state just passes the parameters to the HAL.
+ * It is meant to be here for future api, rtos, parsing use.
+ */
+int ineedmd_radio_send_frame(uint8_t *send_frame, uint16_t uiFrame_size)
+{
+  int i = 0;
+
+  i = iRadio_send_frame(send_frame, uiFrame_size);
+#if DEBUG
+  if(i < uiFrame_size)
+  {
+    while(1);
+  }
+#endif //DEBUG
+
+  return i;
+}
+
+/*
  * get message from the radio
  */
 int iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
@@ -219,6 +259,56 @@ int iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
   int i;
 
   i = iRadio_rcv_string(cRcv_string, uiBuff_size);
+
+  return i;
+}
+
+/*
+ * get a byte from the radio
+ */
+int iIneedmd_radio_rcv_byte(uint8_t *uiRcv_byte)
+{
+  int i;
+
+  i = iRadio_rcv_byte(uiRcv_byte);
+
+  return i;
+}
+
+/*
+ * get message from the radio
+ */
+int iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
+{
+  int i;
+
+  i = iRadio_rcv_string((char *)uiRcv_frame, uiBuff_size);
+
+  return i;
+}
+
+/*
+ * gets a data frame from the radio that was proc'ed by an interrupt
+ */
+int iIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
+{
+  int i;
+  bool bIs_data = false;
+
+  for(i = 0; i < uiBuff_size; i++)
+  {
+    iRadio_rcv_byte(&uiRcv_frame[i]);
+    MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
+    bIs_data = bRadio_is_data();
+    if(bIs_data == true)
+    {
+      continue;
+    }
+    else
+    {
+      break;
+    }
+  }
 
   return i;
 }
@@ -278,15 +368,14 @@ int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
   return i;
 }
 
-
 /*
  * get boot message from the radio
  */
 int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
-  bool bSetup_is_data;
-  uint32_t ui32Status;
+//  bool bSetup_is_data;
+//  uint32_t ui32Status;
 //  iRadio_interface_int_enable();
 //  MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
 //  bSetup_is_data = bRadio_is_data();
@@ -423,8 +512,6 @@ int  iIneedMD_radio_setup(void)
 //  char  *send_string = NULL;
   char cSend_buff[BG_SIZE];
   char cRcv_buff[BG_SIZE];
-  memset(cSend_buff, 0x00, BG_SIZE);
-  memset(cRcv_buff, 0x00, BG_SIZE);
   memset(uiBT_addr,0x00, BT_MACADDR_NUM_BYTES);
   memset(uiRemote_dev_addr,0x00, BT_MACADDR_NUM_BYTES);
 
@@ -434,42 +521,47 @@ int  iIneedMD_radio_setup(void)
   //enable radio interface
   iRadio_interface_enable();
 
-  iHW_delay(1000);
-  ineedmd_radio_send_string("+++", strlen("+++"));
-  iHW_delay(1000);
+//  iHW_delay(1000);
+  ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 22);
+  //todo: perform a syntax error check
+//  iHW_delay(1000);
 
+  //SET RESET, reset to factory defaults
   ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
-  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+//  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+  //RESET, reset the radio software
   ineedmd_radio_send_string(RESET, strlen(RESET));
   iHW_delay(500);
 
   //hardware power reset the radio
   ineedmd_radio_reset();
-  iHW_delay(500);
+//  iHW_delay(500);
   //get the boot output from radio power up
   memset(cRcv_buff, 0x00, BG_SIZE);
   iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
 
-  //set the radio echo
+  //SET CONTROL ECHO, set the radio echo
+  memset(cSend_buff, 0x00, BG_SIZE);
   snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
   memset(cRcv_buff, 0x00, BG_SIZE);
   iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
-
-  //tell the radio we are using BT SSP pairing
+  //SET BT SSP, tell the radio we are using BT SSP pairing
   memset(cSend_buff, 0x00, BG_SIZE);
   snprintf(cSend_buff, BG_SIZE, SET_BT_SSP, SET_BT_SSP_CPLTES, SET_BT_SSP_MITM);
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
-  //tell the radio what auth method we are using
+  //SET BT AUTH, tell the radio what auth method we are using
   memset(cSend_buff, 0x00, BG_SIZE);
   snprintf(cSend_buff, BG_SIZE, SET_BT_AUTH, SET_BT_AUTH_MODE, SET_BT_AUTH_PIN_CODE);
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-//
-//  //tells the radio we are using SPP protocol
-//  ineedmd_radio_send_string(SET_PROFILE_SPP, strlen(SET_PROFILE_SPP));
-//
+
+  //SET PROFILE SPP, tells the radio we are using SPP protocol
+  memset(cSend_buff, 0x00, BG_SIZE);
+  iEC = snprintf(cSend_buff, BG_SIZE, SET_PROFILE_SPP, SET_PROFILE_SPP_PARAM);
+  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+
   // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
   memset(cSend_buff, 0x00, BG_SIZE);
   iEC = snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
@@ -516,8 +608,7 @@ int  iIneedMD_radio_check_for_connection(void)
 {
 #define rc_chkbuff_size 128
   int iEC;
-  char cRcv_buff[rc_chkbuff_size];
-  char cSend_buff[rc_chkbuff_size];
+  uint8_t uiRcv_buff[rc_chkbuff_size];
   bool bIs_radio_data = false;
 
   //check if connection with a remote device has been established
@@ -528,41 +619,43 @@ int  iIneedMD_radio_check_for_connection(void)
 
     if(bIs_radio_data == true)
     {
-      memset(cRcv_buff, 0x00, rc_chkbuff_size);
+      memset(uiRcv_buff, 0x00, rc_chkbuff_size);
       //receive the ssp confirm from the remote device
-      iEC = iIneedmd_radio_rcv_string(cRcv_buff, rc_chkbuff_size);
-      //check if the received string is a SSP request
-      iEC = iIneed_md_parse_ssp(cRcv_buff, uiRemote_dev_addr, &uiRemote_dev_key);
+      iEC = iIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size);
 
-      if(iEC == 1)
-      {
-        //build the SSP response frame
-        memset(cSend_buff, 0x00, rc_chkbuff_size);
-        snprintf(cSend_buff, rc_chkbuff_size, SSP_CONFIRM, uiRemote_dev_addr[0], uiRemote_dev_addr[1], uiRemote_dev_addr[2], uiRemote_dev_addr[3], uiRemote_dev_addr[4], uiRemote_dev_addr[5]);
-        //send the SSP response
-        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
-        //receive the ssp confirm from the remote device
-        iEC = iIneedmd_radio_rcv_string(cRcv_buff, rc_chkbuff_size);
+//      //check if the received string is a SSP request
+//      iEC = iIneed_md_parse_ssp(cRcv_buff, uiRemote_dev_addr, &uiRemote_dev_key);
 
-        //build the RING frame
-        memset(cSend_buff, 0x00, rc_chkbuff_size);
-        snprintf(cSend_buff, rc_chkbuff_size, RING, uiRemote_dev_addr[0], uiRemote_dev_addr[1], uiRemote_dev_addr[2], uiRemote_dev_addr[3], uiRemote_dev_addr[4], uiRemote_dev_addr[5]);
-        //send the RING frame
-        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-
-        //activate the mux mode
+//      if(iEC == 1)
+//      {
+//        //build the SSP response frame
 //        memset(cSend_buff, 0x00, rc_chkbuff_size);
-//        snprintf(cSend_buff, rc_chkbuff_size, SET_CONTROL_MUX, SET_CONTROL_MUX_MODE);
-//        //send the mux frame
+//        snprintf(cSend_buff, rc_chkbuff_size, SSP_CONFIRM, uiRemote_dev_addr[0], uiRemote_dev_addr[1], uiRemote_dev_addr[2], uiRemote_dev_addr[3], uiRemote_dev_addr[4], uiRemote_dev_addr[5]);
+//        //send the SSP response
 //        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-
-        return 1;
-      }
-      else
-      {
-        return 0;
-      }
+//
+//        //receive the ssp confirm from the remote device
+//        iEC = iIneedmd_radio_rcv_string(cRcv_buff, rc_chkbuff_size);
+//
+//        //build the RING frame
+//        memset(cSend_buff, 0x00, rc_chkbuff_size);
+//        snprintf(cSend_buff, rc_chkbuff_size, RING, uiRemote_dev_addr[0], uiRemote_dev_addr[1], uiRemote_dev_addr[2], uiRemote_dev_addr[3], uiRemote_dev_addr[4], uiRemote_dev_addr[5]);
+//        //send the RING frame
+//        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+//
+//        //activate the mux mode
+////        memset(cSend_buff, 0x00, rc_chkbuff_size);
+////        snprintf(cSend_buff, rc_chkbuff_size, SET_CONTROL_MUX, SET_CONTROL_MUX_MODE);
+////        //send the mux frame
+////        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+//
+//        return 1;
+//      }
+//      else
+//      {
+//        return 0;
+//      }
     }
     else
     {

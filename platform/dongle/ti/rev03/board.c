@@ -467,6 +467,20 @@ int iRadio_interface_enable(void)
 // param description:
 // return value description:
 //*****************************************************************************
+int iRadio_send_char(char * byte)
+{
+
+  UARTCharPut(INEEDMD_RADIO_UART, *byte);
+
+  return 1;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
 {
   uint32_t i;
@@ -479,6 +493,23 @@ int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
   for (i = 0; i<uiBuff_size; i++)
   {
     UARTCharPut(INEEDMD_RADIO_UART, cSend_string[i]);
+  }
+  return i;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size)
+{
+  int i;
+
+  for (i = 0; i<uiFrame_size; i++)
+  {
+    UARTCharPut(INEEDMD_RADIO_UART, cSend_frame[i]);
   }
   return i;
 }
@@ -537,6 +568,19 @@ int iRadio_rcv_char(char *cRcv_char)
 }
 
 //*****************************************************************************
+// name: iRadio_rcv_byte
+// description: calls the uart non blocking byte get function.
+// param description:
+// return value description: returns int error code
+//*****************************************************************************
+int iRadio_rcv_byte(uint8_t *uiRcv_byte)
+{
+  *uiRcv_byte = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+
+  return 1;
+}
+
+//*****************************************************************************
 // name:
 // description:
 // param description:
@@ -544,6 +588,16 @@ int iRadio_rcv_char(char *cRcv_char)
 //*****************************************************************************
 int iRadio_interface_int_enable(void)
 {
+  uint32_t ui32Status;
+
+  // Get the interrrupt status.
+  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+  //clear any asserted interrupts
+  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+
+  //disable the uart interrupt first
+  iRadio_interface_int_disable();
+
   //
   // Enable the UART interrupt.
   //
@@ -612,7 +666,12 @@ void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
 //*****************************************************************************
 bool bRadio_is_data(void)
 {
-  return bIs_usart_data;
+  //todo: disable interrupts
+  bool bWas_usart_data = bIs_usart_data;
+
+  bIs_usart_data = false;
+//todo: enable interrupts
+  return bWas_usart_data;
 }
 
 //*****************************************************************************
