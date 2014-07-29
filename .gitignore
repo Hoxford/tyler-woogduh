@@ -8,3 +8,4 @@ playground/USB-DFU_LED_PATIENT_OFF/Debug__TI/makefile
 .gitignore.rej
 playground/USB-DFU_LED_PATIENT_OFF/.launches/USB-DFU_LED_PATIENT_OFF.launch
 playground/USB-DFU_LED_PATIENT_OFF/Debug__TI/
+project/ccs/.launches
