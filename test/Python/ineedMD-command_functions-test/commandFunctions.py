@@ -1,7 +1,7 @@
 import serial
 import time
 
-ser = serial.Serial(port ='/dev/tty.usbserial', baudrate =115200)
+ser = serial.Serial(port ='/dev/tty.SerialPort', baudrate =115200)
 print "opened port and running main()"
 
 ser.timeout = 1
@@ -9,7 +9,7 @@ ser.timeout = 1
 #1 STATUS REQUEST
 def get_status():
     
-    ser.write(r'x9C\x01\x0A\x11\x00\x00\x00\x00\x00\xC9')
+    ser.write('\x9C\x01\x0A\x11\x00\x00\x00\x00\x00\xC9')
    
     print "requesting status..."
 
@@ -20,18 +20,19 @@ def get_status():
 def set_pwr(pwr):
     
     if pwr == "hibernate":
-        ser.write('x9C\x01\x11\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+        ser.write('\x9C\x01\x12\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
         print "requesting to enter hibernate mode"
     elif pwr == "sleep":
-        ser.write('x9C\x01\x11\x12\x00\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+        ser.write('\x9C\x01\x12\x12\x00\x00\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
         print "requesting to enter sleep mode"
     elif pwr == "on":
-        ser.write('x9C\x01\x11\x12\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+        ser.write('\x9C\x01\x12\x12\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
         print "requesting to enter active/on mode"
     elif pwr == "highPower":
-        ser.write('x9C\x01\x11\x12\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+        ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
         print "requesting to enter highPower mode"
-    else:
+    elif pwr == "test wrong status request":
+        ser.write('\x9C\x01\x12\x12\x00\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
         print "not a valid status request"
 
 
@@ -41,13 +42,13 @@ def set_time(timeSec):
         print "please recheck your time. should be represented in seconds since 1900"
     else:
         hexTime = hex(timeSec)
-        ser.write(r'x9C\x01\x11\x12\x00\x40\x00\x00\x'
-                  + hexTime [:2] + r'\x'+ hexTime [2:4] + r'\x'+ hexTime [4:6] + r'\x'+ hexTime [6:8] + r'\x'
+        ser.write(r'x9C\x01\x12\x12\x00\x00\x40\x00\x00\x'
+                  + hexTime [2:4] + r'\x'+ hexTime [4:6] + r'\x'+ hexTime [6:8] + r'\x'+ hexTime [8:10] + r'\x'
                   + r'\x00\x00\x00\x00\xC9')
         print "changing time " + hexTime
 
 def off_alarm():
-    ser.write(r'x9C\x01\x11\x12\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+    ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
     print"turning off all alarms"
     
 
@@ -55,7 +56,7 @@ def off_alarm():
 #3 STORED DATA SETS INFORMATION
 def get_dataset_info():
     
-    ser.write(r'x9C\x01\x0A\x13\x00\x00\x00\x00\x00\xC9')
+    ser.write('\x9C\x01\x0A\x13\x00\x00\x00\x00\x00\xC9')
     print "requesting information of data set"
     
 
@@ -129,12 +130,13 @@ def capture_data(seconds):
 def get_rtData(TF):
     
     if TF == "T":
-        ser.write('x9C\x01\x0A\x16\x00\x00\x00\x00\xFF\xC9')
+        ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00\xFF\xC9')
         print "begin streaming of real time data"
     elif TF =="F":
-        ser.write('x9C\x01\x0A\x16\x00\x00\x00\x00\x00\xC9')
+        ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00\x00\xC9')
         print "do not stream real time data"
     else:
+        ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00\x09\xC9')
         print "not a valid input for this function"
 
 
@@ -142,35 +144,38 @@ def get_rtData(TF):
 # MAIN 
 def main():
     
-    get_status()
+    entry = raw_input('Enter any key... ')
+    #get_status()
     
     set_pwr("hibernate")
     set_pwr("sleep")
     set_pwr("on")
     set_pwr("highPower")
+    #set_pwr("test wrong status request")
 
-    set_time(3613939200)
+    #set_time(3613939200)
 
-    off_alarm()
+    #off_alarm()
 
     get_dataset_info()
 
-    transfer_dataset("A3B0")
+    #transfer_dataset("A3B0")
 
-    erase_dataset("11A0")
+    #erase_dataset("11A0")
 
     get_rtData("T")
     get_rtData("F")
+    #get_rtData("A")
 
-    capture_data(1)
-    capture_data(28)
-    capture_data(2949)
-    capture_data(35785)
-    capture_data(572570)
-    capture_data(9161135)
+    #capture_data(1)
+    #capture_data(28)
+    #capture_data(2949)
+    #capture_data(35785)
+    #capture_data(572570)
+    #capture_data(9161135)
     
 
-
+    exit = raw_input('Enter any key to exit... ')
 
     ser.close()
     
