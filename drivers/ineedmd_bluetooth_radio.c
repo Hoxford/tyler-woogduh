@@ -298,16 +298,18 @@ int iIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
   for(i = 0; i < uiBuff_size; i++)
   {
     iRadio_rcv_byte(&uiRcv_frame[i]);
-    MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
-    bIs_data = bRadio_is_data();
-    if(bIs_data == true)
-    {
-      continue;
-    }
-    else
+//    MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
+
+    if(uiRcv_frame[i] == INEEDMD_CMND_EOF)
     {
       break;
     }
+//    else
+//    {
+//      //wait for the next byte
+//      while(bRadio_is_data() == false){};
+//      continue;
+//    }
   }
 
   return i;
@@ -621,9 +623,14 @@ int  iIneedMD_radio_check_for_connection(void)
     {
       memset(uiRcv_buff, 0x00, rc_chkbuff_size);
       //receive the ssp confirm from the remote device
+      bIs_radio_data = UARTCharsAvail(INEEDMD_RADIO_UART);
       iEC = iIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size);
 
 
+      if(iEC == 1)
+      {
+        return 1;
+      }
 //      //check if the received string is a SSP request
 //      iEC = iIneed_md_parse_ssp(cRcv_buff, uiRemote_dev_addr, &uiRemote_dev_key);
 
