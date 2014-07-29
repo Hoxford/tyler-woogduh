@@ -1,7 +1,7 @@
 import serial
 import time
 
-ser = serial.Serial(port ='/dev/tty.usbserial', baudrate =115200)
+ser = serial.Serial(3)
 print "opened port and running main()"
 
 ser.timeout = 1
@@ -15,42 +15,89 @@ def get_status():
 
 
 #2 STATUS SET
-#hibernate, sleep, on, highPower
-#need to edit to have capability of setting other statuses besides power state!
-def set_pwr(pwr):
-    
-    if pwr == "hibernate":
-        ser.write('\x9C\x01\x12\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
-        print "requesting to enter hibernate mode"
-    elif pwr == "sleep":
-        ser.write('\x9C\x01\x12\x12\x00\x00\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
-        print "requesting to enter sleep mode"
-    elif pwr == "on":
-        ser.write('\x9C\x01\x12\x12\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
-        print "requesting to enter active/on mode"
-    elif pwr == "highPower":
-        ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
-        print "requesting to enter highPower mode"
-    elif pwr == "test wrong status request":
-        ser.write('\x9C\x01\x12\x12\x00\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
-        print "not a valid status request"
-
 
 def set_time(timeSec):
     timeSec2 = str(timeSec)
     if len(timeSec2) != 10:
         print "please recheck your time. should be represented in seconds since 1900"
     else:
-        hexTime = hex(timeSec)[2:].decode('hex')
+        global hexTime
+        hexTime = hex(timeSec)[2:10].decode('hex')
         ser.write('\x9C\x01\x12\x12\x00\x00\x40\x00\x00')
         ser.write(hexTime [0:2] + hexTime [2:4] + hexTime [4:6] + hexTime [6:8])
         ser.write('\x00\x00\x00\x00\xC9')
         print "changing time " + hexTime
+        print "Setting time now!"
+        
+        global timeSet
+        timeSet = 'True'
+        #print timeSet + '1'
+        
+
+#hibernate, sleep, on, highPower
+def set_pwr(pwr):
+    #print timeSet
+    
+    if timeSet != 'True': #if time has not been set, set time to 0 and set the respective power
+
+        if pwr == "hibernate":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+            
+            print "requesting to enter hibernate mode; time 0"
+        elif pwr == "sleep":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x20\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+            
+            print "requesting to enter sleep mode; time 0"
+        elif pwr == "on":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+            
+            print "requesting to enter active/on mode ; time 0"
+        elif pwr == "highPower":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+            
+            print "requesting to enter highPower mode; time 0"
+        elif pwr == "test wrong status request":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+            
+            print "not a valid status request; time 0"
+
+    else: #if time has been set, set respective power with the current time
+        if pwr == "hibernate":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x00\x00\x00')
+            ser.write(hexTime [0:2] + hexTime [2:4] + hexTime [4:6] + hexTime [6:8])
+            ser.write('\x00\x00\x00\x00\xC9')
+            print "requesting to enter hibernate mode"
+        elif pwr == "sleep":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x20\x00\x00')
+            ser.write(hexTime [0:2] + hexTime [2:4] + hexTime [4:6] + hexTime [6:8])
+            ser.write('\x00\x00\x00\x00\xC9')
+            print "requesting to enter sleep mode"
+        elif pwr == "on":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x40\x00\x00')
+            ser.write(hexTime [0:2] + hexTime [2:4] + hexTime [4:6] + hexTime [6:8])
+            ser.write('\x00\x00\x00\x00\xC9')
+            print "requesting to enter active/on mode"
+        elif pwr == "highPower":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00')
+            ser.write(hexTime [0:2] + hexTime [2:4] + hexTime [4:6] + hexTime [6:8])
+            ser.write('\x00\x00\x00\x00\xC9')
+            print "requesting to enter highPower mode"
+        elif pwr == "test wrong status request":
+            ser.write('\x9C\x01\x12\x12\x00\x00\x80\x00\x00')
+            ser.write(hexTime [0:2] + hexTime [2:4] + hexTime [4:6] + hexTime [6:8])
+            ser.write('\x00\x00\x00\x00\xC9')
+            print "not a valid status request"
+
 
 def off_alarm():
-    ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
-    print"turning off all alarms"
-    
+    if timeSet != 'True':
+        ser.write('\x9C\x01\x12\x12\x00\x00\x60\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xC9')
+        print"turning off all alarms; time 0"
+    else:
+        ser.write('\x9C\x01\x12\x12\x00\x00\x40\x00\x00')
+        ser.write(hexTime [0:2] + hexTime [2:4] + hexTime [4:6] + hexTime [6:8])
+        ser.write('\x00\x00\x00\x00\xC9')
+        print"turning off all alarms"
 
 
 #3 STORED DATA SETS INFORMATION
@@ -150,46 +197,69 @@ def capture_data(seconds):
 def get_rtData(TF):
     
     if TF == "T":
-        ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00\xFF\xC9')
+        ser.write('\x9C\x01\x0A\x17\x00\x00\x00\x00\xFF\xC9')
         print "begin streaming of real time data"
     elif TF =="F":
-        ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00\x00\xC9')
+        ser.write('\x9C\x01\x0A\x17\x00\x00\x00\x00\x00\xC9')
         print "do not stream real time data"
     else:
-        ser.write('\x9C\x01\x0A\x16\x00\x00\x00\x00\x09\xC9')
+        ser.write('\x9C\x01\x0A\x17\x00\x00\x00\x00\x09\xC9')
         print "not a valid input for this function"
 
 
 
 # MAIN 
 def main():
+    global timeSet
+    timeSet = 'False'
     
     entry = raw_input('Enter any key... ')
-    get_status()
-    
-    set_pwr("hibernate")
-    set_pwr("sleep")
-    set_pwr("on")
-    set_pwr("highPower")
+##    get_status()
 
-    set_time(3613939200)
-    off_alarm()
-    get_dataset_info()
-    transfer_dataset("A3B0")
-    erase_dataset("11A0")
-    get_rtData("T")
+##    set_time(3613939200)
+##    
+##    set_pwr("hibernate")
+##    set_pwr("sleep")
+##    set_pwr("on")
+##    set_pwr("highPower")
+##    
+##    off_alarm()
+##    
+##    get_dataset_info()
+##    
+##    transfer_dataset("A3B0")
+##    erase_dataset("11A0")
+##    get_rtData("T")
     get_rtData("F")
-    capture_data(1)
-    capture_data(28)
-    capture_data(2949)
-    capture_data(35785)
-    capture_data(572570)
-    capture_data(9161135)
+##
+##    capture_data(1)
+##    
+##    capture_data(28)
+##    capture_data(2949)
+##    capture_data(35785)
+##    capture_data(572570)
+##    capture_data(9161135)
     
 
     exit = raw_input('Enter any key to exit... ')
 
-    ser.close()
+##    ser.close()
+##    
+##    capture_data(572570)
+##    capture_data(9161135)
+##    
+##
+##    exit = raw_input('Enter any key to exit... ')
+##
+##    ser.close()
+##    
+##    capture_data(572570)
+##    capture_data(9161135)
+##    
+##
+##    exit = raw_input('Enter any key to exit... ')
+
+ #   ser.close()
     
 if  __name__ =='__main__':
     main()
