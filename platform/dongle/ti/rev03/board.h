@@ -96,7 +96,6 @@
 
 void PowerInitFunction(void);
 void PortFunctionInit(void);
-void wait_time (unsigned int);
 void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
 void set_system_speed (unsigned int);
 

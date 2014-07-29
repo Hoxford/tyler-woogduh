@@ -46,13 +46,15 @@
 
 #define RESET             "\r\nRESET\r\n"
 #define SET_SET           "\r\nSET\r\n"  //retruns the settings of the BT radio *warning: large return string*
+  #define ENDOF_SET_SETTINGS         "SET\r\n"
+  #define ENDOF_SET_SETTINGS_STRLEN  5
 
 //#define SET_BT_NAME       "\r\nSET BT NAME IneedMD-00:07:80:0D:73:E0\r\n"
 #define SET_BT_AUTH       "\r\nSET BT AUTH %c %d\r\n"
   #define SET_BT_AUTH_MODE_DISP     '*'
   #define SET_BT_AUTH_MODE_NO_DISP  '-'
     #define SET_BT_AUTH_MODE        SET_BT_AUTH_MODE_DISP
-  #define SET_BT_AUTH_PIN_CODE      1234 //TODO: read out of flash maybe?
+  #define SET_BT_AUTH_PIN_CODE      2124 //TODO: read out of flash maybe?
 
 #define SET_BT_WHAT_NAME  "\r\nSET BT NAME IneedMD-NUTS\r\n"
 #define SET_BT_NAME       "\r\nSET BT NAME IneedMD-%x%x\r\n"
@@ -63,7 +65,7 @@
   #define SET_BT_SSP_CPBLTES_DISP_AND_YN  1  //Display + yes/no button
   #define SET_BT_SSP_CPBLTES_KEYBRD_ONLY  2  //Keyboard only
   #define SET_BT_SSP_CPBLTES_NONE         3  //None
-    #define SET_BT_SSP_CPLTES             SET_BT_SSP_CPBLTES_DISP_AND_YN
+    #define SET_BT_SSP_CPLTES             SET_BT_SSP_CPBLTES_NONE
   #define SET_BT_SSP_MITM_NO_PROT    0  //no man in the middle protection
   #define SET_BT_SSP_MITM_PROT       1  //man in the middle protection required
     #define SET_BT_SSP_MITM          SET_BT_SSP_MITM_PROT
@@ -95,10 +97,12 @@
 #define SSP_PASSKEY_PARSE  "%s %s %x %c %x %c %x %c %x %c %x %c %x %d %c"
 #define SSP_PASSKEY_PARSE_NUM_ELEMENTS  15
 #define SET_RESET         "\r\nSET RESET\r\n"  //returns the factory settings of the module.
+#define READY             "READY.\r\n"
+#define READY_STRLEN      8
 #define RING              "\r\nRING 0 %x:%x:%x:%x:%x:%x 1 RFCOMM\r\n"
 
 #define BT_MACADDR_NUM_BYTES  6
-#define BG_SIZE              256
+#define BG_SIZE              1024
 
 /******************************************************************************
 * variables
@@ -114,8 +118,10 @@ uint32_t  uiRemote_dev_key = 0;
  * Function Section
  *
  */
-int iIneedmd_parse_addr  (char * cString_buffer , uint8_t * uiAddr);
 int iIneed_md_parse_ssp (char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_key);
+int iIneedmd_parse_addr  (char * cString_buffer , uint8_t * uiAddr);
+int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size);
+int iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size);
 
 /* ineedmd_radio_power
  * Power up and down the radio
@@ -224,13 +230,11 @@ int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
   bool bSetup_is_data;
-  char *cEnd_of_frame;
   uint32_t ui32Status;
   iRadio_interface_int_enable();
   MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
   bSetup_is_data = bRadio_is_data();
 
-//  while(MAP_UARTCharsAvail(INEEDMD_RADIO_UART))
   while(bSetup_is_data == true)
   {
     if(i == uiBuff_size)
@@ -238,24 +242,28 @@ int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
       break;
     }
 
-    if(i == 170)
-    {
-      i = 170;
-    }
     iRadio_rcv_char(&cRcv_string[i]);
 
-    if(cRcv_string[i] == '\n')
+    if(i >= (READY_STRLEN - 1))
     {
-      cEnd_of_frame = &cRcv_string[i - 7];
-      if((cEnd_of_frame[0] == 'R') &&
-         (cEnd_of_frame[1] == 'E') &&
-         (cEnd_of_frame[2] == 'A') &&
-         (cEnd_of_frame[3] == 'D') &&
-         (cEnd_of_frame[4] == 'Y'))
+      if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
       {
-        return i;
+        break;
       }
     }
+//    char *cEnd_of_frame;
+//    if(cRcv_string[i] == '\n') keep this until the above READY check is solid
+//    {
+//      cEnd_of_frame = &cRcv_string[i - 7];
+//      if((cEnd_of_frame[0] == 'R') &&
+//         (cEnd_of_frame[1] == 'E') &&
+//         (cEnd_of_frame[2] == 'A') &&
+//         (cEnd_of_frame[3] == 'D') &&
+//         (cEnd_of_frame[4] == 'Y'))
+//      {
+//        break;
+//      }
+//    }
 
     ++i;
 
@@ -267,6 +275,90 @@ int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
   }
 
   iRadio_interface_int_disable();
+  return i;
+}
+
+
+/*
+ * get boot message from the radio
+ */
+int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
+{
+  int i = 0;
+  bool bSetup_is_data;
+  uint32_t ui32Status;
+//  iRadio_interface_int_enable();
+//  MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
+//  bSetup_is_data = bRadio_is_data();
+
+//  while(bSetup_is_data == true)
+  while(true)
+  {
+    if(i == uiBuff_size)
+    {
+      break;
+    }
+
+    iRadio_rcv_char(&cRcv_string[i]);
+
+    if(i >= (READY_STRLEN - 1))
+    {
+      if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+      {
+        break;
+      }
+    }
+//    char *cEnd_of_frame;
+//    if(cRcv_string[i] == '\n') keep this until the above READY check is solid
+//    {
+//      cEnd_of_frame = &cRcv_string[i - 7];
+//      if((cEnd_of_frame[0] == 'R') &&
+//         (cEnd_of_frame[1] == 'E') &&
+//         (cEnd_of_frame[2] == 'A') &&
+//         (cEnd_of_frame[3] == 'D') &&
+//         (cEnd_of_frame[4] == 'Y'))
+//      {
+//        break;
+//      }
+//    }
+
+    ++i;
+
+//    iRadio_interface_int_disable();
+//    iRadio_interface_int_enable();
+//    ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+//    MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+//    bSetup_is_data = bRadio_is_data();
+  }
+
+//  iRadio_interface_int_disable();
+  return i;
+}
+
+int iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
+{
+  int i = 0;
+
+  while(true)
+  {
+    if(i == uiBuff_size)
+    {
+      break;
+    }
+
+    iRadio_rcv_char(&cRcv_string[i]);
+
+    if(i >= (ENDOF_SET_SETTINGS_STRLEN - 1))
+    {
+      if (strcmp(&cRcv_string[i - (ENDOF_SET_SETTINGS_STRLEN - 1)], ENDOF_SET_SETTINGS) == 0)
+      {
+        break;
+      }
+    }
+
+    ++i;
+  }
+
   return i;
 }
 
@@ -342,17 +434,28 @@ int  iIneedMD_radio_setup(void)
   //enable radio interface
   iRadio_interface_enable();
 
+  iHW_delay(1000);
+  ineedmd_radio_send_string("+++", strlen("+++"));
+  iHW_delay(1000);
+
+  ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
+  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+  ineedmd_radio_send_string(RESET, strlen(RESET));
+  iHW_delay(500);
+
   //hardware power reset the radio
   ineedmd_radio_reset();
-  wait_time(10);
-
-  //get the "welcome" output from radio
-//  iRadio_interface_int_buffer(cRcv_buff);
-  iIneedmd_radio_int_rcv_string(cRcv_buff, BG_SIZE);
+  iHW_delay(500);
+  //get the boot output from radio power up
+  memset(cRcv_buff, 0x00, BG_SIZE);
+  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
 
   //set the radio echo
   snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+  memset(cRcv_buff, 0x00, BG_SIZE);
+  iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+
 
   //tell the radio we are using BT SSP pairing
   memset(cSend_buff, 0x00, BG_SIZE);
@@ -360,13 +463,13 @@ int  iIneedMD_radio_setup(void)
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
   //tell the radio what auth method we are using
-//  memset(cSend_buff, 0x00, BG_SIZE);
-//  snprintf(cSend_buff, BG_SIZE, SET_BT_AUTH, SET_BT_AUTH_MODE, SET_BT_AUTH_PIN_CODE);
-//  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-
-  //tells the radio we are using SPP protocol
-  ineedmd_radio_send_string(SET_PROFILE_SPP, strlen(SET_PROFILE_SPP));
-
+  memset(cSend_buff, 0x00, BG_SIZE);
+  snprintf(cSend_buff, BG_SIZE, SET_BT_AUTH, SET_BT_AUTH_MODE, SET_BT_AUTH_PIN_CODE);
+  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+//
+//  //tells the radio we are using SPP protocol
+//  ineedmd_radio_send_string(SET_PROFILE_SPP, strlen(SET_PROFILE_SPP));
+//
   // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
   memset(cSend_buff, 0x00, BG_SIZE);
   iEC = snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
@@ -376,25 +479,26 @@ int  iIneedMD_radio_setup(void)
   ineedmd_radio_send_string(SET_BT_BDADDR, strlen(SET_BT_BDADDR));
   memset(cRcv_buff, 0x00, BG_SIZE);
   iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
-  iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
   //parse string for the BT address
   iEC = iIneedmd_parse_addr(cRcv_buff, uiBT_addr);
-  if(iEC != 1)  //todo: proper error code, no magic number
-  {
 #if DEBUG
-    while(1){};
+  if(iEC != 1){ while(1){}};//todo: proper error code, no magic number
 #endif
-  }
-  memset(cSend_buff, 0x00, BG_SIZE);
 
   //format the send string with the BT name
+  memset(cSend_buff, 0x00, BG_SIZE);
   snprintf(cSend_buff, BG_SIZE, SET_BT_NAME, uiBT_addr[4], uiBT_addr[5]);
   //send the new name
   ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
   //reset the radio to make the settings take hold
   ineedmd_radio_send_string(RESET, strlen(RESET));
+  iHW_delay(1000);
+
+  ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
+  memset(cRcv_buff, 0x00, BG_SIZE);
+  iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
 
   //set the connection status to false while waiting for an outside connection
   bIs_connection = false;
@@ -448,12 +552,16 @@ int  iIneedMD_radio_check_for_connection(void)
         ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
         //activate the mux mode
-        memset(cSend_buff, 0x00, rc_chkbuff_size);
-        snprintf(cSend_buff, rc_chkbuff_size, SET_CONTROL_MUX, SET_CONTROL_MUX_MODE);
-        //send the mux frame
-        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+//        memset(cSend_buff, 0x00, rc_chkbuff_size);
+//        snprintf(cSend_buff, rc_chkbuff_size, SET_CONTROL_MUX, SET_CONTROL_MUX_MODE);
+//        //send the mux frame
+//        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
         return 1;
+      }
+      else
+      {
+        return 0;
       }
     }
     else
