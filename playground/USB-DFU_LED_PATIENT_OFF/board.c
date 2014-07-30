@@ -160,6 +160,8 @@ void set_system_speed (unsigned int how_fast)
       break;
   }
 
+  return how_fast;
+
 
 }
 
@@ -264,6 +266,7 @@ BatMeasureADCDisable(void)
    //Enable the ADC Clock
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
     //let is stabalise with a majik delay
+    return 1;
 }
 
 //*****************************************************************************
@@ -320,6 +323,8 @@ EKGSPIEnable(void)
   MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
   //no need for a majik delay as we are configuring the GPIO pins as well...
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+  // power UP the ADC
+  MAP_GPIOIPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
   // Enable pin PA6 for GPIOOutput
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
   // Enable pin PA0 for GPIOInput
@@ -354,6 +359,8 @@ EKGSPIEnable(void)
 
   //when done set the CS high the ADC needs the CS pin high to work properly
    MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+
+
 }
 
 
@@ -362,10 +369,14 @@ EKGSPIEnable(void)
 void
 EKGSPIDisable(void)
 {
-//  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
+  //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
   SSIDisable(INEEDMD_ADC_SPI);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
-    //no need for a majik delay as we are configuring the GPIO pins as well...
+  MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
+  // power down the ADC
+  MAP_GPIOIPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
+
+  return 1
+
 }
 
 
@@ -385,7 +396,7 @@ RadioUARTEnable(void)
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
   //No mjik delay as I am doing the GPIO first.
     //
-    // Enable pin PE0 for GPIOOutput - this is the reet for the radio.
+    // Enable pin PE0 for GPIOOutput - this is the reset for the radio.
     //
     MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_RESET_PIN);
      //
@@ -396,8 +407,7 @@ RadioUARTEnable(void)
     //
     MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_ENABLE_PIN);
 
-    //de-exert,sets it low, reset pin, aka run mode
-    MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_ENABLE_PIN, 0x00);
+    iRadio_Power_On();
     //
     // Enable pin PF0 for UART1 U1RTS
     // First open the lock and select the bits we want to modify in the GPIO commit register.
@@ -432,6 +442,7 @@ RadioUARTEnable(void)
     UARTEnable(INEEDMD_RADIO_UART);
 //	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
+
 }
 
 
@@ -448,7 +459,10 @@ RadioUARTDisable(void)
 {
 //  while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
     UARTDisable(INEEDMD_RADIO_UART);
-  MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
+    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
+    // shuts down the radio
+    iRadio_Power_Off();
+    return 1;
 }
 
 //*****************************************************************************
@@ -461,6 +475,19 @@ int
 iRadio_Power_On(void)
 {
   GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN);
+  return 1;
+}
+
+//*****************************************************************************
+// name: iRadioPowerOff
+// description: sets the gpio pin to the radio high to turn on the radio
+// param description: none
+// return value description: 1 if success
+//*****************************************************************************
+int
+iRadio_Power_Off(void)
+{
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
   return 1;
 }
 
