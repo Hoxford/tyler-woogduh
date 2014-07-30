@@ -569,13 +569,14 @@ int iRadio_rcv_char(char *cRcv_char)
 
 //*****************************************************************************
 // name: iRadio_rcv_byte
-// description: calls the uart non blocking byte get function.
+// description: calls the uart char get function.
 // param description:
 // return value description: returns int error code
 //*****************************************************************************
 int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 {
-  *uiRcv_byte = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+  *uiRcv_byte = UARTCharGet(INEEDMD_RADIO_UART);
+//  *uiRcv_byte = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
 
   return 1;
 }
