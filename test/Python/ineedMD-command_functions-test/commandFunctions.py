@@ -1,8 +1,8 @@
 import serial
 import time
 
-
-ser = serial.Serial(port ='/dev/tty.usbserial', baudrate =115200)
+ser = serial.Serial(port = '/dev/tty.usbserial', baudrate =115200)
+ser = serial.Serial(port = 4, baudrate =115200)
 print "opened port and running main()"
 
 ser.timeout = 1
