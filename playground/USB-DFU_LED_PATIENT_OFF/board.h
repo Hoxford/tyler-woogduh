@@ -47,34 +47,51 @@
 #define INEEDMD_PORTA_ADC_START_PIN 0x02
 #define INEEDMD_PORTA_ADC_nCS_PIN 0x08
 
-#define INEEDMD_PORTE_BATTERY_MEASUREMENT_IN_PIN 0x08
-#define INEEDMD_PORTE_RADIO_REST  0x01
+//battery port mappings
+#define INEEDMD_BATTERY_PORT                 GPIO_PORTE_BASE
+#define INEEDMD_BATTERY_MEASUREMENT_IN_PIN   GPIO_PIN_3
 #define INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT 0x02
-#define INEEDMD_PORTE_RADIO_ENABLE 0x04
+#define BATTERY_ADC                          ADC0_BASE
+#define BATTERY_ADC_CTL_CH0                  ADC_CTL_CH0
+#define BATTERY_SYSCTL_PERIPH_ADC            SYSCTL_PERIPH_ADC0
+#define BATTERY_CRITICAL_ADC_VALUE           0x00000866
+#define BATTERY_LOW_ADC_VALUE                0x00000900
+
+//#define BATTERY_SYSCTL_PERIPH_GPIO           SYSCTL_PERIPH_GPIOE
+
+//BT Radio mappings
+#define INEEDMD_RADIO_PORT                     GPIO_PORTE_BASE
+#define INEEDMD_RADIO_SERIAL_PORT              GPIO_PORTF_BASE
+#define INEEDMD_RADIO_RESET_PIN                GPIO_PIN_0
+#define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1
+#define INEEDMD_RADIO_ENABLE_PIN               GPIO_PIN_2
+#define INEEDMD_RADIO_UART                     UART1_BASE
+#define INEEDMD_RADIO_UART_INT                 INT_UART1
 
 #define INEEDMD_PORTD_XTAL_ENABLE 0x20
 
 
 //port mappings to make easier to read names...
-#define INEEDMD_ADC_SPI SSI0_BASE
-#define INEEDMD_FLASH_SPI SSI1_BASE
-#define INEEDMD_LED_I2C I2C0_BASE
-#define INEEDMD_RADIO_UART UART1_BASE
-#define INEEDMD_USB USB0_BASE
+#define INEEDMD_ADC_SPI     SSI0_BASE
+#define INEEDMD_FLASH_SPI   SSI1_BASE
+#define INEEDMD_LED_I2C     I2C0_BASE
+
+#define INEEDMD_USB         USB0_BASE
 
 //subsystem block number - just used to make some coding functions easer.
-#define INEEDMD_CPU 0x00
-#define INEEDMD_ADC 0x01
-#define INEEDMD_FLASH 0x02
-#define INEEDMD_LED 0x03
-#define INEEDMD_RADIO 0x04
-#define INEED_USB 0x05
+#define INEEDMD_CPU    0x00
+#define INEEDMD_ADC    0x01
+#define INEEDMD_FLASH  0x02
+#define INEEDMD_LED    0x03
+#define INEEDMD_RADIO  0x04
+#define INEED_USB      0x05
 
 //subsystem block number - just used to make some coding functions easer.
 #define INEEDMD_CPU_SPEED_FULL_EXTERNAL 0x00
 #define INEEDMD_CPU_SPEED_FULL_INTERNAL 0x01
-#define INEEDMD_CPU_SPEED_SLOW_INTERNAL 0x02
-#define INEEDMD_CPU_SPEED_REALLY_SLOW 0x03
+#define INEEDMD_CPU_SPEED_HALF_INTERNAL 0x02
+#define INEEDMD_CPU_SPEED_SLOW_INTERNAL 0x03
+#define INEEDMD_CPU_SPEED_REALLY_SLOW 0x04
 
 
 
@@ -93,6 +110,17 @@ void RadioUARTEnable(void);
 void RadioUARTDisable(void);
 int iRadio_Power_On(void);
 int iRadio_interface_enable(void);
+int iRadio_send_char(char * byte);
+int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
+int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
+int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
+int iRadio_rcv_char(char *cRcv_char);
+int iRadio_rcv_byte(uint8_t *uiRcv_byte);
+int iRadio_interface_int_enable(void);
+int iRadio_interface_int_disable(void);
+void vRadio_interface_int_service(uint16_t uiInt_id);
+void vRadio_interface_int_service_timeout(uint16_t uiInt_id);
+bool bRadio_is_data(void);
 void LEDI2CEnable(void);
 void XTALControlPin(void);
 void USBPortEnable(void);
@@ -104,6 +132,7 @@ void EKGSPIDisable(void);
 
 void LEDI2CDisable(void);
 void USBPortDisnable(void);
+int iHW_delay(uint32_t uiDelay);
 int iBoard_init(void);
 
 #endif //  __BOARD_H__
