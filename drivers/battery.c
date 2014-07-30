@@ -107,7 +107,7 @@ check_battery(void)
     //loop until the battery is no longer in low power
     while (bIs_batt_low == true)
     {
-      wait_time(1000);
+      iHW_delay(1000);
       bIs_batt_low = bIs_battery_low();
     }
   }

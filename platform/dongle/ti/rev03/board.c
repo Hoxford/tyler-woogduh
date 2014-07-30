@@ -76,13 +76,7 @@
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
 volatile bool bIs_usart_timeout = false;
-//
-//a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
-//
-void wait_time (unsigned int tenths_of_seconds)
-{
-  MAP_SysCtlDelay(( MAP_SysCtlClockGet() / 30  )*tenths_of_seconds );
-}
+uint32_t uiSys_clock_rate_ms = 0;
 
 
 //
@@ -452,15 +446,31 @@ int iRadio_interface_enable(void)
   UARTFIFOEnable(INEEDMD_RADIO_UART);
 
   //perform a delay
-  iHW_delay(1);
+//  iHW_delay(1);
+  iHW_delay(100);
 
   //
   // Configure the UART for 115,200, 8-N-1 operation.
   // This function uses SysCtlClockGet() to get the system clock
   // frequency.
-  UARTConfigSetExpClk( UART1_BASE, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+  UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+
   //And the Radio UART
   UARTEnable(INEEDMD_RADIO_UART);
+
+  return 1;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int iRadio_send_char(char * byte)
+{
+
+  UARTCharPut(INEEDMD_RADIO_UART, *byte);
 
   return 1;
 }
@@ -493,6 +503,23 @@ int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
 // param description:
 // return value description:
 //*****************************************************************************
+int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size)
+{
+  int i;
+
+  for (i = 0; i<uiFrame_size; i++)
+  {
+    UARTCharPut(INEEDMD_RADIO_UART, cSend_frame[i]);
+  }
+  return i;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i;
@@ -501,13 +528,19 @@ int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
   {
     //receive a character from the USART
     cRcv_string[i] = UARTCharGet(INEEDMD_RADIO_UART);
-//    cRcv_string[i] = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
 
     //check if the end of the radio frame is received
     if(cRcv_string[i] == '\n')
-//    if(cRcv_string[i] == NULL)
     {
-      break;
+      if(i < 2)
+      {
+        i = -1;
+        continue;
+      }
+      else
+      {
+        break;
+      }
     }
   }
   return i;
@@ -528,9 +561,23 @@ int iRadio_rcv_char(char *cRcv_char)
 
   while(*cRcv_char == 0xFF)
   {
-    wait_time(1);
+    iHW_delay(1);
     *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
   }
+  return 1;
+}
+
+//*****************************************************************************
+// name: iRadio_rcv_byte
+// description: calls the uart char get function.
+// param description:
+// return value description: returns int error code
+//*****************************************************************************
+int iRadio_rcv_byte(uint8_t *uiRcv_byte)
+{
+  *uiRcv_byte = UARTCharGet(INEEDMD_RADIO_UART);
+//  *uiRcv_byte = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+
   return 1;
 }
 
@@ -542,6 +589,16 @@ int iRadio_rcv_char(char *cRcv_char)
 //*****************************************************************************
 int iRadio_interface_int_enable(void)
 {
+  uint32_t ui32Status;
+
+  // Get the interrrupt status.
+  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+  //clear any asserted interrupts
+  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+
+  //disable the uart interrupt first
+  iRadio_interface_int_disable();
+
   //
   // Enable the UART interrupt.
   //
@@ -610,7 +667,12 @@ void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
 //*****************************************************************************
 bool bRadio_is_data(void)
 {
-  return bIs_usart_data;
+  //todo: disable interrupts
+  bool bWas_usart_data = bIs_usart_data;
+
+  bIs_usart_data = false;
+//todo: enable interrupts
+  return bWas_usart_data;
 }
 
 //*****************************************************************************
@@ -777,7 +839,7 @@ USBPortDisable(void)
 // name: iHW_delay
 // description: performs a blocking hardware based delay. the delay is in 100ms
 //  "chunks"
-// param description:  uint32_t number of 100ms cycles to delay
+// param description:  uint32_t number of 1ms cycles to delay
 // return value description: the number of cycles delayed
 //*****************************************************************************
 int
@@ -786,10 +848,19 @@ iHW_delay(uint32_t uiDelay)
   int i;
   for(i = 0; i < uiDelay; i++)
   {
-    MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
+//    MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
+    MAP_SysCtlDelay(uiSys_clock_rate_ms);
   }
   return i;
 }
+
+//
+//a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
+//
+//void vHW_delay (unsigned int tenths_of_seconds)
+//{
+//  MAP_SysCtlDelay(( MAP_SysCtlClockGet() / 30  )*tenths_of_seconds );
+//}
 
 #if 0
 todo: delete me?
@@ -833,6 +904,8 @@ iBoard_init(void)
 
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+
+  uiSys_clock_rate_ms = MAP_SysCtlClockGet() /3000;
 
   // set the brown out interupt and power down voltage
   PowerInitFunction();

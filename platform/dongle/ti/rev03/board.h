@@ -96,7 +96,6 @@
 
 void PowerInitFunction(void);
 void PortFunctionInit(void);
-void wait_time (unsigned int);
 void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
 void set_system_speed (unsigned int);
 
@@ -107,9 +106,12 @@ void RadioUARTEnable(void);
 void RadioUARTDisable(void);
 int iRadio_Power_On(void);
 int iRadio_interface_enable(void);
+int iRadio_send_char(char * byte);
 int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
+int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
 int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
 int iRadio_rcv_char(char *cRcv_char);
+int iRadio_rcv_byte(uint8_t *uiRcv_byte);
 int iRadio_interface_int_enable(void);
 int iRadio_interface_int_disable(void);
 void vRadio_interface_int_service(uint16_t uiInt_id);

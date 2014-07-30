@@ -15,8 +15,6 @@
 #include "ineedmd_adc.h"
 #include "board.h"
 
-extern void wait_time (unsigned int tenths_of_seconds);
-
 
 //TODO: add function prototypes to header file
 //TODO: include directory for delay function
@@ -30,10 +28,10 @@ void ineedmd_adc_Hard_Reset()
 	//toggle reset pin
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
 	//keep low for 2 clock cycles
-	wait_time(1);
+	iHW_delay(1);
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
 	//wait 18 device clock cycles - 9 usec
-	wait_time(1);
+	iHW_delay(1);
 }
 
 //********************************************************************************
@@ -255,7 +253,7 @@ void ineedmd_adc_Start_Internal_Reference()
 
 	ineedmd_adc_Register_Write(CONFIG3, val);
 	//wait for reference to start
-	wait_time(15);
+	iHW_delay(15);
 
 	//when done set the CS high
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
@@ -288,7 +286,7 @@ void ineedmd_adc_Start_Low()
 {
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, 0x00);
 	//wait for 2 device clocks - 1uSec
-	wait_time(1);
+	iHW_delay(1);
 }
 
 

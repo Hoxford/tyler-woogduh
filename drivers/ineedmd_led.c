@@ -18,7 +18,7 @@
 //{
 //	//toggle reset pin
 //	GPIOPinWrite(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST, 0x00);
-//	wait_time(1);
+//	iHW_delay(1);
 //	GPIOPinWrite(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_REST, INEEDMD_PORTE_RADIO_REST);
 //	//wait 18 device clock cycles - 9 usec
 //}
@@ -38,9 +38,9 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED2_RED_ENABLE));
-                wait_time(5); //1/2 second
+                iHW_delay(5); //1/2 second
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-                wait_time(5); // 1/2 second
+                iHW_delay(5); // 1/2 second
             }
             break;
 
@@ -53,9 +53,9 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED2_GREEN_ENABLE));
-                wait_time(20); //2 second
+                iHW_delay(20); //2 second
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-                wait_time(20); //2 second
+                iHW_delay(20); //2 second
             }
             break;
 
@@ -71,9 +71,9 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED2_GREEN_ENABLE | INEEDMD_LED2_RED_ENABLE));
-                wait_time(20); //2 second
+                iHW_delay(20); //2 second
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-                wait_time(20);
+                iHW_delay(20);
             }
             break;
 
@@ -89,7 +89,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED2_GREEN_ENABLE | INEEDMD_LED2_RED_ENABLE));
-                wait_time(10); //5 second
+                iHW_delay(10); //5 second
             }
             break;
 
@@ -102,7 +102,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<5; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE));
-                wait_time(10); //1 second
+                iHW_delay(10); //1 second
             }
             break;
 
@@ -117,7 +117,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE |INEEDMD_LED1_BLUE_ENABLE | INEEDMD_LED1_RED_ENABLE));
-                wait_time(10); //1 second
+                iHW_delay(10); //1 second
             }
             break;
 
@@ -130,9 +130,9 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_RED_ENABLE));
-                wait_time(10);
+                iHW_delay(10);
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-                wait_time(10);
+                iHW_delay(10);
             }
             break;
 
@@ -145,7 +145,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<5; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_BLUE_ENABLE));
-                wait_time(10); //1 second
+                iHW_delay(10); //1 second
             }
             break;
 
@@ -155,9 +155,9 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_BLUE_ENABLE));
-                wait_time(10);
+                iHW_delay(10);
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-                wait_time(10);
+                iHW_delay(10);
             }
             break;
 
@@ -173,7 +173,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE |INEEDMD_LED1_BLUE_ENABLE | INEEDMD_LED1_RED_ENABLE));
-                wait_time(10); //1 second
+                iHW_delay(10); //1 second
             }
             break;
 
@@ -187,7 +187,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<5; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_BLUE_ENABLE));
-                wait_time(10); //1 second
+                iHW_delay(10); //1 second
             }
             break;
 
@@ -204,7 +204,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE |INEEDMD_LED1_BLUE_ENABLE | INEEDMD_LED1_RED_ENABLE));
-                wait_time(10); //1 second
+                iHW_delay(10); //1 second
             }
             break;
 
@@ -218,9 +218,9 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_RED_ENABLE | INEEDMD_LED1_BLUE_ENABLE));
-                wait_time(10);
+                iHW_delay(10);
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-                wait_time(10);
+                iHW_delay(10);
             }
             break;
 
@@ -235,7 +235,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
             for(i = 0; i<8; i++ ){
                 write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_RED_ENABLE | INEEDMD_LED1_BLUE_ENABLE));
-                wait_time(10); //1 second
+                iHW_delay(10); //1 second
             }
             break;
 
