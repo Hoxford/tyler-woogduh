@@ -35,6 +35,7 @@
 #define ADS1198_RDATAC		0x10		//continuous conversion mode
 #define ADS1198_SDATAC		0x11		//stop continuous conversion
 #define ADS1198_RDATA		0x12		//read data by command
+#define ADS1198_ID 			0xB6
 
 //register read/write commands
 //				byte 1								byte 2
