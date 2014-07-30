@@ -4,3 +4,5 @@ encoding//Debug__TI/objects.mk=UTF-8
 encoding//Debug__TI/sources.mk=UTF-8
 encoding//Debug__TI/subdir_rules.mk=UTF-8
 encoding//Debug__TI/subdir_vars.mk=UTF-8
+encoding//Debug__TI/utils/subdir_rules.mk=UTF-8
+encoding//Debug__TI/utils/subdir_vars.mk=UTF-8

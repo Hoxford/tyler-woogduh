@@ -10,8 +10,6 @@
 // Set us to debug mode
 #define DEBUG_CODE
 //
-#define DO_SHORT_HOLD
-#define DO_LED_TEST
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -41,6 +39,8 @@
 #include "driverlib/uart.h"
 #include "driverlib/timer.h"
 #include "driverlib/interrupt.h"
+
+#include "utils_inc/proj_debug.h"
 
 #include "board.h"
 
@@ -331,17 +331,19 @@ check_battery(void){
  */
 void main(void) {
 
-    volatile uint32_t ui32Loop;
+  volatile uint32_t ui32Loop;
+  PowerInitFunction();
+  GPIOEnable();
 
-    PowerInitFunction();
-    GPIOEnable();
+  vDEBUG_init();
   //enable the radio - so that it is out of reset and the battery charger is running...
 
-    LEDI2CEnable();
-    ineedmd_led_pattern(LED_OFF);
+  vDEBUG("hello world!");
+  LEDI2CEnable();
+  ineedmd_led_pattern(LED_OFF);
 
-    RadioUARTEnable();
-    EKGSPIEnable();
+  RadioUARTEnable();
+  EKGSPIEnable();
   ConfigureSleep();
   Set_Timer0_Sleep();
 
