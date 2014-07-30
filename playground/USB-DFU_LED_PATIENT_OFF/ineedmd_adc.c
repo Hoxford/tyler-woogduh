@@ -50,8 +50,8 @@ void ineedmd_adc_Stop_Continuous_Conv()
 	//set the CS low
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
 	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
-
+	//MAP_SysCtlDelay(60);
+	wait_time(1);
 
 	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
 	while(SSIBusy(INEEDMD_ADC_SPI))
@@ -96,13 +96,12 @@ void ineedmd_adc_Power_On()
 
     //disables clocking into Rx FIFO buffer
     //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
-
     SSIEnable(INEEDMD_ADC_SPI);
-
-
 	//power up and raise reset (active low pins)
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-
+	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
+	//Important - wait at least 2^16 device clocks before reset
+	wait_time(10);
     ineedmd_adc_Hard_Reset();
 }
 
