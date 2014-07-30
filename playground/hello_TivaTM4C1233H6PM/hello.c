@@ -38,8 +38,10 @@
 /* Drive number used for FatFs */
 #define DRIVE_NUM           0
 
-const char  inputfile[] = STR(DRIVE_NUM)":input.txt";
-const char outputfile[] = STR(DRIVE_NUM)":output.txt";
+//const char  inputfile[] = STR(DRIVE_NUM)":input.txt";
+//const char outputfile[] = STR(DRIVE_NUM)":output.txt";
+const char  inputfile[] = "input.txt";
+const char outputfile[] = "output.txt";
 
 const char textarray[] = \
 "***********************************************************************\n"
@@ -119,6 +121,9 @@ Void taskFxn(UArg arg0, UArg arg1)
 
     /* Mount and register the SD Card */
     SDSPI_Params_init(&sdspiParams);
+
+    // Init has to be after params
+    SDSPI_init();
     sdspiHandle = SDSPI_open(Board_SDSPI, DRIVE_NUM, &sdspiParams);
     if (sdspiHandle == NULL) {
         System_abort("Error starting the SD card\n");
@@ -127,8 +132,13 @@ Void taskFxn(UArg arg0, UArg arg1)
         System_printf("Drive %u is mounted\n", DRIVE_NUM);
     }
 
-//    printDrive(STR(DRIVE_NUM), &(dst.fs));
+    //mOUNT THE FILE SYSTM;
+    fresult = f_mount(DRIVE_NUM, src.fs);
+    if (fresult != FR_OK) {
+        System_printf("Didn't mount the drive - failed with error \"%d\"...", fresult);
+        System_abort("Aborting...\n");
 
+    }
     /* Try to open the source file */
     fresult = f_open(&src, inputfile, FA_READ);
     if (fresult != FR_OK) {
@@ -137,8 +147,7 @@ Void taskFxn(UArg arg0, UArg arg1)
         /* Open file for both reading and writing */
         fresult = f_open(&src, inputfile, FA_CREATE_NEW|FA_READ|FA_WRITE);
         if (fresult != FR_OK) {
-            System_printf("Error: \"%s\" could not be created\n",
-                    inputfile);
+            System_printf("Error: \"%s\" could not be created\n", inputfile);
             System_abort("Aborting...\n");
         }
 
