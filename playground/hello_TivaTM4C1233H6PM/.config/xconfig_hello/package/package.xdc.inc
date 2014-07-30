@@ -1,0 +1,12 @@
+package.xdc
+package.xs
+package/xconfig_hello.sch
+package/.vers_g180
+package/.vers_r170
+package/.vers_b160
+package/.xdc-A32
+package/xconfig_hello.java
+package/xconfig_hello.class
+package/package_xconfig_hello.c
+package/package.defs.h
+package/xconfig_hello.ccs

@@ -144,6 +144,8 @@ void TivaTM4C1233H6PM__initGeneral(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+	SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+
 }
 
 #if TI_DRIVERS_GPIO_INCLUDED
@@ -288,8 +290,8 @@ const SDSPITiva_HWAttrs sdspiTivaHWattrs[EK_TM4C123GXL_SDSPICOUNT] = {
         GPIO_PORTD_BASE,    /* Chip select port */
         GPIO_PIN_1,         /* Chip select pin */
 
-        GPIO_PORTB_BASE,    /* GPIO TX port */
-        GPIO_PIN_7,         /* GPIO TX pin */
+        GPIO_PORTD_BASE,    /* GPIO TX port */
+        GPIO_PIN_3,         /* GPIO TX pin */
     }
 };
 
@@ -341,13 +343,17 @@ void TivaTM4C1233H6PM_initSDSPI(void)
 	/* Configure pad settings */
 	GPIOPadConfigSet(GPIO_PORTD_BASE,
 			         GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3,
-				     GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
+				     GPIO_STRENGTH_10MA, GPIO_PIN_TYPE_STD);
+
+	GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_2);
+	GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_3);
 
 	MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
+	//MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
 	MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
 	MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
 
-	SDSPI_init();
+	//SDSPI_init();
 }
 #endif /* TI_DRIVERS_SDSPI_INCLUDED */
 
