@@ -42,7 +42,10 @@
 #define INEEDMD_LOW_BATT_VOLTAGE     3300
 #define INEEDMD_SHTDWN_BATT_VOLTAGE  3100
 #define INEEDMD_FULL_BATT_VOLTAGE    3400
-#define INEEDMED_PIO_MASK            01
+#define INEEDMD_PIO_MASK            01
+
+#define INEEDMD_PLATFORM_RADIO_TYPE  INEEDMD_BT_RADIO_PLATFORM
+  #define INEEDMD_BT_RADIO_PLATFORM  0x01
 
 #define INEEDMD_CMND_SOF    0x9C
 #define INEEDMD_CMND_EOF    0xC9
@@ -89,7 +92,7 @@
   #define SET_CONTROL_BATT_LOW     INEEDMD_LOW_BATT_VOLTAGE
   #define SET_CONTROL_BATT_SHTDWN  INEEDMD_SHTDWN_BATT_VOLTAGE
   #define SET_CONTROL_BATT_FULL    INEEDMD_FULL_BATT_VOLTAGE
-  #define SET_CONTROL_BATT_MASK    INEEDMED_PIO_MASK
+  #define SET_CONTROL_BATT_MASK    INEEDMD_PIO_MASK
 #define SET_CONTROL_ECHO  "\r\nSET CONTROL ECHO %d\r\n"
   #define SET_CONTROL_ECHO_BANNER_ON      0x01  //Bit 0 If this bit is set, the start-up banner is visible.
   #define SET_CONTROL_ECHO_BANNER_OFF     0x00
@@ -133,6 +136,7 @@ uint8_t   uiRemote_dev_addr[6];        //remote BT module mac address
 char      cRemore_dev_addr_string[18]; //remote BT module mac address in string format
 uint32_t  uiRemote_dev_key = 0;
 uint8_t   uiSet_control_mux_hex_disable[] = {0xBF, 0xFF, 0x00, 0x11, 0x53, 0x45, 0x54, 0x20, 0x43, 0x4f, 0x4e, 0x54, 0x52, 0x4f, 0x4c, 0x20, 0x4d, 0x55, 0x58, 0x20, 0x30, 0x00};
+uint8_t   uiIneedmd_radio_type = INEEDMD_PLATFORM_RADIO_TYPE;
 
 /*
  * Function Section
@@ -505,101 +509,124 @@ int iIneed_md_parse_ssp(char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_k
  * Is the USB plugged in
  */
 
-/*
- * Setup the radio
- */
+/******************************************************************************
+* name:iIneedMD_radio_setup
+* description: this function sets the radio interface for the corresponding
+*   platform.
+*   Bluetooth type platform
+*   tbd type platform
+* param description: none
+* return value description: returns 1 if successful
+******************************************************************************/
 int  iIneedMD_radio_setup(void)
 {
   uint32_t iEC;
 //  char  *send_string = NULL;
   char cSend_buff[BG_SIZE];
   char cRcv_buff[BG_SIZE];
-  memset(uiBT_addr,0x00, BT_MACADDR_NUM_BYTES);
-  memset(uiRemote_dev_addr,0x00, BT_MACADDR_NUM_BYTES);
 
-  //turn power on to the radio
-  ineedmd_radio_power(true);
+  if(uiIneedmd_radio_type == INEEDMD_BT_RADIO_PLATFORM)
+  {
+    memset(uiBT_addr,0x00, BT_MACADDR_NUM_BYTES);
+    memset(uiRemote_dev_addr,0x00, BT_MACADDR_NUM_BYTES);
 
-  //enable radio interface
-  iRadio_interface_enable();
+    //turn power on to the radio
+    ineedmd_radio_power(true);
 
-//  iHW_delay(1000);
-  ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 22);
-  //todo: perform a syntax error check
-//  iHW_delay(1000);
+    //enable radio interface
+    iRadio_interface_enable();
 
-  //SET RESET, reset to factory defaults
-  ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
-//  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
-  //RESET, reset the radio software
-  ineedmd_radio_send_string(RESET, strlen(RESET));
-  iHW_delay(500);
+    //SET CONTROL MUX disable in hex format incase radrio was in mux mode
+    ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 22);
+    //todo: perform a syntax error check
 
-  //hardware power reset the radio
-  ineedmd_radio_reset();
-//  iHW_delay(500);
-  //get the boot output from radio power up
-  memset(cRcv_buff, 0x00, BG_SIZE);
-  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+    //SET RESET, reset to factory defaults
+    ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
 
-  //SET CONTROL ECHO, set the radio echo
-  memset(cSend_buff, 0x00, BG_SIZE);
-  snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
-  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-  memset(cRcv_buff, 0x00, BG_SIZE);
-  iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+    //SET, get the settings after perfroming the RFD, this is performed to alert when the RFD was completed
+    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
 
-  //SET BT SSP, tell the radio we are using BT SSP pairing
-  memset(cSend_buff, 0x00, BG_SIZE);
-  snprintf(cSend_buff, BG_SIZE, SET_BT_SSP, SET_BT_SSP_CPLTES, SET_BT_SSP_MITM);
-  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+  //  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+    //RESET, reset the radio software
+    ineedmd_radio_send_string(RESET, strlen(RESET));
 
-  //SET BT AUTH, tell the radio what auth method we are using
-  memset(cSend_buff, 0x00, BG_SIZE);
-  snprintf(cSend_buff, BG_SIZE, SET_BT_AUTH, SET_BT_AUTH_MODE, SET_BT_AUTH_PIN_CODE);
-  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+    //get the boot output from the radio software reset, this is performed to alert when the reset was completed
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
-  //SET PROFILE SPP, tells the radio we are using SPP protocol
-  memset(cSend_buff, 0x00, BG_SIZE);
-  iEC = snprintf(cSend_buff, BG_SIZE, SET_PROFILE_SPP, SET_PROFILE_SPP_PARAM);
-  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+    //hardware power reset the radio
+    ineedmd_radio_reset();
+    //get the boot output from radio power up
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
 
-  // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
-  memset(cSend_buff, 0x00, BG_SIZE);
-  iEC = snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
-  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+    //SET CONTROL ECHO, set the radio echo
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
-  //get BT address
-  ineedmd_radio_send_string(SET_BT_BDADDR, strlen(SET_BT_BDADDR));
-  memset(cRcv_buff, 0x00, BG_SIZE);
-  iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+    //SET BT SSP, tell the radio we are using BT SSP pairing
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_BT_SSP, SET_BT_SSP_CPLTES, SET_BT_SSP_MITM);
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
-  //parse string for the BT address
-  iEC = iIneedmd_parse_addr(cRcv_buff, uiBT_addr);
+    //SET BT AUTH, tell the radio what auth method we are using
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_BT_AUTH, SET_BT_AUTH_MODE, SET_BT_AUTH_PIN_CODE);
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+
+    //SET PROFILE SPP, tells the radio we are using SPP protocol
+    memset(cSend_buff, 0x00, BG_SIZE);
+    iEC = snprintf(cSend_buff, BG_SIZE, SET_PROFILE_SPP, SET_PROFILE_SPP_PARAM);
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+
+    // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
+    memset(cSend_buff, 0x00, BG_SIZE);
+    iEC = snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+
+    //get BT address
+    ineedmd_radio_send_string(SET_BT_BDADDR, strlen(SET_BT_BDADDR));
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+
+    //parse string for the BT address
+    iEC = iIneedmd_parse_addr(cRcv_buff, uiBT_addr);
+  #if DEBUG
+    if(iEC != 1){ while(1){}};//todo: proper error code, no magic number
+  #endif
+
+    //format the send string with the BT name
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_BT_NAME, uiBT_addr[4], uiBT_addr[5]);
+    //send the new name
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+
+    //reset the radio to make the settings take hold
+    ineedmd_radio_send_string(RESET, strlen(RESET));
+    iHW_delay(1000);
+
+    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
+
+    //set the connection status to false while waiting for an outside connection
+    bIs_connection = false;
+
+    //enable the interrupt to the radio
+    iRadio_interface_int_enable();
+
+  }
+  else
+  {
 #if DEBUG
-  if(iEC != 1){ while(1){}};//todo: proper error code, no magic number
+    while(1){};//todo: additional platforms are not defined
 #endif
-
-  //format the send string with the BT name
-  memset(cSend_buff, 0x00, BG_SIZE);
-  snprintf(cSend_buff, BG_SIZE, SET_BT_NAME, uiBT_addr[4], uiBT_addr[5]);
-  //send the new name
-  ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-
-  //reset the radio to make the settings take hold
-  ineedmd_radio_send_string(RESET, strlen(RESET));
-  iHW_delay(1000);
-
-  ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
-  memset(cRcv_buff, 0x00, BG_SIZE);
-  iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
-
-  //set the connection status to false while waiting for an outside connection
-  bIs_connection = false;
-
-  //enable the interrupt to the radio
-  iRadio_interface_int_enable();
-
+  }
   return 1;
 }
 
