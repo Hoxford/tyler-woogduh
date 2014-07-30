@@ -9,6 +9,7 @@
 #define INEEDMD_POWER_MODES_H_
 
 
-s
+void go_to_sleep(int);
+void wake_up();
 
 #endif /* INEEDMD_POWER_MODES_H_ */
