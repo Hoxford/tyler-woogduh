@@ -107,7 +107,7 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
 
 
 
-void set_system_speed (unsigned int how_fast)
+int set_system_speed (unsigned int how_fast)
 {
 
   switch (how_fast) {
@@ -225,7 +225,7 @@ GPIODisable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 BatMeasureADCEnable(void)
 {
 
@@ -251,6 +251,7 @@ BatMeasureADCEnable(void)
     //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
 
 
+    return 1;
 }
 
 //*****************************************************************************
@@ -259,7 +260,7 @@ BatMeasureADCEnable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 BatMeasureADCDisable(void)
 {
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
@@ -324,7 +325,7 @@ EKGSPIEnable(void)
   //no need for a majik delay as we are configuring the GPIO pins as well...
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
   // power UP the ADC
-  MAP_GPIOIPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
   // Enable pin PA6 for GPIOOutput
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
   // Enable pin PA0 for GPIOInput
@@ -361,6 +362,7 @@ EKGSPIEnable(void)
    MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
 
+
    return 1;
 }
 
@@ -374,7 +376,7 @@ EKGSPIDisable(void)
   SSIDisable(INEEDMD_ADC_SPI);
   MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
   // power down the ADC
-  MAP_GPIOIPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
+  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
 
   return 1;
 
@@ -447,25 +449,20 @@ RadioUARTEnable(void)
 
 }
 
-
-
-
 //*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
+// name: iRadioPowerOff
+// description: sets the gpio pin to the radio high to turn on the radio
+// param description: none
+// return value description: 1 if success
 //*****************************************************************************
+
 int
-RadioUARTDisable(void)
+iRadio_Power_Off(void)
 {
-//  while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
-    UARTDisable(INEEDMD_RADIO_UART);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
-    // shuts down the radio
-    iRadio_Power_Off();
-    return 1;
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
+  return 1;
 }
+
 
 //*****************************************************************************
 // name: iRadioPowerOn
@@ -477,19 +474,6 @@ int
 iRadio_Power_On(void)
 {
   GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN);
-  return 1;
-}
-
-//*****************************************************************************
-// name: iRadioPowerOff
-// description: sets the gpio pin to the radio high to turn on the radio
-// param description: none
-// return value description: 1 if success
-//*****************************************************************************
-int
-iRadio_Power_Off(void)
-{
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
   return 1;
 }
 

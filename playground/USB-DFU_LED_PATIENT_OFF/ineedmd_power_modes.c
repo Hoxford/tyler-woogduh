@@ -56,10 +56,10 @@ go_to_sleep(int number_tenths_seconds){
 	LEDI2CDisable();
 	// power down ADC
 
-	if (BatMeasureADCDisable()==1)
-	{
-		debug_printf("..Battery measurement asleep");
-	}
+	//if (BatMeasureADCDisable()==1)
+	//{
+	//	debug_printf("..Battery measurement asleep");
+	//}
 
 	USBPortDisable();
 
@@ -100,7 +100,7 @@ go_to_sleep(int number_tenths_seconds){
     TimerEnable(TIMER0_BASE, TIMER_A);
 
 	// and deep sleep.
-	ROM_SysCtlDeepSleep();
+    ROM_SysCtlDeepSleep();
 
 	    TimerDisable(TIMER0_BASE, TIMER_A);
 	    IntDisable(INT_TIMER0A);
@@ -134,9 +134,9 @@ wake_up(void){
 
 	USBPortEnable();
 
-	if (BatMeasureADCEnable()==1)
-	{
-		debug_printf("..Battery measurement asleep");
-	}
+//	if (BatMeasureADCEnable()==1)
+//	{
+//		debug_printf("..Battery measurement asleep");
+//	}
 
 }
