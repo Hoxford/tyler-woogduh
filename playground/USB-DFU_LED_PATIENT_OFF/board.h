@@ -105,9 +105,9 @@ void set_system_speed (unsigned int);
 
 void GPIOEnable(void);
 void BatMeasureADCEnable(void);
-void EKGSPIEnable(void);
-void RadioUARTEnable(void);
-void RadioUARTDisable(void);
+int EKGSPIEnable(void);
+int RadioUARTEnable(void);
+int RadioUARTDisable(void);
 int iRadio_Power_On(void);
 int iRadio_interface_enable(void);
 int iRadio_send_char(char * byte);
