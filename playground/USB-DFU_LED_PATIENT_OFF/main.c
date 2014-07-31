@@ -302,9 +302,6 @@ check_for_update(void){
 }
 
 
-}
-
-
 
 /*
  * main.c
