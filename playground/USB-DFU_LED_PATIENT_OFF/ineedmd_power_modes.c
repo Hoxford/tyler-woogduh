@@ -28,6 +28,7 @@
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
 #include "driverlib/timer.h"
+#include "driverlib/interrupt.h"
 
 #include "inc/tm4c1233h6pm.h"
 #include "board.h"

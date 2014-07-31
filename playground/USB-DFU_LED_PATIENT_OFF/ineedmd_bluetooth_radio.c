@@ -296,7 +296,7 @@ int iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
 int iIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
 {
   int i;
-  bool bIs_data = false;
+  //bool bIs_data = false;
 
   for(i = 0; i < uiBuff_size; i++)
   {
