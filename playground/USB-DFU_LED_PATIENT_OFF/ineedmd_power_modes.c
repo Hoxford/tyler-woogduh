@@ -56,10 +56,10 @@ go_to_sleep(int number_tenths_seconds){
         LEDI2CDisable();
         // power down ADC
 
-        if (BatMeasureADCDisable()==1)
-        {
-                debug_printf("..Battery measurement asleep");
-        }
+//        if (BatMeasureADCDisable()==1)
+//        {
+//                debug_printf("..Battery measurement asleep");
+//        }
 
         USBPortDisable();
 
@@ -129,14 +129,23 @@ wake_up(void){
         {
                 debug_printf("..EKG ADC awake");
         }
-        // enable the I2C bus
+        ineedmd_adc_Start_Low();
+        //power on ADC, disable continuous conversions
+        ineedmd_adc_Power_On();
+        //turn off continuous conversion for register read/writes
+        ineedmd_adc_Stop_Continuous_Conv();
+
+        //id = INEEDMD_ADC_Get_ID();
+
+        ineedmd_adc_Enable_Lead_Detect();
+// enable the I2C bus
         LEDI2CEnable();
 
         USBPortEnable();
 
-        if (BatMeasureADCEnable()==1)
-        {
-                debug_printf("..Battery measurement asleep");
-        }
+//        if (BatMeasureADCEnable()==1)
+//        {
+//                debug_printf("..Battery measurement asleep");
+//        }
 
 }

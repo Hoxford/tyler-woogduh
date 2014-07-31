@@ -138,7 +138,7 @@ int set_system_speed (unsigned int how_fast)
       break;
 
     case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
-      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 2Mhz
+      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
       SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
@@ -160,7 +160,7 @@ int set_system_speed (unsigned int how_fast)
       break;
   }
 
-//  return how_fast;
+  return how_fast;
 
 
 }
@@ -267,7 +267,7 @@ BatMeasureADCDisable(void)
    //Enable the ADC Clock
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
     //let is stabalise with a majik delay
-//    return 1;
+    return 1;
 }
 
 //*****************************************************************************
@@ -358,14 +358,11 @@ EKGSPIEnable(void)
   SSIEnable(INEEDMD_ADC_SPI);
 //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
 
+  ineedmd_adc_Power_On();
+
   //when done set the CS high the ADC needs the CS pin high to work properly
    MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> 5ce5769234c3a4927c64794d74e51524ff8b3a80
    return 1;
 
 }
@@ -373,7 +370,7 @@ EKGSPIEnable(void)
 
 
 
-void
+int
 EKGSPIDisable(void)
 {
   //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
@@ -382,7 +379,7 @@ EKGSPIDisable(void)
   // power down the ADC
   MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
 
-//  return 1;
+  return 1;
 
 }
 
