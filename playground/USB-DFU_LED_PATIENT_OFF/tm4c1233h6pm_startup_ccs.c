@@ -24,9 +24,12 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
 #include "driverlib/timer.h"
 #include <inc/tm4c1233h6pm.h>
 #include <inc/hw_memmap.h>
+#include "board.h"
 
 
 //*****************************************************************************
@@ -38,7 +41,15 @@ void ResetISR(void);
 static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
+static void Reset_me(void);
 static void Timer0AIntHandler(void);
+static void USB0Int(void);
+
+//*****************************************************************************
+//
+// External declarations for the interrupt handlers used by the application.
+//
+//*****************************************************************************
 
 //*****************************************************************************
 //
@@ -133,7 +144,7 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     0,                                      // Reserved
     IntDefaultHandler,                      // Hibernate
-    IntDefaultHandler,                      // USB0
+    USB0Int,                                // USB0
     IntDefaultHandler,                      // PWM Generator 3
     IntDefaultHandler,                      // uDMA Software Transfer
     IntDefaultHandler,                      // uDMA Error
@@ -329,4 +340,26 @@ Timer0AIntHandler(void)
     // Clear the timer interrupt flag.
     //
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+}
+
+//*****************************************************************************
+//
+// USP interrupt handler
+//
+//*****************************************************************************
+static void USB0Int(void)
+{
+  uint32_t ui32Status;
+
+  //
+  // Get the interrrupt status.
+  //
+  ui32Status = ROM_USBIntStatusControl(INEEDMD_USB);
+
+  vUSBServiceInt(ui32Status);
+
+  MAP_USBIntStatusControl(INEEDMD_USB);
+  MAP_USBIntStatusEndpoint(USB0_BASE);
+
+  return;
 }

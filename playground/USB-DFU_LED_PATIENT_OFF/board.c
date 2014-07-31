@@ -47,6 +47,7 @@
 //#include "utils_inc/proj_debug.h"
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
+#include "inc/hw_nvic.h"
 #include "inc/hw_gpio.h"
 #include "inc/hw_sysctl.h"
 #include "driverlib/adc.h"
@@ -76,6 +77,7 @@
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
 volatile bool bIs_usart_timeout = false;
+volatile bool bIs_USB_sof = false;
 uint32_t uiSys_clock_rate_ms = 0;
 
 //
@@ -862,7 +864,45 @@ USBPortEnable(void)
     //
     MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5);
 
+#define SYSTICKS_PER_SECOND 100
+    ROM_FPULazyStackingEnable();
+    MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL  | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
+
+    set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
+
+    uint32_t ui32SysClock = MAP_SysCtlClockGet();
+//    MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
+//    MAP_SysTickIntEnable();
+//    MAP_SysTickEnable();
+//    MAP_IntMasterDisable();
+//    MAP_SysTickIntDisable();
+//    MAP_SysTickDisable();
+    HWREG(NVIC_DIS0) = 0xffffffff;
+    HWREG(NVIC_DIS1) = 0xffffffff;
+    // 1. Enable USB PLL
+    // 2. Enable USB controller
+//    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+//    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlUSBPLLEnable();
+    // 3. Enable USB D+ D- pins
+    // 4. Activate USB DFU
+    MAP_SysCtlDelay(ui32SysClock / 3);
+    MAP_IntMasterEnable(); // Re-enable interrupts at NVIC level
+
     //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
+
+//    ROM_USBIntEnableControl(USB0_BASE,(USB_INTCTRL_DISCONNECT | USB_INTCTRL_CONNECT));
+    MAP_USBIntEnableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
+                                       USB_INTCTRL_CONNECT);
+//    MAP_USBIntEnableEndpoint(USB0_BASE, USB_INTEP_ALL);
+
+    MAP_USBDevConnect(USB0_BASE);
+
+    MAP_IntEnable(INT_USB0);
 
 }
 
@@ -875,9 +915,66 @@ USBPortEnable(void)
 void
 USBPortDisable(void)
 {
-    //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
-    // USB block need the processor at full speed to complete the initiaisation.
+
+    uint32_t ui32SysClock = MAP_SysCtlClockGet();
+
+    //disable all interrupts
+    MAP_IntMasterDisable();
+
+    //disable the USB0 interrupt
+    ROM_IntDisable(INT_USB0);
+
+    //disconnect the USB0 device
+    MAP_USBDevDisconnect(USB0_BASE);
+
+    //disable the interrupt controll
+    MAP_USBIntDisableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
+                                        USB_INTCTRL_CONNECT);
+
+    //turn off the USB PLL
+    MAP_SysCtlUSBPLLDisable();
+
+    //do a short delay
+    MAP_SysCtlDelay(ui32SysClock / 3);
+
+    // disable the entier USB0 peripheral
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
+
+    set_system_speed(INEEDMD_CPU_SPEED_FULL_INTERNAL);
+
+    //re-enable all interrupts
+    MAP_IntMasterEnable();
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vUSBServiceInt(uint32_t uiUSB_int_flags)
+{
+
+  if((uiUSB_int_flags & USB_INTCTRL_SOF) == USB_INTCTRL_SOF)
+  {
+      bIs_USB_sof = true;
+  }
+}
+
+bool bIs_usb_physical_data_conn(void)
+{
+  bool bWas_physical_data_conn;
+
+  //disable all interrupts
+  ROM_IntMasterDisable();
+
+  bWas_physical_data_conn = bIs_USB_sof;
+  bIs_USB_sof = false;
+
+  //re-enable interrupts
+  ROM_IntMasterEnable();
+
+  return bWas_physical_data_conn;
 }
 
 /*

@@ -11,6 +11,9 @@
 #define DEBUG_CODE
 //
 
+//*****************************************************************************
+// includes
+//*****************************************************************************
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -49,7 +52,14 @@
 #include "ineedmd_bluetooth_radio.h"
 #include "ineedmd_power_modes.h"
 
+//*****************************************************************************
+// defines
+//*****************************************************************************
 
+/******************************************************************************
+* variables
+******************************************************************************/
+static volatile bool bUSB_plugged_in = false;
 //static volatile bool g_bIntFlag = false;
 
 
@@ -171,21 +181,29 @@ hold_until_short_removed(void){
 void
 check_for_update(void){
 
-    volatile uint32_t ui32Loop;
-  //check the state of the short on the ekg connector
-  //checks the short on the update_pin GPIO
-  //if short call the map_usbupdate() to force a USB update.
-  while(ineedmd_adc_Check_Lead_Off() != LEAD_OPEN)
+  volatile uint32_t ui32Loop;
+
+  USBPortEnable();
+  iHW_delay(1000);
+
+  //check if there is a USB data connection attached
+  bUSB_plugged_in = bIs_usb_physical_data_conn();
+  if(bUSB_plugged_in == true)
   {
-        #define SYSTICKS_PER_SECOND 100
-    ROM_FPULazyStackingEnable();
+    //check the state of the short on the ekg connector
+    //checks the short on the update_pin GPIO
+    //if short call the map_usbupdate() to force a USB update.
+    while(ineedmd_adc_Check_Lead_Off() != LEAD_OPEN)
+    {
+  #define SYSTICKS_PER_SECOND 100
+      ROM_FPULazyStackingEnable();
       MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL  | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
       MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
       MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
-    uint32_t ui32SysClock = MAP_SysCtlClockGet();
-    MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
-    MAP_SysTickIntEnable();
-    MAP_SysTickEnable();
+      uint32_t ui32SysClock = MAP_SysCtlClockGet();
+      MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
+      MAP_SysTickIntEnable();
+      MAP_SysTickEnable();
       MAP_IntMasterDisable();
       MAP_SysTickIntDisable();
       MAP_SysTickDisable();
@@ -193,9 +211,9 @@ check_for_update(void){
       HWREG(NVIC_DIS1) = 0xffffffff;
       // 1. Enable USB PLL
       // 2. Enable USB controller
-    //    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+  //    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
       MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-    //    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+  //    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
       MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
       MAP_SysCtlUSBPLLEnable();
       // 3. Enable USB D+ D- pins
@@ -219,9 +237,9 @@ check_for_update(void){
       GPIO_PORTF_DIR_R = 0x08;
       GPIO_PORTF_DEN_R = 0x08;
       while(1);
+    }
   }
-
-
+  USBPortDisable();
 }
 
 /*
@@ -253,11 +271,7 @@ check_battery(void){
   //start down the reference
   ineedmd_adc_Start_Internal_Reference();
   // clocks down the processor to REALLY slow ( 30khz) and
-
-
-
 }
-
 
 /*
  * main.c
@@ -309,21 +323,21 @@ void main(void) {
 //    BatMeasureADCEnable();  //todo: doesn't return, hangs on MAP_ADCSequenceDisable(BATTERY_ADC, 3);
     LEDI2CEnable();
     XTALControlPin();
-    USBPortEnable();
+//    USBPortEnable();
 
-//  bluetooth_setup();
-//    iIneedMD_radio_setup();  //todo: doesn't return, causes a hard fault
+    iIneedMD_radio_setup();
 
+    vDEBUG("Starting main loop");
     while(1)
 
     {
-      led_test();
+//      led_test();
       hold_until_short_removed();
 #ifdef DO_CHECK_BATT
       //check_battery();
 #endif //DO_CHECK_BATT
-
-      //check_for_update();
+      vDEBUG("check_for_update()");
+      check_for_update();
 
     }
 }
