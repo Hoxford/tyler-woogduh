@@ -313,7 +313,7 @@ bIs_battery_low(void)
   return bIs_batt_low;
 }
 
-void
+int
 EKGSPIEnable(void)
 {
   //
@@ -360,6 +360,7 @@ EKGSPIEnable(void)
   //when done set the CS high the ADC needs the CS pin high to work properly
    MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
+   return 1;
 
 }
 
@@ -386,7 +387,7 @@ EKGSPIDisable(void)
 // param description: none
 // return value description: none
 //*****************************************************************************
-void
+int
 RadioUARTEnable(void)
 {
   //TODO: abstract all the direct references to the processor I/O
@@ -442,7 +443,7 @@ RadioUARTEnable(void)
     UARTEnable(INEEDMD_RADIO_UART);
 //	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
-
+    return 1;
 }
 
 
@@ -454,7 +455,7 @@ RadioUARTEnable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 RadioUARTDisable(void)
 {
 //  while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
@@ -462,7 +463,7 @@ RadioUARTDisable(void)
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
     // shuts down the radio
     iRadio_Power_Off();
-//    return 1;
+    return 1;
 }
 
 //*****************************************************************************
