@@ -35,7 +35,6 @@
 #define ADS1198_RDATAC		0x10		//continuous conversion mode
 #define ADS1198_SDATAC		0x11		//stop continuous conversion
 #define ADS1198_RDATA		0x12		//read data by command
-#define ADS1198_ID 		0xB6
 
 //register read/write commands
 //				byte 1								byte 2
@@ -46,6 +45,7 @@
 
 //REGISTER MAP
 //***************************************************************
+#define ADS1198_ID_ADDRESS              0x00
 
 
 //global settings
@@ -203,6 +203,11 @@
 #define WCTC2				0x04
 #define WCTC1				0x02
 #define WCTC0				0x01
+
+//Part ID
+#define ADS1198_ID              0xB6
+
+
 
 extern void ineedmd_adc_Hard_Reset();
 extern void ineedmd_adc_Stop_Continuous_Conv();

@@ -184,7 +184,17 @@ Set_Timer0_Sleep()
 void
 PowerInitFunction(void)
 {
+  // set the brown out detection registers
+
   HWREG(SYSCTL_PBORCTL_R)=SYSCTL_PBORCTL_BOR0;
+
+  // set the LDO in sleep and deep sleep...
+
+  SysCtlLDODeepSleepSet(SYSCTL_LDO_0_90V);
+  SysCtlLDOSleepSet(SYSCTL_LDO_0_90V);
+
+  SysCtlDeepSleepPowerSet (SYSCTL_FLASH_LOW_POWER |  SYSCTL_TEMP_LOW_POWER | SYSCTL_SRAM_LOW_POWER );
+
 }
 
 void
@@ -358,10 +368,6 @@ EKGSPIEnable(void)
   SSIEnable(INEEDMD_ADC_SPI);
 //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
 
-  ineedmd_adc_Power_On();
-
-  //when done set the CS high the ADC needs the CS pin high to work properly
-   MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
    return 1;
 
@@ -890,124 +896,125 @@ USBPortDisable(void)
 void
 ConfigureSleep(void)
 {
-	//
-	// Which peripherals are enabled in sleep
-	// Peripherals should be enabled OR disabled
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC1);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC1);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_CAN0);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_CAN0);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_COMP0);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_COMP0);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOA);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOA);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOB);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOC);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOC);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOD);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOE);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOF);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_HIBERNATE);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_HIBERNATE);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C0);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C0);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C1);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C1);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C2);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C2);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C3);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C3);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C4);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C4);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_EEPROM0);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_EEPROM0);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI0);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI0);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI1);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI1);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER0);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER1);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER2);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER3);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER3);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER4);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER5);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER5);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART0);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART1);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART2);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART2);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART3);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART3);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART4);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART4);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART5);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART5);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART6);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART6);
-	//
-	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART7);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART7);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UDMA);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_USB0);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG0);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG0);
-	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG1);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG1);
-	//
+        //
+        // Which peripherals are enabled in sleep
+        // Peripherals should be enabled OR disabled
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_CAN0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_CAN0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_COMP0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_COMP0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOA);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOA);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOB);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOC);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOC);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOD);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOE);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOF);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_HIBERNATE);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_HIBERNATE);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C2);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C2);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C3);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C3);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C4);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C4);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_EEPROM0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_EEPROM0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI1);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER2);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER3);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER3);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER4);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER5);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER5);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART0);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART2);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART2);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART3);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART3);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART4);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART4);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART5);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART5);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART6);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART6);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART7);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART7);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UDMA);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_USB0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG0);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG1);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG1);
+        //
 }
 
 void
-ConfigureHibernation(void)
+
+ConfigureDeepSleep(void)
 {
 	//
 	// Which peripherals are enabled in sleep
@@ -1025,29 +1032,29 @@ ConfigureHibernation(void)
 	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_COMP0);
 	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_COMP0);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOA);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOA);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOA);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOA);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOB);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOB);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOB);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOB);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOC);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOC);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOC);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOC);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOD);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOD);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOD);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOD);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOE);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOE);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOE);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOE);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOF);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOF);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOF);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOF);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_HIBERNATE);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_HIBERNATE);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_HIBERNATE);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_HIBERNATE);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C0);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C0);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C0);
 	//
 	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C1);
 	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C1);
@@ -1064,11 +1071,11 @@ ConfigureHibernation(void)
 	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_EEPROM0);
 	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_EEPROM0);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI0);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI0);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI0);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI1);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI1);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI1);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI1);
 	//
 	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER0);
 	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER0);
@@ -1091,8 +1098,8 @@ ConfigureHibernation(void)
 	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART0);
 	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART0);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART1);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART1);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART1);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART1);
 	//
 	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART2);
 	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART2);
@@ -1112,14 +1119,14 @@ ConfigureHibernation(void)
 	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART7);
 	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART7);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UDMA);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UDMA);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UDMA);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UDMA);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_USB0);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_USB0);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_USB0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_USB0);
 	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG0);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG0);
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG0);
 	//
 	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG1);
 	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG1);

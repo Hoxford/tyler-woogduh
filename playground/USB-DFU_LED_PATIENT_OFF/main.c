@@ -39,6 +39,7 @@
 #include "driverlib/uart.h"
 #include "driverlib/timer.h"
 #include "driverlib/interrupt.h"
+#include "driverlib/adc.h"
 
 #include "utils_inc/proj_debug.h"
 
@@ -58,20 +59,20 @@ void led_test(void)
 
     //ints to use in switch stmt
 
-    //ineedmd_led_pattern(POWER_ON_BATGOOD);
-    //ineedmd_led_pattern(POWER_ON_BATLOW);
-    //ineedmd_led_pattern(BAT_CHARGING);
-    //ineedmd_led_pattern(BT_CONNECTED);
-    //ineedmd_led_pattern(BT_ATTEMPTING);
-    //ineedmd_led_pattern(BT_FAILED);
-    //ineedmd_led_pattern(USB_CONNECTED);
-    //ineedmd_led_pattern(USB_FAILED);
+    ineedmd_led_pattern(POWER_ON_BATGOOD);
+    ineedmd_led_pattern(POWER_ON_BATLOW);
+    ineedmd_led_pattern(BAT_CHARGING);
+    ineedmd_led_pattern(BT_CONNECTED);
+    ineedmd_led_pattern(BT_ATTEMPTING);
+    ineedmd_led_pattern(BT_FAILED);
+    ineedmd_led_pattern(USB_CONNECTED);
+    ineedmd_led_pattern(USB_FAILED);
     ineedmd_led_pattern(DATA_TRANSFER);
     ineedmd_led_pattern(TRANSFER_DONE);
-    //ineedmd_led_pattern(STORAGE_WARNING);
-    //ineedmd_led_pattern(LEAD_LOOSE);
-    //ineedmd_led_pattern(ACQUIRE_UPLOAD_DATA);
-    //ineedmd_led_pattern(PATIENT_ALERT);
+    ineedmd_led_pattern(STORAGE_WARNING);
+    ineedmd_led_pattern(LEAD_LOOSE);
+    ineedmd_led_pattern(ACQUIRE_UPLOAD_DATA);
+    ineedmd_led_pattern(PATIENT_ALERT);
     ineedmd_led_pattern(LED_OFF);
 
 }
@@ -138,11 +139,66 @@ void led_test(void)
 /*
  * this routeen puts us in really deep sleep and waits till the short is removed - ist power up
  */
+
+/*
+ * check_battery()
+ * this routeen checks for an update and then forces the update.
+ */
+int
+check_battery(void){
+
+  uint32_t  adc_reading;
+
+  //check the state of the low battery pin and if it is low the we park the bus...
+  BatMeasureADCEnable();
+  ADCProcessorTrigger(ADC0_BASE, 3);
+  while(!ADCIntStatus(ADC0_BASE, 3, false))
+  {
+  }
+  ADCIntClear(ADC0_BASE, 3);
+  ADCSequenceDataGet(ADC0_BASE, 3, &adc_reading);
+
+  BatMeasureADCDisable();
+
+  return adc_reading;
+
+}
+
+
+void switch_on_adc_for_lead_detection(void)
+{
+  //switch on the SPI port
+  EKGSPIEnable();
+
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+
+  //when done set the CS high
+  ineedmd_adc_Start_Low();
+  //power on ADC, disable continuous conversions
+  ineedmd_adc_Power_On();
+  //turn off continuous conversion for register read/writes
+  ineedmd_adc_Stop_Continuous_Conv();
+
+  //id = INEEDMD_ADC_Get_ID();
+  ineedmd_adc_Enable_Lead_Detect();
+  //increase comparator threshold for lead off detect
+  uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
+  ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1));
+  //check that we can read the device if not reset
+
+  //start conversions
+  ineedmd_adc_Start_Internal_Reference();
+  ineedmd_adc_Start_High();
+}
+
+
 void
 hold_until_short_removed(void){
 
   uint32_t uiLead_statusA;
   uint32_t uiLead_statusB;
+  uint32_t battery_level;
+
   //check the state of the short on the ekg connector
   //check the USB for a short
   //if not go back to sleep
@@ -155,11 +211,27 @@ hold_until_short_removed(void){
   #define LEAD_SHORT 0x82FF
   #define LEAD_OPEN  0xAAFF
 
-  while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT)
+  while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT | ineedmd_adc_Get_ID() != ADS1198_ID)
   {
-    go_to_sleep(100);
-    wake_up();
+    shut_it_all_down();
+    sleep_for_tenths(290);
 
+    LEDI2CEnable();
+    battery_level = check_battery();
+    if (battery_level > 2250)
+      {
+        ineedmd_led_pattern(LED_CHIRP_GREEN);
+      }
+    else if (battery_level > 2050)
+      {
+        ineedmd_led_pattern(LED_CHIRP_ORANGE);
+      }
+    else
+      {
+        ineedmd_led_pattern(LED_CHIRP_RED);
+      }
+
+    switch_on_adc_for_lead_detection();
   }
 }
 
@@ -224,39 +296,6 @@ check_for_update(void){
 
 }
 
-/*
- * check_for_update()
- * this routeen checks for an update and then forces the update.
- */
-void
-check_battery(void){
-  //check the state of the low battery pin and if it is low the we park the bus...
-
-  //if the input port is not high bat alarm!
-  if( GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT) == INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT) {
-      // shut down the LEDs
-    ineedmd_led_pattern(LED_OFF);
-    //stop the conversions
-    ineedmd_adc_Start_Low();
-    //shut down the reference
-    ineedmd_adc_Stop_Internal_Reference();
-    // clocks down the processor to REALLY slow ( 30khz) and
-      set_system_speed (INEEDMD_CPU_SPEED_REALLY_SLOW);
-      while (GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT) == INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT) {
-        wait_time(1000);
-      }
-  }
-  //comming out we turn the processor all the way up
-  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
-  //stART the conversions
-  ineedmd_adc_Start_High();
-  //start down the reference
-  ineedmd_adc_Start_Internal_Reference();
-  // clocks down the processor to REALLY slow ( 30khz) and
-
-
-
-}
 
 
 /*
@@ -272,35 +311,15 @@ void main(void) {
   //enable the radio - so that it is out of reset and the battery charger is running...
 
   vDEBUG("hello world!");
+
   LEDI2CEnable();
   ineedmd_led_pattern(LED_OFF);
 
-  RadioUARTEnable();
-  EKGSPIEnable();
   ConfigureSleep();
+  ConfigureDeepSleep();
   Set_Timer0_Sleep();
 
-  //when done set the CS high
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
-
-  ineedmd_adc_Start_Low();
-  //power on ADC, disable continuous conversions
-  ineedmd_adc_Power_On();
-  //turn off continuous conversion for register read/writes
-  ineedmd_adc_Stop_Continuous_Conv();
-
-  //id = INEEDMD_ADC_Get_ID();
-
-  ineedmd_adc_Enable_Lead_Detect();
-
-  //increase comparator threshold for lead off detect
-  uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
-  ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1));
-
-  //start conversions
-  ineedmd_adc_Start_Internal_Reference();
-  ineedmd_adc_Start_High();
-
+  switch_on_adc_for_lead_detection();
 
 //#if DO_SHORT_HOLD
     hold_until_short_removed(); //todo: doesn't return and hangs on the lead check when short is not present
@@ -308,22 +327,23 @@ void main(void) {
 
 //    BatMeasureADCEnable();  //todo: doesn't return, hangs on MAP_ADCSequenceDisable(BATTERY_ADC, 3);
     LEDI2CEnable();
-    XTALControlPin();
-    USBPortEnable();
 
-//  bluetooth_setup();
 //    iIneedMD_radio_setup();  //todo: doesn't return, causes a hard fault
 
     while(1)
 
     {
-      led_test();
-      hold_until_short_removed();
-#ifdef DO_CHECK_BATT
-      //check_battery();
-#endif //DO_CHECK_BATT
+      if (check_battery() > 2040 )
+        {
+          led_test();
+        }
+      else
+        {
+          sleep_for_tenths(290);
+          ineedmd_led_pattern(LED_CHIRP_RED);
+        }
 
-      //check_for_update();
+     //check_for_update();
 
     }
 }
