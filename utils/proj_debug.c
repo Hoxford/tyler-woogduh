@@ -101,6 +101,10 @@ void vDEBUG(char * cMsg, ...)
   {
     UARTCharPut(DEBUG_UART, cMsg[i]);
   }
+
+  UARTCharPut(DEBUG_UART, '\r');
+  UARTCharPut(DEBUG_UART, '\n');
+
   return;
 }
 

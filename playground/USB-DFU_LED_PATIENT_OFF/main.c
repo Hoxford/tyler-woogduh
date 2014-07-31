@@ -378,15 +378,17 @@ void main(void) {
     XTALControlPin();
     USBPortEnable();
 
-//  bluetooth_setup();
-//    iIneedMD_radio_setup();  //todo: doesn't return, causes a hard fault
+    vDEBUG("iIneedMD_radio_setup()");
+    iIneedMD_radio_setup();  //todo: doesn't return, causes a hard fault
 
+    vDEBUG("Starting process loop");
     while(1)
-
     {
+      vDEBUG("led_test()");
       led_test();
 
 #ifdef DO_CHECK_BATT
+      vDEBUG("check_battery()");
       check_battery();
 #endif //DO_CHECK_BATT
 

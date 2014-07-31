@@ -160,7 +160,7 @@ void set_system_speed (unsigned int how_fast)
       break;
   }
 
-  return how_fast;
+//  return how_fast;
 
 
 }
@@ -266,7 +266,7 @@ BatMeasureADCDisable(void)
    //Enable the ADC Clock
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
     //let is stabalise with a majik delay
-    return 1;
+//    return 1;
 }
 
 //*****************************************************************************
@@ -324,7 +324,7 @@ EKGSPIEnable(void)
   //no need for a majik delay as we are configuring the GPIO pins as well...
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
   // power UP the ADC
-  MAP_GPIOIPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
   // Enable pin PA6 for GPIOOutput
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
   // Enable pin PA0 for GPIOInput
@@ -373,9 +373,9 @@ EKGSPIDisable(void)
   SSIDisable(INEEDMD_ADC_SPI);
   MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
   // power down the ADC
-  MAP_GPIOIPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
+  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
 
-  return 1
+//  return 1;
 
 }
 
@@ -462,7 +462,7 @@ RadioUARTDisable(void)
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
     // shuts down the radio
     iRadio_Power_Off();
-    return 1;
+//    return 1;
 }
 
 //*****************************************************************************
@@ -507,7 +507,6 @@ int iRadio_interface_enable(void)
 
   //perform a delay
 //  iHW_delay(1);
-  iHW_delay(100);
 
   //
   // Configure the UART for 115,200, 8-N-1 operation.
@@ -621,7 +620,7 @@ int iRadio_rcv_char(char *cRcv_char)
 
   while(*cRcv_char == 0xFF)
   {
-    iHW_delay(1);
+//    iHW_delay(1);
     *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
   }
   return 1;

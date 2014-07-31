@@ -109,6 +109,7 @@ void EKGSPIEnable(void);
 void RadioUARTEnable(void);
 void RadioUARTDisable(void);
 int iRadio_Power_On(void);
+int iRadio_Power_Off(void);
 int iRadio_interface_enable(void);
 int iRadio_send_char(char * byte);
 int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);

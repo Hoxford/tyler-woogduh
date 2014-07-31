@@ -4,6 +4,13 @@
  *  Created on: Jul 30, 2014
  *      Author: BrianS
  */
+#include <stdint.h>
+#include <string.h>
+#include <stdarg.h>
+
+#include "utils_inc/proj_debug.h"
+
+#define debug_printf vDEBUG
 
 void
 go_to_sleep(int number_second){
@@ -20,13 +27,13 @@ go_to_sleep(int number_second){
 	// start timer
 
 	// and deep sleep.
-	ROM_SysCtlDeepSleep().
+	ROM_SysCtlDeepSleep();
 }
 
 void
 wake_up(void){
 
-	debug_printf("waking_up")
+	debug_printf("waking_up");
 	//go to a fast clock
 
 	// power up the gpio
