@@ -100,8 +100,9 @@ void ineedmd_adc_Power_On()
 	//power up and raise reset (active low pins)
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-	//Important - wait at least 2^16 device clocks before reset
-	wait_time(10);
+	//Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
+	//TODO: make delay into task sleep, etc
+	wait_time(4);
     ineedmd_adc_Hard_Reset();
 }
 
@@ -272,6 +273,7 @@ void ineedmd_adc_Start_Internal_Reference()
 
 	ineedmd_adc_Register_Write(CONFIG3, val);
 	//wait for reference to start
+	//TODO: make delay into task sleep, etc
 	wait_time(15);
 
 	//when done set the CS high
@@ -491,6 +493,10 @@ void ineedmd_adc_Enable_Lead_Detect()
 	ineedmd_adc_Register_Write(CONFIG4, PD_LOFF_COMP);
 	ineedmd_adc_Register_Write(LOFF_SENSP, 0xFFFF);
 	ineedmd_adc_Register_Write(LOFF_SENSN, 0xFFFF);
+
+	//increase comparator threshold for lead off detect
+	uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
+	ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1));
 }
 
 //configure to use 3 lead setup

@@ -123,6 +123,8 @@
 #define BG_SIZE              1024
 #define BG_SEND_SIZE         256
 
+#define ONESEC_DELAY         100
+
 /******************************************************************************
 * variables
 ******************************************************************************/
@@ -608,7 +610,7 @@ int  iIneedMD_radio_setup(void)
 
     //reset the radio to make the settings take hold
     ineedmd_radio_send_string(RESET, strlen(RESET));
-    iHW_delay(1000);
+    iHW_delay(ONESEC_DELAY);
 
     ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
     memset(cRcv_buff, 0x00, BG_SIZE);
@@ -619,7 +621,7 @@ int  iIneedMD_radio_setup(void)
 
     //enable the interrupt to the radio
     iRadio_interface_int_enable();
-    iHW_delay(10000);
+    iHW_delay(ONESEC_DELAY);
   }
   else
   {
