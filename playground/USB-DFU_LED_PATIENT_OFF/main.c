@@ -47,6 +47,7 @@
 #include "ineedmd_led.h"
 #include "ineedmd_adc.h"
 #include "ineedmd_bluetooth_radio.h"
+#include "ineedmd_power_modes.h"
 
 
 //static volatile bool g_bIntFlag = false;
@@ -154,76 +155,11 @@ hold_until_short_removed(void){
   #define LEAD_SHORT 0x82FF
   #define LEAD_OPEN  0xAAFF
 
-  while(ineedmd_adc_Check_Lead_Off() != LEAD_SHORT)
+  while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT)
   {
-    //disable the spi port
-    EKGSPIDisable();
-    //power down the ADC
-    ineedmd_adc_Power_Off();
+    go_to_sleep(100);
+    wake_up();
 
-    //
-    // Set the Timer0B load value to 10s.
-    //
-
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    ROM_IntMasterEnable();
-    ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-    TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
-
-    //
-    // Enable processor interrupts.
-    //
-    IntMasterEnable();
-    //
-    // Configure the Timer0 interrupt for timer timeout.
-    //
-    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-    //
-    // Enable the Timer0A interrupt on the processor (NVIC).
-    //
-    IntEnable(INT_TIMER0A);
-    //
-    // clocks down the processor to REALLY slow ( 500khz) and
-    //
-    set_system_speed(INEEDMD_CPU_SPEED_SLOW_INTERNAL);
-    //
-    // Enable Timer0(A)
-    //
-    TimerEnable(TIMER0_BASE, TIMER_A);
-
-    MAP_SysCtlSleep();
-    //SysCtlSleep();
-
-    //comming out we turn the processor all the way up
-    set_system_speed(INEEDMD_CPU_SPEED_FULL_INTERNAL);
-
-    TimerDisable(TIMER0_BASE, TIMER_A);
-    IntDisable(INT_TIMER0A);
-    IntMasterDisable();
-
-
-    GPIOEnable();
-    EKGSPIEnable();
-    //when done set the CS high
-    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
-
-    ineedmd_adc_Start_Low();
-    //power on ADC, disable continuous conversions
-    ineedmd_adc_Power_On();
-    //turn off continuous conversion for register read/writes
-    ineedmd_adc_Stop_Continuous_Conv();
-
-    //id = INEEDMD_ADC_Get_ID();
-
-    ineedmd_adc_Enable_Lead_Detect();
-
-    //increase comparator threshold for lead off detect
-    uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
-    ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1));
-
-    //start conversions
-    ineedmd_adc_Start_Internal_Reference();
-    ineedmd_adc_Start_High();
   }
 }
 
