@@ -48,6 +48,7 @@
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.LITTLE_ENDIAN.1624573025" name="Little endian code [See 'General' page to edit] (--little_endian, -me)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.LITTLE_ENDIAN" value="true" valueType="boolean"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.DEFINE.1009804017" name="Pre-define NAME (--define, -D)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.DEFINE" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="DEBUG"/>
+									<listOptionValue builtIn="false" value="ccs"/>
 									<listOptionValue builtIn="false" value="PART_TM4C1233H4PM"/>
 									<listOptionValue builtIn="false" value="DO_SHORT_HOLD"/>
 									<listOptionValue builtIn="false" value="DO_LED_TEST"/>
@@ -88,7 +89,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="main_led_test.c|tm4c1233h6pm_startup_ccs_gcc.c|tm4c1233h6pm.lds|tm4c123bh6pm_startup_ccs_gcc.c|tm4c123bh6pm.lds" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="usblib|main_led_test.c|tm4c1233h6pm_startup_ccs_gcc.c|tm4c1233h6pm.lds|tm4c123bh6pm_startup_ccs_gcc.c|tm4c123bh6pm.lds" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -156,7 +157,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="tm4c1233h6pm_startup_ccs.c|tm4c1233h6pm.cmd|tm4c123bh6pm_startup_ccs_gcc.c|tm4c123bh6pm.lds" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="usblib|tm4c1233h6pm_startup_ccs.c|tm4c1233h6pm.cmd|tm4c123bh6pm_startup_ccs_gcc.c|tm4c123bh6pm.lds" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -238,7 +239,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="tm4c123bh6pm_startup_ccs_gcc.c|tm4c123bh6pm.lds" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="usblib|tm4c123bh6pm_startup_ccs_gcc.c|tm4c123bh6pm.lds" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

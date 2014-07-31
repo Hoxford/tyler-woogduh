@@ -125,7 +125,9 @@ bool bRadio_is_data(void);
 void LEDI2CEnable(void);
 void XTALControlPin(void);
 void USBPortEnable(void);
-
+void USBPortDisable(void);
+void vUSBServiceInt(uint32_t uiUSB_int_flags);
+bool bIs_usb_physical_data_conn(void);
 void GPIODisable(void);
 int BatMeasureADCDisable(void);
 bool bIs_battery_low(void);
