@@ -107,7 +107,7 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
 
 
 
-void set_system_speed (unsigned int how_fast)
+int set_system_speed (unsigned int how_fast)
 {
 
   switch (how_fast) {
@@ -138,7 +138,7 @@ void set_system_speed (unsigned int how_fast)
       break;
 
     case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
-      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 2Mhz
+      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
       SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
@@ -160,7 +160,7 @@ void set_system_speed (unsigned int how_fast)
       break;
   }
 
-//  return how_fast;
+  return how_fast;
 
 
 }
@@ -225,7 +225,7 @@ GPIODisable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 BatMeasureADCEnable(void)
 {
 
@@ -251,6 +251,7 @@ BatMeasureADCEnable(void)
     //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
 
 
+    return 1;
 }
 
 //*****************************************************************************
@@ -259,14 +260,14 @@ BatMeasureADCEnable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 BatMeasureADCDisable(void)
 {
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
    //Enable the ADC Clock
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
     //let is stabalise with a majik delay
-//    return 1;
+    return 1;
 }
 
 //*****************************************************************************
@@ -360,14 +361,15 @@ EKGSPIEnable(void)
   //when done set the CS high the ADC needs the CS pin high to work properly
    MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
-   return 1;
 
+
+   return 1;
 }
 
 
 
 
-void
+int
 EKGSPIDisable(void)
 {
   //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
@@ -376,7 +378,7 @@ EKGSPIDisable(void)
   // power down the ADC
   MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
 
-//  return 1;
+  return 1;
 
 }
 
@@ -444,27 +446,23 @@ RadioUARTEnable(void)
 //	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
     return 1;
+
 }
 
-
-
-
 //*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
+// name: iRadioPowerOff
+// description: sets the gpio pin to the radio high to turn on the radio
+// param description: none
+// return value description: 1 if success
 //*****************************************************************************
+
 int
-RadioUARTDisable(void)
+iRadio_Power_Off(void)
 {
-//  while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
-    UARTDisable(INEEDMD_RADIO_UART);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
-    // shuts down the radio
-    iRadio_Power_Off();
-    return 1;
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
+  return 1;
 }
+
 
 //*****************************************************************************
 // name: iRadioPowerOn
@@ -476,19 +474,6 @@ int
 iRadio_Power_On(void)
 {
   GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN);
-  return 1;
-}
-
-//*****************************************************************************
-// name: iRadioPowerOff
-// description: sets the gpio pin to the radio high to turn on the radio
-// param description: none
-// return value description: 1 if success
-//*****************************************************************************
-int
-iRadio_Power_Off(void)
-{
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
   return 1;
 }
 
@@ -508,6 +493,7 @@ int iRadio_interface_enable(void)
 
   //perform a delay
 //  iHW_delay(1);
+  iHW_delay(100);
 
   //
   // Configure the UART for 115,200, 8-N-1 operation.
@@ -621,7 +607,7 @@ int iRadio_rcv_char(char *cRcv_char)
 
   while(*cRcv_char == 0xFF)
   {
-//    iHW_delay(1);
+    iHW_delay(1);
     *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
   }
   return 1;
@@ -962,8 +948,8 @@ ConfigureSleep(void)
 	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI0);
 	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI0);
 	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI1);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI1);
+	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI1);
+	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI1);
 	//
 	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
 	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER0);
@@ -986,8 +972,8 @@ ConfigureSleep(void)
 	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);
 	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART0);
 	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART1);
+	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
+	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART1);
 	//
 	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART2);
 	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART2);
@@ -1010,14 +996,14 @@ ConfigureSleep(void)
 	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
 	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UDMA);
 	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_USB0);
+	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
+	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_USB0);
 	//
 	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG0);
 	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG0);
 	//
-	SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG1);
-	//SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG1);
+	//SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG1);
+	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG1);
 	//
 }
 
@@ -1152,8 +1138,6 @@ int
 iHW_delay(uint32_t uiDelay)
 {
   int i;
-  uiSys_clock_rate_ms = MAP_SysCtlClockGet() /3000;
-
   for(i = 0; i < uiDelay; i++)
   {
 //    MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
