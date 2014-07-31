@@ -99,6 +99,7 @@ void Set_Timer0_Sleep();
 void PowerInitFunction(void);
 void PortFunctionInit(void);
 void ConfigureSleep(void);
+void ConfigureDeepSleep(void);
 void wait_time (unsigned int);
 void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
 int set_system_speed (unsigned int);
