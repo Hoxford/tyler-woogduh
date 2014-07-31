@@ -102,7 +102,7 @@ void ineedmd_adc_Power_On()
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
 	//Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
 	//TODO: make delay into task sleep, etc
-	wait_time(4);
+	wait_time(10);
     ineedmd_adc_Hard_Reset();
 }
 

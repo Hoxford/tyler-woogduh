@@ -101,10 +101,10 @@ void PortFunctionInit(void);
 void ConfigureSleep(void);
 void wait_time (unsigned int);
 void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
-void set_system_speed (unsigned int);
+int set_system_speed (unsigned int);
 
 void GPIOEnable(void);
-void BatMeasureADCEnable(void);
+int BatMeasureADCEnable(void);
 int EKGSPIEnable(void);
 int RadioUARTEnable(void);
 int RadioUARTDisable(void);
@@ -127,12 +127,12 @@ void XTALControlPin(void);
 void USBPortEnable(void);
 
 void GPIODisable(void);
-void BatMeasureADCDisable(void);
+int BatMeasureADCDisable(void);
 bool bIs_battery_low(void);
-void EKGSPIDisable(void);
+int EKGSPIDisable(void);
 
 void LEDI2CDisable(void);
-void USBPortDisnable(void);
+void USBPortDisable(void);
 int iHW_delay(uint32_t uiDelay);
 int iBoard_init(void);
 

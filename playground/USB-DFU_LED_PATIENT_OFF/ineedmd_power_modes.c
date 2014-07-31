@@ -4,46 +4,148 @@
  *  Created on: Jul 30, 2014
  *      Author: BrianS
  */
-#include <stdint.h>
-#include <string.h>
-#include <stdarg.h>
-
-#include "utils_inc/proj_debug.h"
 
 #define debug_printf vDEBUG
 
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+//#include "utils_inc/proj_debug.h"
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_gpio.h"
+#include "inc/hw_sysctl.h"
+#include "driverlib/adc.h"
+#include "driverlib/debug.h"
+#include "driverlib/gpio.h"
+#include "driverlib/i2c.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/ssi.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/uart.h"
+#include "driverlib/usb.h"
+#include "driverlib/timer.h"
+#include "driverlib/interrupt.h"
+
+#include "inc/tm4c1233h6pm.h"
+#include "board.h"
+#include "utils_inc/proj_debug.h"
+#include "ineedmd_led.h"
+
+
+
 void
-go_to_sleep(int number_second){
+go_to_sleep(int number_tenths_seconds){
 
-	debug_printf("going to sleep");
-	// power down the radio
-	// power down the ADC
-	// led's off
+        debug_printf("going to sleep");
+        // power down the radio
+        if (iRadio_Power_Off()==1)
+        {
+                debug_printf("..radio asleep");
+        }
+        // power down the ADC
+        if (EKGSPIDisable()==1)
+        {
+                debug_printf("..EKG ADC asleep");
+        }
+        // led's off  controller powers itself down 5ms after LEDS are off
+        ineedmd_led_pattern(LED_OFF);
+        LEDI2CDisable();
+        // power down ADC
 
-	// power down the unused ports
+//        if (BatMeasureADCDisable()==1)
+//        {
+//                debug_printf("..Battery measurement asleep");
+//        }
 
-	// go to a slow clock
+        USBPortDisable();
 
-	// start timer
+        // start timer
+    //
+    // Set the Timer0B load value to 10s.
+    //
 
-	// and deep sleep.
-	ROM_SysCtlDeepSleep();
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    ROM_IntMasterEnable();
+    ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+    TimerLoadSet(TIMER0_BASE, TIMER_A, (50000 * number_tenths_seconds) );
+
+    //
+    // Enable processor interrupts.
+    //
+    IntMasterEnable();
+    //
+    // Configure the Timer0 interrupt for timer timeout.
+    //
+    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    //
+    // Enable the Timer0A interrupt on the processor (NVIC).
+    //
+    IntEnable(INT_TIMER0A);
+    //
+    // clocks down the processor to REALLY slow ( 500khz) and
+    //
+    // go to a slow clock
+        if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
+        {
+                debug_printf("..CPU slow");
+
+        }
+    //
+    // Enable Timer0(A)
+    //
+    TimerEnable(TIMER0_BASE, TIMER_A);
+
+        // and deep sleep.
+        ROM_SysCtlDeepSleep();
+
+            TimerDisable(TIMER0_BASE, TIMER_A);
+            IntDisable(INT_TIMER0A);
+            IntMasterDisable();
+
 }
 
 void
 wake_up(void){
 
-	debug_printf("waking_up");
-	//go to a fast clock
+        debug_printf("waking_up");
+        //go to a fast clock
+            // go to a slow clock
+                if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
+                {
+                        debug_printf("..CPU half speed");
 
-	// power up the gpio
+                }
 
-	//power up the ports
+        if (RadioUARTEnable()==1)
+        {
+                debug_printf("..radio awake");
+        }
+        // power down the ADC
+        if (EKGSPIEnable()==1)
+        {
+                debug_printf("..EKG ADC awake");
+        }
+        ineedmd_adc_Start_Low();
+        //power on ADC, disable continuous conversions
+        ineedmd_adc_Power_On();
+        //turn off continuous conversion for register read/writes
+        ineedmd_adc_Stop_Continuous_Conv();
 
-	// led's om
+        //id = INEEDMD_ADC_Get_ID();
 
-	// ADC on
+        ineedmd_adc_Enable_Lead_Detect();
+// enable the I2C bus
+        LEDI2CEnable();
 
-	//Radio on
+        USBPortEnable();
+
+//        if (BatMeasureADCEnable()==1)
+//        {
+//                debug_printf("..Battery measurement asleep");
+//        }
 
 }

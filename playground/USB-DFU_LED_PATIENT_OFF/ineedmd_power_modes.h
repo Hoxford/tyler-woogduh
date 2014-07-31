@@ -10,6 +10,6 @@
 
 
 void go_to_sleep(int);
-void wake_up();
+void wake_up(void);
 
 #endif /* INEEDMD_POWER_MODES_H_ */
