@@ -8,8 +8,8 @@
 #ifndef INEEDMD_POWER_MODES_H_
 #define INEEDMD_POWER_MODES_H_
 
-
-void go_to_sleep(int);
-void wake_up(void);
+void shut_it_all_down(void);
+void sleep_for_tenths(int);
+//void wake_up(void);
 
 #endif /* INEEDMD_POWER_MODES_H_ */

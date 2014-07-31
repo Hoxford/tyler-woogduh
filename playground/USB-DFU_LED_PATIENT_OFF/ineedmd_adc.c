@@ -15,8 +15,8 @@
 #include "driverlib/gpio.h"
 #include "ineedmd_adc.h"
 #include "board.h"
+#include "ineedmd_power_modes.h"
 
-extern void wait_time (unsigned int tenths_of_seconds);
 
 
 //TODO: add function prototypes to header file
@@ -31,10 +31,10 @@ void ineedmd_adc_Hard_Reset()
 	//toggle reset pin
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
 	//keep low for 2 clock cycles
-	wait_time(1);
+	sleep_for_tenths(1);
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
 	//wait 18 device clock cycles - 9 usec
-	wait_time(1);
+	sleep_for_tenths(1);
 }
 
 //********************************************************************************
@@ -51,7 +51,7 @@ void ineedmd_adc_Stop_Continuous_Conv()
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
 	//2us at fullmspeed
 	//MAP_SysCtlDelay(60);
-	wait_time(1);
+	sleep_for_tenths(1);
 
 	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
 	while(SSIBusy(INEEDMD_ADC_SPI))
@@ -102,7 +102,7 @@ void ineedmd_adc_Power_On()
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
 	//Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
 	//TODO: make delay into task sleep, etc
-	wait_time(10);
+	sleep_for_tenths(5);
     ineedmd_adc_Hard_Reset();
 }
 
@@ -274,7 +274,7 @@ void ineedmd_adc_Start_Internal_Reference()
 	ineedmd_adc_Register_Write(CONFIG3, val);
 	//wait for reference to start
 	//TODO: make delay into task sleep, etc
-	wait_time(15);
+	sleep_for_tenths(10);
 
 	//when done set the CS high
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
@@ -307,7 +307,7 @@ void ineedmd_adc_Start_Low()
 {
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, 0x00);
 	//wait for 2 device clocks - 1uSec
-	wait_time(1);
+	sleep_for_tenths(1);
 }
 
 
@@ -385,7 +385,7 @@ void ineedmd_adc_Receive_Data(char* data)
 //********************************************************************************
 uint32_t ineedmd_adc_Get_ID()
 {
-	return ineedmd_adc_Register_Read(ADS1198_ID);
+	return ineedmd_adc_Register_Read(ADS1198_ID_ADDRESS);
 
 
 }
@@ -496,7 +496,7 @@ void ineedmd_adc_Enable_Lead_Detect()
 
 	//increase comparator threshold for lead off detect
 	uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
-	ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1));
+	ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1 | COMP_TH1 | COMP_TH2 ));
 }
 
 //configure to use 3 lead setup

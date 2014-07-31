@@ -36,11 +36,10 @@
 #include "ineedmd_led.h"
 
 
-
 void
-go_to_sleep(int number_tenths_seconds){
+shut_it_all_down(){
 
-        debug_printf("going to sleep");
+       debug_printf("going to sleep");
         // power down the radio
         if (iRadio_Power_Off()==1)
         {
@@ -62,6 +61,12 @@ go_to_sleep(int number_tenths_seconds){
 //        }
 
         USBPortDisable();
+}
+
+
+void
+sleep_for_tenths(int number_tenths_seconds){
+
 
         // start timer
     //
@@ -89,63 +94,28 @@ go_to_sleep(int number_tenths_seconds){
     // clocks down the processor to REALLY slow ( 500khz) and
     //
     // go to a slow clock
-        if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
-        {
-                debug_printf("..CPU slow");
+    if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
+    {
+            debug_printf("..CPU slow");
 
-        }
+    }
     //
     // Enable Timer0(A)
     //
     TimerEnable(TIMER0_BASE, TIMER_A);
 
-        // and deep sleep.
-        ROM_SysCtlDeepSleep();
+    // and deep sleep.
+    ROM_SysCtlDeepSleep();
 
-            TimerDisable(TIMER0_BASE, TIMER_A);
-            IntDisable(INT_TIMER0A);
-            IntMasterDisable();
-
-}
-
-void
-wake_up(void){
-
-        debug_printf("waking_up");
-        //go to a fast clock
-            // go to a slow clock
-                if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
-                {
-                        debug_printf("..CPU half speed");
-
-                }
-
-        if (RadioUARTEnable()==1)
-        {
-                debug_printf("..radio awake");
-        }
-        // power down the ADC
-        if (EKGSPIEnable()==1)
-        {
-                debug_printf("..EKG ADC awake");
-        }
-        ineedmd_adc_Start_Low();
-        //power on ADC, disable continuous conversions
-        ineedmd_adc_Power_On();
-        //turn off continuous conversion for register read/writes
-        ineedmd_adc_Stop_Continuous_Conv();
-
-        //id = INEEDMD_ADC_Get_ID();
-
-        ineedmd_adc_Enable_Lead_Detect();
-// enable the I2C bus
-        LEDI2CEnable();
-
-        USBPortEnable();
-
-//        if (BatMeasureADCEnable()==1)
-//        {
-//                debug_printf("..Battery measurement asleep");
-//        }
+    TimerDisable(TIMER0_BASE, TIMER_A);
+    IntDisable(INT_TIMER0A);
+    IntMasterDisable();
+    debug_printf("waking_up");
+            //go to a fast clock
+    if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
+    {
+            debug_printf("..CPU half speed");
+    }
 
 }
+
