@@ -149,25 +149,25 @@ hold_until_short_removed(void){
   //
 
   uiLead_statusA = ineedmd_adc_Check_Lead_Off();
-
   uiLead_statusB = ineedmd_adc_Check_Lead_Off();
 
-#define LEAD_SHORT 0x020F
-#define LEAD_OPEN  0x0A0F
-  while(ineedmd_adc_Check_Lead_Off() != LEAD_OPEN)
+  #define LEAD_SHORT 0x82FF
+  #define LEAD_OPEN  0xAAFF
+
+  while(ineedmd_adc_Check_Lead_Off() != LEAD_SHORT)
   {
-      //disable the spi port
+    //disable the spi port
     EKGSPIDisable();
     //power down the ADC
-      ineedmd_adc_Power_Off();
+    ineedmd_adc_Power_Off();
 
     //
     // Set the Timer0B load value to 10s.
     //
 
-      ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-      ROM_IntMasterEnable();
-      ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    ROM_IntMasterEnable();
+    ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
     TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
 
     //
@@ -185,7 +185,7 @@ hold_until_short_removed(void){
     //
     // clocks down the processor to REALLY slow ( 500khz) and
     //
-    set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
+    set_system_speed(INEEDMD_CPU_SPEED_SLOW_INTERNAL);
     //
     // Enable Timer0(A)
     //
@@ -195,7 +195,7 @@ hold_until_short_removed(void){
     //SysCtlSleep();
 
     //comming out we turn the processor all the way up
-    set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
+    set_system_speed(INEEDMD_CPU_SPEED_FULL_INTERNAL);
 
     TimerDisable(TIMER0_BASE, TIMER_A);
     IntDisable(INT_TIMER0A);
@@ -224,12 +224,9 @@ hold_until_short_removed(void){
     //start conversions
     ineedmd_adc_Start_Internal_Reference();
     ineedmd_adc_Start_High();
-
-
   }
-
-
 }
+
 
 /*
  * check_battery()
@@ -370,7 +367,7 @@ void main(void) {
 
 
 //#if DO_SHORT_HOLD
-//    hold_until_short_removed(); //todo: doesn't return and hangs on the lead check when short is not present
+    hold_until_short_removed(); //todo: doesn't return and hangs on the lead check when short is not present
 //#endif //DO_SHORT_HOLD
 
 //    BatMeasureADCEnable();  //todo: doesn't return, hangs on MAP_ADCSequenceDisable(BATTERY_ADC, 3);
@@ -385,9 +382,9 @@ void main(void) {
 
     {
       led_test();
-
+      hold_until_short_removed();
 #ifdef DO_CHECK_BATT
-      check_battery();
+      //check_battery();
 #endif //DO_CHECK_BATT
 
       //check_for_update();

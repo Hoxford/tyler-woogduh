@@ -160,7 +160,7 @@ void set_system_speed (unsigned int how_fast)
       break;
   }
 
-  return how_fast;
+//  return how_fast;
 
 
 }
@@ -259,7 +259,7 @@ BatMeasureADCEnable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 BatMeasureADCDisable(void)
 {
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));

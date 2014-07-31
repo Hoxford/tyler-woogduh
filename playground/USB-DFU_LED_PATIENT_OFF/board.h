@@ -126,9 +126,9 @@ void XTALControlPin(void);
 void USBPortEnable(void);
 
 void GPIODisable(void);
-void BatMeasureADCDisable(void);
+int BatMeasureADCDisable(void);
 bool bIs_battery_low(void);
-void EKGSPIDisable(void);
+int EKGSPIDisable(void);
 
 void LEDI2CDisable(void);
 void USBPortDisnable(void);
