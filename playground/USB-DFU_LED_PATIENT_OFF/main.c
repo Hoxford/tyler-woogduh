@@ -238,7 +238,7 @@ hold_until_short_removed(void){
 void
 check_for_update(void){
 
-    volatile uint32_t ui32Loop;
+  volatile uint32_t ui32Loop;
   //check the state of the short on the ekg connector
   //checks the short on the update_pin GPIO
   //if short call the map_usbupdate() to force a USB update.
@@ -246,46 +246,46 @@ check_for_update(void){
   {
         #define SYSTICKS_PER_SECOND 100
     ROM_FPULazyStackingEnable();
-      MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL  | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
-      MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-      MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
+    MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL  | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
     uint32_t ui32SysClock = MAP_SysCtlClockGet();
     MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
     MAP_SysTickIntEnable();
     MAP_SysTickEnable();
-      MAP_IntMasterDisable();
-      MAP_SysTickIntDisable();
-      MAP_SysTickDisable();
-      HWREG(NVIC_DIS0) = 0xffffffff;
-      HWREG(NVIC_DIS1) = 0xffffffff;
-      // 1. Enable USB PLL
-      // 2. Enable USB controller
-    //    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-      MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-    //    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
-      MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
-      MAP_SysCtlUSBPLLEnable();
-      // 3. Enable USB D+ D- pins
-      // 4. Activate USB DFU
-      MAP_SysCtlDelay(ui32SysClock / 3);
-      MAP_IntMasterEnable(); // Re-enable interrupts at NVIC level
-      ROM_UpdateUSB(0);
-      // 5. Should never get here since update is in progress
-      //
-      // Enable the GPIO port that is used for the on-board LED.
-      //
-      SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF;
-      //
-      // Do a dummy read to insert a few cycles after enabling the peripheral.
-      //
-      ui32Loop = SYSCTL_RCGC2_R;
-      //
-      // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
-      // enable the GPIO pin for digital function.
-      //
-      GPIO_PORTF_DIR_R = 0x08;
-      GPIO_PORTF_DEN_R = 0x08;
-      while(1);
+    MAP_IntMasterDisable();
+    MAP_SysTickIntDisable();
+    MAP_SysTickDisable();
+    HWREG(NVIC_DIS0) = 0xffffffff;
+    HWREG(NVIC_DIS1) = 0xffffffff;
+    // 1. Enable USB PLL
+    // 2. Enable USB controller
+  //    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+  //    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlUSBPLLEnable();
+    // 3. Enable USB D+ D- pins
+    // 4. Activate USB DFU
+    MAP_SysCtlDelay(ui32SysClock / 3);
+    MAP_IntMasterEnable(); // Re-enable interrupts at NVIC level
+    ROM_UpdateUSB(0);
+    // 5. Should never get here since update is in progress
+    //
+    // Enable the GPIO port that is used for the on-board LED.
+    //
+    SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF;
+    //
+    // Do a dummy read to insert a few cycles after enabling the peripheral.
+    //
+    ui32Loop = SYSCTL_RCGC2_R;
+    //
+    // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
+    // enable the GPIO pin for digital function.
+    //
+    GPIO_PORTF_DIR_R = 0x08;
+    GPIO_PORTF_DEN_R = 0x08;
+    while(1);
   }
 
 
@@ -379,7 +379,7 @@ void main(void) {
     USBPortEnable();
 
     vDEBUG("iIneedMD_radio_setup()");
-    iIneedMD_radio_setup();  //todo: doesn't return, causes a hard fault
+    iIneedMD_radio_setup();
 
     vDEBUG("Starting process loop");
     while(1)
@@ -389,10 +389,10 @@ void main(void) {
 
 #ifdef DO_CHECK_BATT
       vDEBUG("check_battery()");
-      check_battery();
+//      check_battery();
 #endif //DO_CHECK_BATT
 
-      //check_for_update();
+      check_for_update();
 
     }
 }

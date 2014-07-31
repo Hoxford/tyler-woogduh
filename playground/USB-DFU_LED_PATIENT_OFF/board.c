@@ -1152,6 +1152,8 @@ int
 iHW_delay(uint32_t uiDelay)
 {
   int i;
+  uiSys_clock_rate_ms = MAP_SysCtlClockGet() /3000;
+
   for(i = 0; i < uiDelay; i++)
   {
 //    MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
