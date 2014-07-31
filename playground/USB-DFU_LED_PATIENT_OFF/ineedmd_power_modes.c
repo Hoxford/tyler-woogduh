@@ -5,10 +5,34 @@
  *      Author: BrianS
  */
 
-#define debug_print(a) vDEBUG(a,__VA_ARGS__)
+#define debug_printf vDEBUG
 
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+//#include "utils_inc/proj_debug.h"
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_gpio.h"
+#include "inc/hw_sysctl.h"
+#include "driverlib/adc.h"
+#include "driverlib/debug.h"
+#include "driverlib/gpio.h"
+#include "driverlib/i2c.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/rom.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/ssi.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/uart.h"
+#include "driverlib/usb.h"
+#include "driverlib/timer.h"
+
+#include "inc/tm4c1233h6pm.h"
+#include "board.h"
 #include "utils_inc/proj_debug.h"
+#include "ineedmd_led.h"
 
 
 
@@ -17,14 +41,14 @@ go_to_sleep(int number_tenths_seconds){
 
 	debug_printf("going to sleep");
 	// power down the radio
-	if (RadioUARTDisable()==1)
+	if (iRadio_Power_Off()==1)
 	{
-		debug_printf(""..radio asleep");
+		debug_printf("..radio asleep");
 	}
 	// power down the ADC
 	if (EKGSPIDisable()==1)
 	{
-		debug_printf(""..EKG ADC asleep");
+		debug_printf("..EKG ADC asleep");
 	}
 	// led's off  controller powers itself down 5ms after LEDS are off
 	ineedmd_led_pattern(LED_OFF);
@@ -33,7 +57,7 @@ go_to_sleep(int number_tenths_seconds){
 
 	if (BatMeasureADCDisable()==1)
 	{
-		debug_printf(""..Battery measurement asleep");
+		debug_printf("..Battery measurement asleep");
 	}
 
 	USBPortDisable();
@@ -66,7 +90,7 @@ go_to_sleep(int number_tenths_seconds){
     // go to a slow clock
 	if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
 	{
-		debug_printf(""..CPU slow");
+		debug_printf("..CPU slow");
 
 	}
     //
@@ -76,28 +100,33 @@ go_to_sleep(int number_tenths_seconds){
 
 	// and deep sleep.
 	ROM_SysCtlDeepSleep();
+
+	    TimerDisable(TIMER0_BASE, TIMER_A);
+	    IntDisable(INT_TIMER0A);
+	    IntMasterDisable();
+
 }
 
 void
 wake_up(void){
 
-	debug_printf("waking_up")
+	debug_printf("waking_up");
 	//go to a fast clock
     	    // go to a slow clock
-    		if (set_system_speed (INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
+    		if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
     		{
-    			debug_printf(""..CPU half speed");
+    			debug_printf("..CPU half speed");
 
     		}
 
 	if (RadioUARTEnable()==1)
 	{
-		debug_printf(""..radio awake");
+		debug_printf("..radio awake");
 	}
 	// power down the ADC
 	if (EKGSPIEnable()==1)
 	{
-		debug_printf(""..EKG ADC awake");
+		debug_printf("..EKG ADC awake");
 	}
 	// enable the I2C bus
 	LEDI2CEnable();
@@ -106,7 +135,7 @@ wake_up(void){
 
 	if (BatMeasureADCEnable()==1)
 	{
-		debug_printf(""..Battery measurement asleep");
+		debug_printf("..Battery measurement asleep");
 	}
 
 }
