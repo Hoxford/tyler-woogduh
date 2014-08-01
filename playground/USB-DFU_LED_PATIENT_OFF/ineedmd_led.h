@@ -55,6 +55,7 @@
 #define LED_CHIRP_RED                   0x11
 #define LED_CHIRP_ORANGE                0x12
 #define LED_CHIRP_GREEN                 0x13
+#define DFU_MODE                        0x14
 
 extern void ineedmd_led_pattern(unsigned int);
 extern void ineedmd_radio_reset(void);
