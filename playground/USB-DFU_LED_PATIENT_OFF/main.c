@@ -11,6 +11,12 @@
 #define DEBUG_CODE
 //
 
+#define WD_BASE WATCHDOG0_BASE
+#define WD_PHERF SYSCTL_PERIPH_WDOG0
+#define WD_PAT 0x8fFFFFFF
+#define WD_BIG_PAT 0xFFFFFFFF
+
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -40,6 +46,7 @@
 #include "driverlib/timer.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/adc.h"
+#include "driverlib/watchdog.h"
 
 #include "utils_inc/proj_debug.h"
 
@@ -52,7 +59,7 @@
 
 
 //static volatile bool g_bIntFlag = false;
-
+bool bUSB_plugged_in = false;
 
 void led_test(void)
 {
@@ -213,6 +220,9 @@ hold_until_short_removed(void){
 
   while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT | ineedmd_adc_Get_ID() != ADS1198_ID)
   {
+
+      MAP_WatchdogReloadSet(WD_BASE, WD_PAT);
+
     shut_it_all_down();
     sleep_for_tenths(290);
 
@@ -232,6 +242,7 @@ hold_until_short_removed(void){
       }
 
     switch_on_adc_for_lead_detection();
+
   }
 }
 
@@ -243,62 +254,45 @@ hold_until_short_removed(void){
 void
 check_for_update(void){
 
+  uint32_t ui32SysClock = MAP_SysCtlClockGet();
   USBPortEnable();
-  iHW_delay(1000);
+  MAP_SysCtlDelay(ui32SysClock);
+//  sleep_for_tenths(10);
 
   //check if there is a USB data connection attached
   bUSB_plugged_in = bIs_usb_physical_data_conn();
   if(bUSB_plugged_in == true)
+  {
+
+
     volatile uint32_t ui32Loop;
+    uint16_t uiLead_status;
   //check the state of the short on the ekg connector
   //checks the short on the update_pin GPIO
   //if short call the map_usbupdate() to force a USB update.
-  while(ineedmd_adc_Check_Lead_Off() != LEAD_OPEN)
+    uiLead_status = ineedmd_adc_Check_Lead_Off();
+  if(uiLead_status != LEAD_OPEN)
   {
-        #define SYSTICKS_PER_SECOND 100
-    ROM_FPULazyStackingEnable();
-      MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL  | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
-      MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-      MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
-    uint32_t ui32SysClock = MAP_SysCtlClockGet();
-    MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
-    MAP_SysTickIntEnable();
-    MAP_SysTickEnable();
-      MAP_IntMasterDisable();
-      MAP_SysTickIntDisable();
-      MAP_SysTickDisable();
-      HWREG(NVIC_DIS0) = 0xffffffff;
-      HWREG(NVIC_DIS1) = 0xffffffff;
-      // 1. Enable USB PLL
-      // 2. Enable USB controller
-    //    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-      MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-    //    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
-      MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
-      MAP_SysCtlUSBPLLEnable();
-      // 3. Enable USB D+ D- pins
-      // 4. Activate USB DFU
-      MAP_SysCtlDelay(ui32SysClock / 3);
-      MAP_IntMasterEnable(); // Re-enable interrupts at NVIC level
+      //give the watch dog a long timeout, woof
+      MAP_WatchdogReloadSet(WD_BASE, WD_BIG_PAT);
+
+      //proc the rom usb DFU
       ROM_UpdateUSB(0);
-      // 5. Should never get here since update is in progress
-      //
-      // Enable the GPIO port that is used for the on-board LED.
-      //
-      SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOF;
-      //
-      // Do a dummy read to insert a few cycles after enabling the peripheral.
-      //
-      ui32Loop = SYSCTL_RCGC2_R;
-      //
-      // Enable the GPIO pin for the LED (PF3).  Set the direction as output, and
-      // enable the GPIO pin for digital function.
-      //
-      GPIO_PORTF_DIR_R = 0x08;
-      GPIO_PORTF_DEN_R = 0x08;
-      while(1);
+
+      //Should never get here since update is in progress
+      while(1){};
   }
-  USBPortDisable();
+  else
+  {
+    USBPortDisable();
+    return;
+  }
+  }
+  else
+  {
+    USBPortDisable();
+    return;
+  }
 }
 
 
@@ -307,15 +301,42 @@ check_for_update(void){
  * main.c
  */
 void main(void) {
-
+#define DEBUG_MAIN
+#ifdef DEBUG_MAIN
+  #define  vDEBUG_MAIN  vDEBUG
+#else
+  #define vDEBUG_MAIN(a)
+#endif
   volatile uint32_t ui32Loop;
+
+  //nominal clock
+
+
+
+
+  MAP_SysCtlPeripheralEnable(WD_PHERF);
+  MAP_SysCtlPeripheralReset(WD_PHERF);
+
   PowerInitFunction();
   GPIOEnable();
+
+  set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
+
+ //watchdog
+  if(MAP_WatchdogLockState(WD_BASE) == true)
+     {
+         MAP_WatchdogUnlock(WD_BASE);
+     }
+  MAP_WatchdogReloadSet(WD_BASE, WD_PAT);
+  MAP_WatchdogStallEnable(WD_BASE);
+  MAP_WatchdogResetEnable(WD_BASE);
+  MAP_WatchdogEnable(WD_BASE);
+  MAP_WatchdogIntClear(WD_BASE);
 
   vDEBUG_init();
   //enable the radio - so that it is out of reset and the battery charger is running...
 
-  vDEBUG("hello world!");
+  vDEBUG_MAIN("hello world!");
 
   LEDI2CEnable();
   ineedmd_led_pattern(LED_OFF);
@@ -344,11 +365,11 @@ void main(void) {
         }
       else
         {
+
           sleep_for_tenths(290);
           ineedmd_led_pattern(LED_CHIRP_RED);
         }
-
-     //check_for_update();
-
+     check_for_update();
+      MAP_WatchdogReloadSet(WD_BASE, WD_PAT);
     }
 }

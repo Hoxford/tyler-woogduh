@@ -124,6 +124,29 @@ int set_system_speed (unsigned int how_fast)
       //reset up the i2c bus
 
       break;
+    case INEEDMD_CPU_SPEED_HALF_EXTERNAL:
+      //WARNING - do not use on first board rev!!!!
+      //turn on the external oscillator
+      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+      // let it stabalise
+      MAP_SysCtlDelay(1000);
+      //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
+      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      //reset up the i2c bus
+
+      break;
+
+    case INEEDMD_CPU_SPEED_QUARTER_EXTERNAL:
+      //WARNING - do not use on first board rev!!!!
+      //turn on the external oscillator
+      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+      // let it stabalise
+      MAP_SysCtlDelay(1000);
+      //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
+      SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      //reset up the i2c bus
+
+      break;
 
     case INEEDMD_CPU_SPEED_FULL_INTERNAL:
       //setting to run on the PLL from the internal clock and switch off the external xtal pads and pin this gives us an 80 Mhz clock
@@ -872,11 +895,10 @@ USBPortEnable(void)
 
 #define SYSTICKS_PER_SECOND 100
     ROM_FPULazyStackingEnable();
-    MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL  | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
 
-    set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
+    set_system_speed(INEEDMD_CPU_SPEED_HALF_EXTERNAL);
 
     uint32_t ui32SysClock = MAP_SysCtlClockGet();
 //    MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
@@ -946,7 +968,7 @@ USBPortDisable(void)
     // disable the entier USB0 peripheral
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
 
-    set_system_speed(INEEDMD_CPU_SPEED_FULL_INTERNAL);
+    set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
 
     //re-enable all interrupts
     MAP_IntMasterEnable();
