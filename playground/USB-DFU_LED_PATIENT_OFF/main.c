@@ -46,7 +46,7 @@
 #include "driverlib/timer.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/adc.h"
-#include "driverlib/watchdog.h"
+//#include "driverlib/watchdog.h"
 
 #include "utils_inc/proj_debug.h"
 
@@ -55,6 +55,7 @@
 #include "ineedmd_led.h"
 #include "ineedmd_adc.h"
 #include "ineedmd_bluetooth_radio.h"
+#include "ineedmd_watchdog.h"
 #include "ineedmd_power_modes.h"
 
 
@@ -73,6 +74,9 @@ void led_test(void)
     ineedmd_led_pattern(BT_ATTEMPTING);
     ineedmd_led_pattern(BT_FAILED);
     ineedmd_led_pattern(USB_CONNECTED);
+
+    ineedmd_watchdog_pat();
+
     ineedmd_led_pattern(USB_FAILED);
     ineedmd_led_pattern(DATA_TRANSFER);
     ineedmd_led_pattern(TRANSFER_DONE);
@@ -202,8 +206,8 @@ void switch_on_adc_for_lead_detection(void)
 void
 hold_until_short_removed(void){
 
-  uint32_t uiLead_statusA;
-  uint32_t uiLead_statusB;
+//  uint32_t uiLead_statusA;
+//  uint32_t uiLead_statusB;
   uint32_t battery_level;
 
   //check the state of the short on the ekg connector
@@ -212,8 +216,8 @@ hold_until_short_removed(void){
   //if wake up  open up the system clocks and go for it...
   //
 
-  uiLead_statusA = ineedmd_adc_Check_Lead_Off();
-  uiLead_statusB = ineedmd_adc_Check_Lead_Off();
+//  uiLead_statusA = ineedmd_adc_Check_Lead_Off();
+///  uiLead_statusB = ineedmd_adc_Check_Lead_Off();
 
   #define LEAD_SHORT 0x82FF
   #define LEAD_OPEN  0xAAFF
@@ -221,7 +225,7 @@ hold_until_short_removed(void){
   while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT | ineedmd_adc_Get_ID() != ADS1198_ID)
   {
 
-      MAP_WatchdogReloadSet(WD_BASE, WD_PAT);
+      ineedmd_watchdog_pat();
 
     shut_it_all_down();
     sleep_for_tenths(290);
@@ -273,8 +277,12 @@ check_for_update(void){
     uiLead_status = ineedmd_adc_Check_Lead_Off();
   if(uiLead_status != LEAD_OPEN)
   {
+
+
+      ineedmd_led_pattern(DFU_MODE);
+
       //give the watch dog a long timeout, woof
-      MAP_WatchdogReloadSet(WD_BASE, WD_BIG_PAT);
+      ineedmd_watchdog_feed();
 
       //proc the rom usb DFU
       ROM_UpdateUSB(0);
@@ -314,14 +322,14 @@ void main(void) {
 
 
 
-  MAP_SysCtlPeripheralEnable(WD_PHERF);
-  MAP_SysCtlPeripheralReset(WD_PHERF);
+  //MAP_SysCtlPeripheralEnable(WD_PHERF);
+  //MAP_SysCtlPeripheralReset(WD_PHERF);
 
   PowerInitFunction();
   GPIOEnable();
 
   set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
-
+/*
  //watchdog
   if(MAP_WatchdogLockState(WD_BASE) == true)
      {
@@ -332,6 +340,8 @@ void main(void) {
   MAP_WatchdogResetEnable(WD_BASE);
   MAP_WatchdogEnable(WD_BASE);
   MAP_WatchdogIntClear(WD_BASE);
+*/
+  ineedmd_watchdog_setup();
 
   vDEBUG_init();
   //enable the radio - so that it is out of reset and the battery charger is running...
@@ -370,6 +380,6 @@ void main(void) {
           ineedmd_led_pattern(LED_CHIRP_RED);
         }
      check_for_update();
-      MAP_WatchdogReloadSet(WD_BASE, WD_PAT);
+     ineedmd_watchdog_pat();
     }
 }
