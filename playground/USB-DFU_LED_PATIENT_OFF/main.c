@@ -243,6 +243,12 @@ hold_until_short_removed(void){
 void
 check_for_update(void){
 
+  USBPortEnable();
+  iHW_delay(1000);
+
+  //check if there is a USB data connection attached
+  bUSB_plugged_in = bIs_usb_physical_data_conn();
+  if(bUSB_plugged_in == true)
     volatile uint32_t ui32Loop;
   //check the state of the short on the ekg connector
   //checks the short on the update_pin GPIO
@@ -292,6 +298,8 @@ check_for_update(void){
       GPIO_PORTF_DEN_R = 0x08;
       while(1);
   }
+  USBPortDisable();
+}
 
 
 
