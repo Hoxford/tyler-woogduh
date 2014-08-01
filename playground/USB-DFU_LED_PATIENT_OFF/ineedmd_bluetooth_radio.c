@@ -526,6 +526,7 @@ int  iIneedMD_radio_setup(void)
 //  char  *send_string = NULL;
   char cSend_buff[BG_SIZE];
   char cRcv_buff[BG_SIZE];
+  uint32_t ui32SysClock = MAP_SysCtlClockGet();
 
   if(uiIneedmd_radio_type == INEEDMD_BT_RADIO_PLATFORM)
   {
@@ -626,7 +627,8 @@ int  iIneedMD_radio_setup(void)
 
     //reset the radio to make the settings take hold
     ineedmd_radio_send_string(RESET, strlen(RESET));
-    iHW_delay(ONESEC_DELAY);
+//    iHW_delay(ONESEC_DELAY);
+    MAP_SysCtlDelay(ui32SysClock);
 
     ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
     memset(cRcv_buff, 0x00, BG_SIZE);
@@ -638,7 +640,8 @@ int  iIneedMD_radio_setup(void)
 
     //enable the interrupt to the radio
 //    iRadio_interface_int_enable();
-    iHW_delay(ONESEC_DELAY);
+//    iHW_delay(ONESEC_DELAY);
+    MAP_SysCtlDelay(ui32SysClock);
     vDEBUG("Radio ready");
   }
   else

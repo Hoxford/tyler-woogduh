@@ -516,6 +516,8 @@ iRadio_Power_On(void)
 //*****************************************************************************
 int iRadio_interface_enable(void)
 {
+  RadioUARTEnable();
+
   //set flow control
   UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
 

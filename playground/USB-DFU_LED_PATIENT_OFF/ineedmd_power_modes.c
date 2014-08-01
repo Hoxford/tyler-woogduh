@@ -60,7 +60,7 @@ shut_it_all_down(){
 //                debug_printf("..Battery measurement asleep");
 //        }
 
-        USBPortDisable();
+//        USBPortDisable();
 }
 
 
