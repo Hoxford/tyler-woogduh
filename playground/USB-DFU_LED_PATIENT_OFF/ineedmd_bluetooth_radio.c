@@ -34,6 +34,7 @@
 
 #include "board.h"
 #include "ineedmd_bluetooth_radio.h"
+#include "utils_inc/proj_debug.h"
 
 //*****************************************************************************
 // defines
