@@ -24,10 +24,12 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-
-#include "inc/hw_memmap.h"
+#include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/uart.h"
+#include "driverlib/timer.h"
+#include <inc/tm4c1233h6pm.h>
+#include <inc/hw_memmap.h>
 #include "board.h"
 
 //*****************************************************************************
@@ -40,6 +42,15 @@ static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
 static void vUART1_Rx_and_Tx  (void);
+static void Reset_me(void);
+static void Timer0AIntHandler(void);
+static void USB0Int(void);
+
+//*****************************************************************************
+//
+// External declarations for the interrupt handlers used by the application.
+//
+//*****************************************************************************
 
 //*****************************************************************************
 //
@@ -109,7 +120,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // ADC Sequence 2
     IntDefaultHandler,                      // ADC Sequence 3
     IntDefaultHandler,                      // Watchdog timer
-    IntDefaultHandler,                      // Timer 0 subtimer A
+    Timer0AIntHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
     IntDefaultHandler,                      // Timer 1 subtimer A
     IntDefaultHandler,                      // Timer 1 subtimer B
@@ -134,7 +145,7 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     0,                                      // Reserved
     IntDefaultHandler,                      // Hibernate
-    IntDefaultHandler,                      // USB0
+    USB0Int,                                // USB0
     IntDefaultHandler,                      // PWM Generator 3
     IntDefaultHandler,                      // uDMA Software Transfer
     IntDefaultHandler,                      // uDMA Error
@@ -305,6 +316,55 @@ IntDefaultHandler(void)
     {
     }
 }
+
+//*****************************************************************************
+//
+// This is the code that gets called when the reset pin is shorted set
+// It will call the asm reset code which completly restarts the system.
+//
+//*****************************************************************************
+static void
+Reset_me(void)
+{
+    //
+    // Go into an infinite loop.
+    //
+    while(1)
+    {
+    }
+}
+
+static void
+Timer0AIntHandler(void)
+{
+    //
+    // Clear the timer interrupt flag.
+    //
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+}
+
+//*****************************************************************************
+//
+// USP interrupt handler
+//
+//*****************************************************************************
+static void USB0Int(void)
+{
+  uint32_t ui32Status;
+
+  //
+  // Get the interrrupt status.
+  //
+  ui32Status = ROM_USBIntStatusControl(INEEDMD_USB);
+
+  vUSBServiceInt(ui32Status);
+
+  MAP_USBIntStatusControl(INEEDMD_USB);
+  MAP_USBIntStatusEndpoint(USB0_BASE);
+
+  return;
+}
+
 
 //*****************************************************************************
 //

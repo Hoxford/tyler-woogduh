@@ -62,7 +62,7 @@ static const char status0x15[] = { 0x9C, 0x03, 0x0E, 0x16, 0x03, 0x10, 0x0A, 0x9
 //*****************************************************************************
 
 int debug_out(char * cOut_buff,...);
-int SearchArrCmd(char cArrCmd);
+//int SearchArrCmd(char cArrCmd);
 void writeDataToPort(char * cOut_buff);
 //*****************************************************************************
 // functions
@@ -71,19 +71,40 @@ void writeDataToPort(char * cOut_buff);
 //todo: define this
 int debug_out(char * cOut_buff,...)
 {
+  //route to debug uart
   return 1;
 }
 
 //todo: define this
-int SearchArrCmd(char cArrCmd)
+//int SearchArrCmd(char cArrCmd)
+//{
+//  //todo: get devins fcn def in heres
+//  return 1;
+//}
+int SearchArrCmd(const unsigned char dataPacketType, const unsigned char szRecCommand)
 {
-  return 1;
+  const char arrCommand[] = { 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18 };
+  int i;
+
+  switch (dataPacketType)
+  {
+  case 0x01:
+    //indicates this is the COMMAND packet and hence the szRecCommand is going to be holding the actual command.
+    for (i = 0; i < 8; i++)
+    {
+      if (arrCommand[i] == szRecCommand)
+        return i; //i will be holding the index.
+    }
+    break;
+  }
+  return -1;
 }
 
 
 //TODO: define this
 void writeDataToPort(char * cOut_buff)
 {
+  //route to modem
   return;
 }
 //*****************************************************************************
@@ -107,6 +128,7 @@ void parseCommand(unsigned char szCommand[],int cntCommand)
   int indexCmd;
   int i; // just used for parsing the szCommand[]
   char data[6];
+  char szRecCommand_data = data[3];
   char tempACKNACK[100];
   int retFlag = 0;
   static int fAsyncWrite;
@@ -166,7 +188,7 @@ void parseCommand(unsigned char szCommand[],int cntCommand)
     case 0x17:
       if (3 == i)
       {
-        indexCmd = SearchArrCmd(szCommand[i]);
+        indexCmd = SearchArrCmd(szCommand[i], szRecCommand_data);
         if (-1 == indexCmd)
         {
           printf("Error: %s -- Invalid Command!");

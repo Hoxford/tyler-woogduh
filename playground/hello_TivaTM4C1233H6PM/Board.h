@@ -67,7 +67,7 @@ extern "C" {
 //#define Board_I2C_TPL0401           EK_TM4C123GXL_I2C3
 //
 //#define Board_SDSPI0                EK_TM4C123GXL_SDSPI0
-#define Board_SDSPI                1  //magic number SPI 1
+#define Board_SDSPI                0  //magic number SPI 1
 //
 //#define Board_SPI0                  EK_TM4C123GXL_SPI0
 //#define Board_SPI1                  EK_TM4C123GXL_SPI3

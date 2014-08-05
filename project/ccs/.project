@@ -56,6 +56,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_command_protocol.c</locationURI>
 		</link>
 		<link>
+			<name>application/ineedmd_power_modes.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_power_modes.c</locationURI>
+		</link>
+		<link>
 			<name>application/main.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/application/main.c</locationURI>
@@ -64,6 +69,11 @@
 			<name>drivers/LED.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/drivers/LED.c</locationURI>
+		</link>
+		<link>
+			<name>drivers/SDcard.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/drivers/SDcard.c</locationURI>
 		</link>
 		<link>
 			<name>drivers/UI.c</name>
@@ -101,6 +111,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>utils/file_system.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/utils/file_system.c</locationURI>
+		</link>
+		<link>
 			<name>utils/fswrapper.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/utils/fswrapper.c</locationURI>
@@ -131,7 +146,27 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>third_party/FatFS_10b/src</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>platform/dongle/ti/rev03</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/diskio.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/diskio.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/ff.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/ff.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
@@ -154,6 +189,41 @@
 			<name>platform/dongle/ti/rev03/driverlib</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option/cc932.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/option/cc932.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option/cc936.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/option/cc936.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option/cc949.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/option/cc949.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option/cc950.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/option/cc950.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option/ccsbcs.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/option/ccsbcs.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option/syscall.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/option/syscall.c</locationURI>
+		</link>
+		<link>
+			<name>third_party/FatFS_10b/src/option/unicode.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FatFS_10b/src/option/unicode.c</locationURI>
 		</link>
 		<link>
 			<name>platform/dongle/ti/rev03/compiler/tm4c1233h6pm.cmd</name>

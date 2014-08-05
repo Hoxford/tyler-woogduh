@@ -45,6 +45,7 @@
 
 //REGISTER MAP
 //***************************************************************
+#define ADS1198_ID_ADDRESS              0x00
 
 //device ID (read only)
 #define ADS1198_ID			0x00		//different name than datasheet
@@ -205,6 +206,11 @@
 #define WCTC1				0x02
 #define WCTC0				0x01
 
+//Part ID
+#define ADS1198_ID              0xB6
+
+
+
 extern void ineedmd_adc_Hard_Reset();
 extern void ineedmd_adc_Stop_Continuous_Conv();
 extern void ineedmd_adc_Start_Continuous_Conv();
@@ -218,6 +224,7 @@ extern void ineedmd_adc_Start_High();
 extern void ineedmd_adc_Start_Low();
 extern void ineedmd_adc_Request_Data();
 extern void ineedmd_adc_Receive_Data(char* data);
+extern void ineedmd_adc_Power_Off();
 
 extern uint32_t ineedmd_adc_Get_ID();
 extern uint32_t ineedmd_adc_Check_Lead_Off();
