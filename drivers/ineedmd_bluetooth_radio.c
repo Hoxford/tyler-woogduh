@@ -42,14 +42,57 @@
 #define INEEDMD_LOW_BATT_VOLTAGE     3300
 #define INEEDMD_SHTDWN_BATT_VOLTAGE  3100
 #define INEEDMD_FULL_BATT_VOLTAGE    3400
-#define INEEDMD_PIO_MASK            01
+#define INEEDMD_PIO_MASK             01
 
 #define INEEDMD_PLATFORM_RADIO_TYPE  INEEDMD_BT_RADIO_PLATFORM
   #define INEEDMD_BT_RADIO_PLATFORM  0x01
 
+#define INEEDMD_RADIO_CMND_ECHO
+#ifdef INEEDMD_RADIO_CMND_ECHO
+  #define vRADIO_ECHO  vDEBUG
+#else
+  #define vRADIO_ECHO(a)
+#endif //INEEDMD_RADIO_CMND_ECHO
+
 #define INEEDMD_CMND_SOF    0x9C
 #define INEEDMD_CMND_EOF    0xC9
 
+#define PIO               "\r\nPIO %s %x %x\r\n"
+//todo: completly define these
+  #define PIO_CMND_GET
+  #define PIO_CMND_GETDIR
+  #define PIO_CMND_GETBIAS
+  #define PIO_CMND_SET
+  #define PIO_CMND_SETDIR
+  #define PIO_CMND_SETBIAS
+  #define PIO_CMND_RESET
+    #define PIO_CMND
+  #define PIO_MASK_PIO0   0x0001
+  #define PIO_MASK_PIO1   0x0002
+  #define PIO_MASK_PIO2   0x0004
+  #define PIO_MASK_PIO3   0x0008
+  #define PIO_MASK_PIO4   0x0010
+  #define PIO_MASK_PIO5   0x0020
+  #define PIO_MASK_PIO6   0x0040
+  #define PIO_MASK_PIO7   0x0080
+  #define PIO_MASK_PIO8   0x0100
+  #define PIO_MASK_PIO9   0x0200
+  #define PIO_MASK_PIO10  0x0400
+  #define PIO_MASK_PIO11  0x0800
+    #define PIO_MASK_PIO
+  #define PIO_STATE_PIO0
+  #define PIO_STATE_PIO1
+  #define PIO_STATE_PIO2
+  #define PIO_STATE_PIO3
+  #define PIO_STATE_PIO4
+  #define PIO_STATE_PIO5
+  #define PIO_STATE_PIO6
+  #define PIO_STATE_PIO7
+  #define PIO_STATE_PIO8
+  #define PIO_STATE_PIO9
+  #define PIO_STATE_PIO10
+  #define PIO_STATE_PIO11
+    #define PIO_STATE
 #define RESET             "\r\nRESET\r\n"
 #define SDP               "\r\nSDP %s %s %s\r\nSDP\r\n"
   #define SDP_REMOTE_DEV_ADDR    cRemore_dev_addr_string
@@ -106,6 +149,18 @@
                                       | SET_CONTROL_ECHO_COMMAND_OFF   \
                                       | SET_CONTROL_ECHO_SET_EVENT_OFF \
                                       | SET_CONTROL_ECHO_SYNTAX_ERR_ON)
+#define SET_CONTROL_ESCAPE "\r\nSET CONTROL ESCAPE %d %.4x %d\r\n"
+  #define SET_CONTROL_ESCAPE_ESC_CHAR_DISABLE  '-'
+  #define SET_CONTROL_ESCAPE_ESC_CHAR_DEFAULT  '+'
+  #define SET_CONTROL_ESCAPE_ESC_CHAR_NEW      '?'
+    #define SET_CONTROL_ESCAPE_ESC_CHAR  SET_CONTROL_ESCAPE_ESC_CHAR_DEFAULT
+  #define SET_CONTROL_ESCAPE_DTR_MASK_PINS  PIO_MASK_PIO0
+    #define SET_CONTROL_ESCAPE_DTR_MASK  SET_CONTROL_ESCAPE_DTR_MASK_PINS
+  #define SET_CONTROL_ESCAPE_DTR_MODE_DISABLED    0
+  #define SET_CONTROL_ESCAPE_DTR_MODE_CMND_MODE   1
+  #define SET_CONTROL_ESCAPE_DTR_MODE_CLOSE_CONN  2
+  #define SET_CONTROL_ESCAPE_DTR_MODE_SOFT_RST    3
+    #define SET_CONTROL_ESCAPE_DTR_MODE  SET_CONTROL_ESCAPE_DTR_MODE_CMND_MODE
 #define SET_CONTROL_MUX  "\r\nSET CONTROL MUX %d\r\n"
   #define SET_CONTROL_MUX_MODE_DISABLE  0
   #define SET_CONTROL_MUX_MODE_ENABLE   1
@@ -144,6 +199,7 @@ uint8_t   uiIneedmd_radio_type = INEEDMD_PLATFORM_RADIO_TYPE;
  * Function Section
  *
  */
+int iIneedmd_radio_cmnd_mode(bool bMode_Set);
 int iIneed_md_parse_ssp (char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_key);
 int iIneedmd_parse_addr  (char * cString_buffer , uint8_t * uiAddr);
 int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size);
@@ -477,6 +533,25 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
   return 1;
 }
 
+int iIneedmd_radio_cmnd_mode(bool bMode_Set)
+{
+  if(bMode_Set == true)
+  {
+    iRadio_gpio_config(GPIO_PORTE_BASE, 0x08); //PE3
+  }
+  else if(bMode_Set == false)
+  {
+
+  }
+  else
+  {
+#if DEBUG
+    while(1){}; //unknown mode set value
+#endif
+    return -1;
+  }
+  return 1;
+}
 
 /******************************************************************************
 * name:
@@ -522,6 +597,12 @@ int iIneed_md_parse_ssp(char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_k
 ******************************************************************************/
 int  iIneedMD_radio_setup(void)
 {
+#define DEBUG_iIneedMD_radio_setup
+#ifdef DEBUG_iIneedMD_radio_setup
+  #define  vDEBUG_RDIO_SETUP  vDEBUG
+#else
+  #define vDEBUG_RDIO_SETUP(a)
+#endif
   uint32_t iEC;
 //  char  *send_string = NULL;
   char cSend_buff[BG_SIZE];
@@ -539,79 +620,84 @@ int  iIneedMD_radio_setup(void)
     //enable radio interface
     iRadio_interface_enable();
 
-    //SET CONTROL MUX disable in hex format incase radrio was in mux mode
-    ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 22);
+    //todo: perform a DTR pin set and check if radio responsive to commands
+
+    //SET CONTROL MUX disable in hex format incase radio was in mux mode
+//    ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 22);
     //todo: perform a syntax error check
+    //set the radio in command mode
+    iIneedmd_radio_cmnd_mode(true);
 
     //SET RESET, reset to factory defaults
-    vDEBUG("SET RESET, RFD");
+    vDEBUG_RDIO_SETUP("SET RESET, RFD");
     ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
     memset(cRcv_buff, 0x00, BG_SIZE);
     iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
-    vDEBUG("RFD Complete");
+    vRADIO_ECHO(cRcv_buff);
 
     //SET, get the settings after perfroming the RFD, this is performed to alert when the RFD was completed
-    vDEBUG("SET, get settings");
+    vDEBUG_RDIO_SETUP("SET, get settings");
     ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
     memset(cRcv_buff, 0x00, BG_SIZE);
     iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
-    vDEBUG("Settings received");
+    vRADIO_ECHO(cRcv_buff);
 
-  //  iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
     //RESET, reset the radio software
-    vDEBUG("RESET, perform software reset");
+    vDEBUG_RDIO_SETUP("RESET, perform software reset");
     ineedmd_radio_send_string(RESET, strlen(RESET));
 
     //get the boot output from the radio software reset, this is performed to alert when the reset was completed
     memset(cRcv_buff, 0x00, BG_SIZE);
     iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
-    vDEBUG("Reset Complete");
+    vRADIO_ECHO(cRcv_buff);
 
     //hardware power reset the radio
-    vDEBUG("Power cycle");
+    vDEBUG_RDIO_SETUP("Power cycle");
     ineedmd_radio_reset();
     //get the boot output from radio power up
     memset(cRcv_buff, 0x00, BG_SIZE);
     iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
-    vDEBUG("Power cycle Complete");
+    vRADIO_ECHO(cRcv_buff);
 
     //SET CONTROL ECHO, set the radio echo
+    vDEBUG_RDIO_SETUP("SET CONTROL ECHO, set the echo");
     memset(cSend_buff, 0x00, BG_SIZE);
     snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
     ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
     memset(cRcv_buff, 0x00, BG_SIZE);
     iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
-    vDEBUG("SET CONTROL ECHO");
+    vRADIO_ECHO(cRcv_buff);
 
     //SET BT SSP, tell the radio we are using BT SSP pairing
+    vDEBUG_RDIO_SETUP("SET BT SSP, set the SSP pairing");
     memset(cSend_buff, 0x00, BG_SIZE);
     snprintf(cSend_buff, BG_SIZE, SET_BT_SSP, SET_BT_SSP_CPLTES, SET_BT_SSP_MITM);
     ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-    vDEBUG("SET BT SSP");
 
     //SET BT AUTH, tell the radio what auth method we are using
+    vDEBUG_RDIO_SETUP("SET BT AUTH, set the BT auth method");
     memset(cSend_buff, 0x00, BG_SIZE);
     snprintf(cSend_buff, BG_SIZE, SET_BT_AUTH, SET_BT_AUTH_MODE, SET_BT_AUTH_PIN_CODE);
     ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-    vDEBUG("SET BT AUTH");
 
     //SET PROFILE SPP, tells the radio we are using SPP protocol
+    vDEBUG_RDIO_SETUP("SET PROFILE SPP, set the SPP protocol");
     memset(cSend_buff, 0x00, BG_SIZE);
     iEC = snprintf(cSend_buff, BG_SIZE, SET_PROFILE_SPP, SET_PROFILE_SPP_PARAM);
     ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-    vDEBUG("SET PROFILE SPP");
 
     // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
     memset(cSend_buff, 0x00, BG_SIZE);
     iEC = snprintf(cSend_buff, BG_SIZE, SET_CONTROL_BATT, SET_CONTROL_BATT_LOW, SET_CONTROL_BATT_SHTDWN, SET_CONTROL_BATT_FULL, SET_CONTROL_BATT_MASK);
     ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-    vDEBUG("SET_CONTROL_BATT");
+    vDEBUG_RDIO_SETUP("SET_CONTROL_BATT");
 
     //get BT address
+    vDEBUG_RDIO_SETUP("SET BT BDADDR, get the BT mac addr");
     ineedmd_radio_send_string(SET_BT_BDADDR, strlen(SET_BT_BDADDR));
     memset(cRcv_buff, 0x00, BG_SIZE);
     iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
-    vDEBUG("get BT address");
+    vRADIO_ECHO(cRcv_buff);
 
     //parse string for the BT address
     iEC = iIneedmd_parse_addr(cRcv_buff, uiBT_addr);
@@ -620,21 +706,34 @@ int  iIneedMD_radio_setup(void)
   #endif
 
     //format the send string with the BT name
+    vDEBUG_RDIO_SETUP("SET BT NAME, set the new bt name");
     memset(cSend_buff, 0x00, BG_SIZE);
     snprintf(cSend_buff, BG_SIZE, SET_BT_NAME, uiBT_addr[4], uiBT_addr[5]);
     //send the new name
     ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-    vDEBUG("sent the new name");
+
+    //set the escape mode
+    vDEBUG_RDIO_SETUP("SET CONTROL ESCAPE, set the escape mode");
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ESCAPE, SET_CONTROL_ESCAPE_ESC_CHAR, SET_CONTROL_ESCAPE_DTR_MASK, SET_CONTROL_ESCAPE_DTR_MODE);
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+//
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+//    vRADIO_ECHO(cRcv_buff);
 
     //reset the radio to make the settings take hold
+    vDEBUG_RDIO_SETUP("RESET, perform software reset");
     ineedmd_radio_send_string(RESET, strlen(RESET));
 //    iHW_delay(ONESEC_DELAY);
     MAP_SysCtlDelay(ui32SysClock);
 
+    vDEBUG_RDIO_SETUP("SET, get settings");
     ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
     memset(cRcv_buff, 0x00, BG_SIZE);
     iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
-    vDEBUG("settings Complete");
+    vRADIO_ECHO(cRcv_buff);
+    //todo: verify settings properly set
 
     //set the connection status to false while waiting for an outside connection
     bIs_connection = false;
@@ -643,15 +742,18 @@ int  iIneedMD_radio_setup(void)
 //    iRadio_interface_int_enable();
 //    iHW_delay(ONESEC_DELAY);
     MAP_SysCtlDelay(ui32SysClock);
-    vDEBUG("Radio ready");
+    //todo: check the ready pin
+    vDEBUG_RDIO_SETUP("Radio ready");
   }
   else
   {
 #if DEBUG
-    while(1){};//todo: additional platforms are not defined
+    vDEBUG_RDIO_SETUP("additional platforms are not defined");
+    while(1){};
 #endif
   }
   return 1;
+#undef vDEBUG_RDIO_SETUP
 }
 
 /*
@@ -659,6 +761,12 @@ int  iIneedMD_radio_setup(void)
  */
 int  iIneedMD_radio_check_for_connection(void)
 {
+#define DEBUG_radio_check_for_connection
+#ifdef DEBUG_radio_check_for_connection
+  #define  vDEBUG_RDIO_CHKCONN  vDEBUG
+#else
+  #define vDEBUG_RDIO_CHKCONN(a)
+#endif
 #define rc_chkbuff_size 128
   int iEC;
   uint8_t uiRcv_buff[rc_chkbuff_size];
@@ -676,7 +784,6 @@ int  iIneedMD_radio_check_for_connection(void)
       //receive the ssp confirm from the remote device
       bIs_radio_data = UARTCharsAvail(INEEDMD_RADIO_UART);
       iEC = iIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size);
-
 
       if(iEC == 1)
       {
@@ -725,6 +832,7 @@ int  iIneedMD_radio_check_for_connection(void)
   }
 
   return 0;
+#undef vDEBUG_RDIO_CHKCONN
 }
 
 /*

@@ -121,7 +121,7 @@ int set_system_speed (unsigned int how_fast)
       // let it stabalise
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
       //reset up the i2c bus
 
       break;
@@ -132,7 +132,7 @@ int set_system_speed (unsigned int how_fast)
       // let it stabalise
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
       //reset up the i2c bus
 
       break;
@@ -144,7 +144,7 @@ int set_system_speed (unsigned int how_fast)
       // let it stabalise
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
       //reset up the i2c bus
 
       break;
@@ -473,8 +473,10 @@ RadioUARTEnable(void)
     // Enable pin PC4 for UART1 U1RX
     //
     MAP_GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4);
+
+    UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
   //re set up the UART so it's timings are about correct
-    UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+    UARTConfigSetExpClk( INEEDMD_RADIO_UART, 16000000, 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
     UARTEnable(INEEDMD_RADIO_UART);
 //	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
@@ -535,11 +537,44 @@ int iRadio_interface_enable(void)
   // Configure the UART for 115,200, 8-N-1 operation.
   // This function uses SysCtlClockGet() to get the system clock
   // frequency.
-  UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+//  UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
 
   //And the Radio UART
   UARTEnable(INEEDMD_RADIO_UART);
 
+  return 1;
+}
+
+int iRadio_gpio_set(uint16_t uiMask)
+{
+#if DEBUG
+  while(1){}; //todo: fcn not defined yet
+#endif
+  return 1;
+}
+
+int iRadio_gpio_clear(uint16_t uiMask)
+{
+#if DEBUG
+  while(1){}; //todo: fcn not defined yet
+#endif
+  return 1;
+}
+
+int iRadio_gpio_read(uint16_t uiMask)
+{
+#if DEBUG
+  while(1){}; //todo: fcn not defined yet
+#endif
+  return 1;
+}
+
+int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask)
+{
+  MAP_GPIODirModeSet(uiRadio_Pin_Port, uiPIN_Out_Mask, GPIO_DIR_MODE_OUT);
+#if DEBUG
+  while(1){}; //todo: fcn not defined yet
+#endif
   return 1;
 }
 

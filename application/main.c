@@ -17,6 +17,7 @@
 #include "ineedmd_bluetooth_radio.h"
 #include "ineedmd_led.h"
 #include "app_inc/ineedmd_command_protocol.h"
+#include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
 #include "ff.h"
 
@@ -74,7 +75,7 @@ int iInit_wd(int iWD_timeout)
 //*****************************************************************************
 int iPet_the_dog( void )
 {
-    return 1;
+  return 1;
 }
 
 //*****************************************************************************
@@ -88,10 +89,12 @@ main(void)
 {
   iInit_wd(WD_TIMEOUT);
   iBoard_init();
+  vDEBUG_init();
+  vDEBUG("Hello World!");
 
 //  check_battery();
 
-  iFileSys_mount(&sFile_Sys, 0, 1);
+//  iFileSys_mount(&sFile_Sys, 0, 1);
 
   iADC_setup();
 

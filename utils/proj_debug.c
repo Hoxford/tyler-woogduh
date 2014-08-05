@@ -44,7 +44,7 @@
 //*****************************************************************************
 // variables
 //*****************************************************************************
-
+static uint32_t uiDbg_SysClock;
 //*****************************************************************************
 // external variables
 //*****************************************************************************
@@ -94,8 +94,22 @@ void vUSB_driverlib_out(char *pcFilename, uint32_t ui32Line)
 void vDEBUG(char * cMsg, ...)
 {
 
-  uint32_t i, uiMsg_len;
+  uint32_t i, uiMsg_len, uiCurrent_SysClk;
   uiMsg_len = strlen(cMsg);
+
+  //check if the clock has changed
+  uiCurrent_SysClk = MAP_SysCtlClockGet();
+  if(uiCurrent_SysClk != uiDbg_SysClock)
+  {
+    //if the clock has changed re-init the debug port
+//    UARTDisable(DEBUG_UART);
+//    MAP_SysCtlPeripheralDisable(DEBUG_SYSCTL_PERIPH_UART);
+//    vDEBUG_init();
+//    UARTConfigSetExpClk(DEBUG_UART, uiCurrent_SysClk, DEBUG_BAUD, DEBUG_UART_CONFIG);
+    uiDbg_SysClock = uiCurrent_SysClk;
+//    MAP_SysCtlPeripheralEnable(DEBUG_SYSCTL_PERIPH_UART);
+//    UARTEnable(DEBUG_UART);
+  }
 
   for (i = 0; i<uiMsg_len; i++)
   {
@@ -147,11 +161,15 @@ void vDEBUG_init(void)
   //
   MAP_GPIOPinTypeUART(DEBUG_UART_PIN_PORT, DEBUG_RX_PIN);
 
+  UARTClockSourceSet(DEBUG_UART, UART_CLOCK_PIOSC);
+
+//  uiDbg_SysClock = MAP_SysCtlClockGet();
   //
   // Configure the UART for 115,200, 8-N-1 operation.
   // This function uses SysCtlClockGet() to get the system clock
   // frequency.
-  UARTConfigSetExpClk(DEBUG_UART, MAP_SysCtlClockGet(), DEBUG_BAUD, DEBUG_UART_CONFIG);
+//  UARTConfigSetExpClk(DEBUG_UART, uiDbg_SysClock, DEBUG_BAUD, DEBUG_UART_CONFIG);
+  UARTConfigSetExpClk(DEBUG_UART, 16000000, DEBUG_BAUD, DEBUG_UART_CONFIG);
 
   //And the Radio UART
   UARTEnable(DEBUG_UART);
