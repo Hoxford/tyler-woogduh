@@ -17,6 +17,8 @@
 #include "ineedmd_bluetooth_radio.h"
 #include "ineedmd_led.h"
 #include "app_inc/ineedmd_command_protocol.h"
+#include "utils_inc/file_system.h"
+#include "ff.h"
 
 //*****************************************************************************
 // defines
@@ -39,7 +41,7 @@
 //*****************************************************************************
 // structures
 //*****************************************************************************
-
+sFileSys sFile_Sys;
 //*****************************************************************************
 // external functions
 //*****************************************************************************
@@ -88,6 +90,8 @@ main(void)
   iBoard_init();
 
 //  check_battery();
+
+  iFileSys_mount(&sFile_Sys, 0, 1);
 
   iADC_setup();
 

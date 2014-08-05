@@ -14,6 +14,8 @@
 #include "driverlib/gpio.h"
 #include "ineedmd_adc.h"
 #include "board.h"
+#include "app_inc/ineedmd_power_modes.h"
+
 
 
 //TODO: add function prototypes to header file
@@ -28,10 +30,10 @@ void ineedmd_adc_Hard_Reset()
 	//toggle reset pin
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
 	//keep low for 2 clock cycles
-	iHW_delay(1);
+	sleep_for_tenths(1);
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
 	//wait 18 device clock cycles - 9 usec
-	iHW_delay(1);
+	sleep_for_tenths(1);
 }
 
 //********************************************************************************
@@ -47,8 +49,8 @@ void ineedmd_adc_Stop_Continuous_Conv()
 	//set the CS low
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
 	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
-
+	//MAP_SysCtlDelay(60);
+	sleep_for_tenths(1);
 
 	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
 	while(SSIBusy(INEEDMD_ADC_SPI))
@@ -100,18 +102,38 @@ void ineedmd_adc_Power_On()
 	//power up and raise reset (active low pins)
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-
+	//Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
+	//TODO: make delay into task sleep, etc
+	sleep_for_tenths(5);
     ineedmd_adc_Hard_Reset();
 }
 
+/* --------------------------------------------------------------------------------------------------
+*ads1198 power down
+*
+* Sets the pwdn and resets low
+*
+* --------------------------------------------------------------------------------------------------
+*/
+void ineedmd_adc_Power_Off()
+{
 
-//********************************************************************************
+	//takes the ~rest line low putting the ADS1198 into reset
+	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
+	//takes the ~powerdn line low putting the ADS1198 into low power mode
+	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
+
+}
+
+
+/********************************************************************************
 //send single byte command to ADC
 //
 //ensure device is not in continuous conversion mode
 //using INEEDMD_ADC_Stop_Continuous_Conv() prior to calling this function
 //
-//********************************************************************************
+// ********************************************************************************
+*/
 void ineedmd_adc_Send_Command(uint32_t command)
 {
 	//put in write only mode
@@ -253,7 +275,8 @@ void ineedmd_adc_Start_Internal_Reference()
 
 	ineedmd_adc_Register_Write(CONFIG3, val);
 	//wait for reference to start
-	iHW_delay(15);
+	//TODO: make delay into task sleep, etc
+	sleep_for_tenths(10);
 
 	//when done set the CS high
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
@@ -286,7 +309,7 @@ void ineedmd_adc_Start_Low()
 {
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, 0x00);
 	//wait for 2 device clocks - 1uSec
-	iHW_delay(1);
+	sleep_for_tenths(1);
 }
 
 
@@ -364,7 +387,7 @@ void ineedmd_adc_Receive_Data(char* data)
 //********************************************************************************
 uint32_t ineedmd_adc_Get_ID()
 {
-	return ineedmd_adc_Register_Read(ADS1198_ID);
+	return ineedmd_adc_Register_Read(ADS1198_ID_ADDRESS);
 
 
 }
@@ -472,6 +495,10 @@ void ineedmd_adc_Enable_Lead_Detect()
 	ineedmd_adc_Register_Write(CONFIG4, PD_LOFF_COMP);
 	ineedmd_adc_Register_Write(LOFF_SENSP, 0xFFFF);
 	ineedmd_adc_Register_Write(LOFF_SENSN, 0xFFFF);
+
+	//increase comparator threshold for lead off detect
+	uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
+	ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1 | COMP_TH1 | COMP_TH2 ));
 }
 
 //configure to use 3 lead setup

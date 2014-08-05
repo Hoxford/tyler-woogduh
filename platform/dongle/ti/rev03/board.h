@@ -50,6 +50,7 @@
 //battery port mappings
 #define INEEDMD_BATTERY_PORT                 GPIO_PORTE_BASE
 #define INEEDMD_BATTERY_MEASUREMENT_IN_PIN   GPIO_PIN_3
+#define INEEDMD_PORTE_RADIO_LOW_BATT_INTERUPT 0x02
 #define BATTERY_ADC                          ADC0_BASE
 #define BATTERY_ADC_CTL_CH0                  ADC_CTL_CH0
 #define BATTERY_SYSCTL_PERIPH_ADC            SYSCTL_PERIPH_ADC0
@@ -86,25 +87,32 @@
 #define INEED_USB      0x05
 
 //subsystem block number - just used to make some coding functions easer.
-#define INEEDMD_CPU_SPEED_FULL_EXTERNAL 0x00
-#define INEEDMD_CPU_SPEED_FULL_INTERNAL 0x01
-#define INEEDMD_CPU_SPEED_HALF_INTERNAL 0x02
-#define INEEDMD_CPU_SPEED_SLOW_INTERNAL 0x03
-#define INEEDMD_CPU_SPEED_REALLY_SLOW 0x04
+#define INEEDMD_CPU_SPEED_FULL_EXTERNAL     0x00
+#define INEEDMD_CPU_SPEED_HALF_EXTERNAL     0x05
+#define INEEDMD_CPU_SPEED_QUARTER_EXTERNAL  0x06
+#define INEEDMD_CPU_SPEED_FULL_INTERNAL     0x01
+#define INEEDMD_CPU_SPEED_HALF_INTERNAL     0x02
+#define INEEDMD_CPU_SPEED_SLOW_INTERNAL     0x03
+#define INEEDMD_CPU_SPEED_REALLY_SLOW       0x04
 
 
 
+void Set_Timer0_Sleep();
 void PowerInitFunction(void);
 void PortFunctionInit(void);
+void ConfigureSleep(void);
+void ConfigureDeepSleep(void);
+void wait_time (unsigned int);
 void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
-void set_system_speed (unsigned int);
+int set_system_speed (unsigned int);
 
 void GPIOEnable(void);
-void BatMeasureADCEnable(void);
-void EKGSPIEnable(void);
-void RadioUARTEnable(void);
-void RadioUARTDisable(void);
+int BatMeasureADCEnable(void);
+int EKGSPIEnable(void);
+int RadioUARTEnable(void);
+int RadioUARTDisable(void);
 int iRadio_Power_On(void);
+int iRadio_Power_Off(void);
 int iRadio_interface_enable(void);
 int iRadio_send_char(char * byte);
 int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
@@ -120,14 +128,16 @@ bool bRadio_is_data(void);
 void LEDI2CEnable(void);
 void XTALControlPin(void);
 void USBPortEnable(void);
-
+void USBPortDisable(void);
+void vUSBServiceInt(uint32_t uiUSB_int_flags);
+bool bIs_usb_physical_data_conn(void);
 void GPIODisable(void);
-void BatMeasureADCDisable(void);
+int BatMeasureADCDisable(void);
 bool bIs_battery_low(void);
-void EKGSPIDisable(void);
+int EKGSPIDisable(void);
 
 void LEDI2CDisable(void);
-void USBPortDisnable(void);
+void USBPortDisable(void);
 int iHW_delay(uint32_t uiDelay);
 int iBoard_init(void);
 

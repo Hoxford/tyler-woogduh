@@ -47,6 +47,7 @@
 #include "utils_inc/proj_debug.h"
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
+#include "inc/hw_nvic.h"
 #include "inc/hw_gpio.h"
 #include "inc/hw_sysctl.h"
 #include "driverlib/adc.h"
@@ -60,6 +61,7 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
+#include "driverlib/timer.h"
 
 #include "inc/tm4c1233h6pm.h"
 #include "board.h"
@@ -76,7 +78,16 @@
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
 volatile bool bIs_usart_timeout = false;
+volatile bool bIs_USB_sof = false;
 uint32_t uiSys_clock_rate_ms = 0;
+
+//
+//a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
+//
+void wait_time (unsigned int tenths_of_seconds)
+{
+	MAP_SysCtlDelay(( MAP_SysCtlClockGet() / 30  )*tenths_of_seconds );
+}
 
 
 //
@@ -99,7 +110,7 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
 
 
 
-void set_system_speed (unsigned int how_fast)
+int set_system_speed (unsigned int how_fast)
 {
 
   switch (how_fast) {
@@ -111,6 +122,29 @@ void set_system_speed (unsigned int how_fast)
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
       SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      //reset up the i2c bus
+
+      break;
+    case INEEDMD_CPU_SPEED_HALF_EXTERNAL:
+      //WARNING - do not use on first board rev!!!!
+      //turn on the external oscillator
+      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+      // let it stabalise
+      MAP_SysCtlDelay(1000);
+      //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
+      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      //reset up the i2c bus
+
+      break;
+
+    case INEEDMD_CPU_SPEED_QUARTER_EXTERNAL:
+      //WARNING - do not use on first board rev!!!!
+      //turn on the external oscillator
+      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+      // let it stabalise
+      MAP_SysCtlDelay(1000);
+      //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
+      SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
       //reset up the i2c bus
 
       break;
@@ -130,7 +164,7 @@ void set_system_speed (unsigned int how_fast)
       break;
 
     case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
-      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 2Mhz
+      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
       SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
@@ -152,14 +186,41 @@ void set_system_speed (unsigned int how_fast)
       break;
   }
 
+  return how_fast;
 
 
 }
 
 void
+Set_Timer0_Sleep()
+{
+    //
+    // The Timer0 peripheral must be enabled for use.
+    //
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    //
+    // The Timer0 peripheral must be enabled for use.
+    //
+//    TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_ONE_SHOT);
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_A_ONE_SHOT);
+	
+}
+
+
+void
 PowerInitFunction(void)
 {
+  // set the brown out detection registers
+
   HWREG(SYSCTL_PBORCTL_R)=SYSCTL_PBORCTL_BOR0;
+
+  // set the LDO in sleep and deep sleep...
+
+  SysCtlLDODeepSleepSet(SYSCTL_LDO_0_90V);
+  SysCtlLDOSleepSet(SYSCTL_LDO_0_90V);
+
+  SysCtlDeepSleepPowerSet (SYSCTL_FLASH_LOW_POWER |  SYSCTL_TEMP_LOW_POWER | SYSCTL_SRAM_LOW_POWER );
+
 }
 
 void
@@ -200,7 +261,7 @@ GPIODisable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 BatMeasureADCEnable(void)
 {
 
@@ -226,6 +287,7 @@ BatMeasureADCEnable(void)
     //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
 
 
+    return 1;
 }
 
 //*****************************************************************************
@@ -234,13 +296,14 @@ BatMeasureADCEnable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
+int
 BatMeasureADCDisable(void)
 {
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
    //Enable the ADC Clock
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
     //let is stabalise with a majik delay
+    return 1;
 }
 
 //*****************************************************************************
@@ -252,6 +315,14 @@ BatMeasureADCDisable(void)
 void
 BatMeasureADCRead(void)
 {
+    //
+    // Configuring the SPI port and pins to talk to the analog front end
+    // SPI0_BASE is mapped to INEEDMD_ADC_SPI
+    //
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
+    //no need for a majik delay as we are configuring the GPIO pins as well... and set the pin low to power down the device
+    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+    GPIOPinWrite (GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
 
 }
 
@@ -279,7 +350,7 @@ bIs_battery_low(void)
   return bIs_batt_low;
 }
 
-void
+int
 EKGSPIEnable(void)
 {
   //
@@ -289,6 +360,8 @@ EKGSPIEnable(void)
   MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
   //no need for a majik delay as we are configuring the GPIO pins as well...
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+  // power UP the ADC
+  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
   // Enable pin PA6 for GPIOOutput
   MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
   // Enable pin PA0 for GPIOInput
@@ -321,20 +394,25 @@ EKGSPIEnable(void)
   SSIEnable(INEEDMD_ADC_SPI);
 //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
 
-  //when done set the CS high the ADC needs the CS pin high to work properly
-   MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+
+   return 1;
+
 }
 
 
 
 
-void
+int
 EKGSPIDisable(void)
 {
 //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
   SSIDisable(INEEDMD_ADC_SPI);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
-    //no need for a majik delay as we are configuring the GPIO pins as well...
+  MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
+  // power down the ADC
+  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
+
+  return 1;
+
 }
 
 
@@ -344,7 +422,7 @@ EKGSPIDisable(void)
 // param description: none
 // return value description: none
 //*****************************************************************************
-void
+int
 RadioUARTEnable(void)
 {
   //TODO: abstract all the direct references to the processor I/O
@@ -365,8 +443,7 @@ RadioUARTEnable(void)
     //
     MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_ENABLE_PIN);
 
-    //de-exert,sets it low, reset pin, aka run mode
-    MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_ENABLE_PIN, 0x00);
+    iRadio_Power_On();
     //
     // Enable pin PF0 for UART1 U1RTS
     // First open the lock and select the bits we want to modify in the GPIO commit register.
@@ -399,23 +476,26 @@ RadioUARTEnable(void)
   //re set up the UART so it's timings are about correct
     UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
     UARTEnable(INEEDMD_RADIO_UART);
+//	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
+
+    return 1;
 }
 
 
 
 
 //*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
+// name: iRadioPowerOff
+// description: sets the gpio pin to the radio high to turn on the radio
+// param description: none
+// return value description: 1 if success
 //*****************************************************************************
-void
-RadioUARTDisable(void)
+
+int
+iRadio_Power_Off(void)
 {
-//  while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
-    UARTDisable(INEEDMD_RADIO_UART);
-  MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_UART1);
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
+  return 1;
 }
 
 //*****************************************************************************
@@ -439,6 +519,8 @@ iRadio_Power_On(void)
 //*****************************************************************************
 int iRadio_interface_enable(void)
 {
+  RadioUARTEnable();
+
   //set flow control
   UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
 
@@ -561,7 +643,7 @@ int iRadio_rcv_char(char *cRcv_char)
 
   while(*cRcv_char == 0xFF)
   {
-    iHW_delay(1);
+//    iHW_delay(1);
     *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
   }
   return 1;
@@ -817,7 +899,44 @@ USBPortEnable(void)
     //
     MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5);
 
+#define SYSTICKS_PER_SECOND 100
+    ROM_FPULazyStackingEnable();
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
+
+    set_system_speed(INEEDMD_CPU_SPEED_HALF_EXTERNAL);
+
+    uint32_t ui32SysClock = MAP_SysCtlClockGet();
+//    MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
+//    MAP_SysTickIntEnable();
+//    MAP_SysTickEnable();
+//    MAP_IntMasterDisable();
+//    MAP_SysTickIntDisable();
+//    MAP_SysTickDisable();
+    HWREG(NVIC_DIS0) = 0xffffffff;
+    HWREG(NVIC_DIS1) = 0xffffffff;
+    // 1. Enable USB PLL
+    // 2. Enable USB controller
+//    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+//    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+    MAP_SysCtlUSBPLLEnable();
+    // 3. Enable USB D+ D- pins
+    // 4. Activate USB DFU
+    MAP_SysCtlDelay(ui32SysClock / 3);
+    MAP_IntMasterEnable(); // Re-enable interrupts at NVIC level
+
     //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
+
+//    ROM_USBIntEnableControl(USB0_BASE,(USB_INTCTRL_DISCONNECT | USB_INTCTRL_CONNECT));
+    MAP_USBIntEnableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
+                                       USB_INTCTRL_CONNECT);
+//    MAP_USBIntEnableEndpoint(USB0_BASE, USB_INTEP_ALL);
+
+    MAP_USBDevConnect(USB0_BASE);
+
+    MAP_IntEnable(INT_USB0);
 
 }
 
@@ -830,9 +949,313 @@ USBPortEnable(void)
 void
 USBPortDisable(void)
 {
-    //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
-    // USB block need the processor at full speed to complete the initiaisation.
+
+    uint32_t ui32SysClock = MAP_SysCtlClockGet();
+
+    //disable all interrupts
+    MAP_IntMasterDisable();
+
+    //disable the USB0 interrupt
+    ROM_IntDisable(INT_USB0);
+
+    //disconnect the USB0 device
+    MAP_USBDevDisconnect(USB0_BASE);
+
+    //disable the interrupt controll
+    MAP_USBIntDisableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
+                                        USB_INTCTRL_CONNECT);
+
+    //turn off the USB PLL
+    MAP_SysCtlUSBPLLDisable();
+
+    //do a short delay
+    MAP_SysCtlDelay(ui32SysClock / 3);
+
+    // disable the entier USB0 peripheral
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
+
+    set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
+
+    //re-enable all interrupts
+    MAP_IntMasterEnable();
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vUSBServiceInt(uint32_t uiUSB_int_flags)
+{
+
+  if((uiUSB_int_flags & USB_INTCTRL_SOF) == USB_INTCTRL_SOF)
+  {
+      bIs_USB_sof = true;
+  }
+}
+
+bool bIs_usb_physical_data_conn(void)
+{
+  bool bWas_physical_data_conn;
+
+  //disable all interrupts
+  ROM_IntMasterDisable();
+
+  bWas_physical_data_conn = bIs_USB_sof;
+  bIs_USB_sof = false;
+
+  //re-enable interrupts
+  ROM_IntMasterEnable();
+
+  return bWas_physical_data_conn;
+}
+
+/*
+* ConfigureSleepleep(void)
+*
+*This function sets up the behaviour of the cpu peripherals in sleep mode
+*
+*/
+
+void
+ConfigureSleep(void)
+{
+        //
+        // Which peripherals are enabled in sleep
+        // Peripherals should be enabled OR disabled
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_CAN0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_CAN0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_COMP0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_COMP0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOA);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOA);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOB);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOC);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOC);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOD);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOE);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOF);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_HIBERNATE);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_HIBERNATE);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C2);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C2);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C3);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C3);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C4);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C4);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_EEPROM0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_EEPROM0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI1);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER2);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER3);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER3);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER4);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER5);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER5);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART0);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART1);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART2);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART2);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART3);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART3);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART4);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART4);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART5);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART5);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART6);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART6);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART7);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART7);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UDMA);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_USB0);
+        //
+        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG0);
+        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG0);
+        //
+        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG1);
+        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG1);
+        //
+}
+
+void
+
+ConfigureDeepSleep(void)
+{
+	//
+	// Which peripherals are enabled in sleep
+	// Peripherals should be enabled OR disabled
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_ADC0);
+	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_ADC1);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_ADC1);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_CAN0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_CAN0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_COMP0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_COMP0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOA);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOA);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOB);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOB);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOC);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOC);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOD);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOD);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOE);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOE);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOF);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOF);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_HIBERNATE);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_HIBERNATE);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C1);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C1);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C2);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C2);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C3);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C3);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C4);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C4);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_EEPROM0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_EEPROM0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI1);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI1);
+	//
+	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER0);
+	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER1);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER1);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER2);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER2);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER3);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER3);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER4);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER4);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER5);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER5);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART1);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART1);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART2);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART2);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART3);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART3);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART4);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART4);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART5);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART5);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART6);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART6);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART7);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART7);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UDMA);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UDMA);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_USB0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_USB0);
+	//
+	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG0);
+	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG0);
+	//
+	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG1);
+	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG1);
+	//
 }
 
 //*****************************************************************************
