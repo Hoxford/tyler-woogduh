@@ -126,7 +126,7 @@
     #define SET_BT_SSP_CPLTES             SET_BT_SSP_CPBLTES_NONE
   #define SET_BT_SSP_MITM_NO_PROT    0  //no man in the middle protection
   #define SET_BT_SSP_MITM_PROT       1  //man in the middle protection required
-    #define SET_BT_SSP_MITM          SET_BT_SSP_MITM_PROT
+    #define SET_BT_SSP_MITM          SET_BT_SSP_MITM_NO_PROT
 #define SET_PROFILE_SPP   "\r\nSET PROFILE SPP %s\r\n"
   #define SET_PROFILE_SPP_ON   "ON"
   #define SET_PROFILE_SPP_OFF  "OFF"
@@ -153,7 +153,7 @@
   #define SET_CONTROL_ESCAPE_ESC_CHAR_DISABLE  '-'
   #define SET_CONTROL_ESCAPE_ESC_CHAR_DEFAULT  '+'
   #define SET_CONTROL_ESCAPE_ESC_CHAR_NEW      '?'
-    #define SET_CONTROL_ESCAPE_ESC_CHAR  SET_CONTROL_ESCAPE_ESC_CHAR_DEFAULT
+    #define SET_CONTROL_ESCAPE_ESC_CHAR  SET_CONTROL_ESCAPE_ESC_CHAR_DISABLE
   #define SET_CONTROL_ESCAPE_DTR_MASK_PINS  PIO_MASK_PIO0
     #define SET_CONTROL_ESCAPE_DTR_MASK  SET_CONTROL_ESCAPE_DTR_MASK_PINS
   #define SET_CONTROL_ESCAPE_DTR_MODE_DISABLED    0
@@ -204,6 +204,11 @@ int iIneed_md_parse_ssp (char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_
 int iIneedmd_parse_addr  (char * cString_buffer , uint8_t * uiAddr);
 int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size);
 int iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size);
+#ifdef INEEDMD_RADIO_CMND_ECHO
+  void vRADIO_ECHO_FRAME(uint8_t * uiFrame, uint16_t uiFrame_len);
+#else
+  vRADIO_ECHO_FRAME(a, i)
+#endif //INEEDMD_RADIO_CMND_ECHO
 
 /* ineedmd_radio_power
  * Power up and down the radio
@@ -438,13 +443,6 @@ int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
-//  bool bSetup_is_data;
-//  uint32_t ui32Status;
-//  iRadio_interface_int_enable();
-//  MAP_UARTIntClear(INEEDMD_RADIO_UART, MAP_UARTIntStatus(INEEDMD_RADIO_UART, true));
-//  bSetup_is_data = bRadio_is_data();
-
-//  while(bSetup_is_data == true)
   while(true)
   {
     if(i == uiBuff_size)
@@ -454,11 +452,18 @@ int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 
     iRadio_rcv_char(&cRcv_string[i]);
 
+    //check if the end of the boot message was reached
+    //check if the number of char is greater then the minimum expected
     if(i >= (READY_STRLEN - 1))
     {
-      if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+      //check if the most recent char is an end of line
+      if(cRcv_string[i] == '\n')
       {
-        break;
+        //check if the last part of the boot message is the end of the boot message
+        if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+        {
+          break;
+        }
       }
     }
 //    char *cEnd_of_frame;
@@ -476,12 +481,6 @@ int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 //    }
 
     ++i;
-
-//    iRadio_interface_int_disable();
-//    iRadio_interface_int_enable();
-//    ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
-//    MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
-//    bSetup_is_data = bRadio_is_data();
   }
 
 //  iRadio_interface_int_disable();
@@ -535,12 +534,22 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
 
 int iIneedmd_radio_cmnd_mode(bool bMode_Set)
 {
+  //todo: ABSTRACT!
   if(bMode_Set == true)
   {
-    iRadio_gpio_config(GPIO_PORTE_BASE, 0x08); //PE3
+    iRadio_gpio_config(GPIO_PORTE_BASE, GPIO_PIN_3); //PE3
+    MAP_GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_3, GPIO_PIN_3);
   }
   else if(bMode_Set == false)
   {
+//    int32_t iPin_Set;
+//    iPin_Set = MAP_GPIOPinRead(GPIO_PORTE_BASE, GPIO_PIN_3);
+//    if(GPIO_PIN_3 == iPin_Set)
+//    {
+//      iPin_Set = MAP_GPIOPinRead(GPIO_PORTE_BASE, 0xff); //todo: define magic number to all pins or something
+//      iPin_Set =iPin_Set & 0xf7;
+      MAP_GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_3, 0);
+//    }
 
   }
   else
@@ -605,6 +614,7 @@ int  iIneedMD_radio_setup(void)
 #endif
   uint32_t iEC;
 //  char  *send_string = NULL;
+  char cEsc_Char = '+';
   char cSend_buff[BG_SIZE];
   char cRcv_buff[BG_SIZE];
   uint32_t ui32SysClock = MAP_SysCtlClockGet();
@@ -627,6 +637,9 @@ int  iIneedMD_radio_setup(void)
     //todo: perform a syntax error check
     //set the radio in command mode
     iIneedmd_radio_cmnd_mode(true);
+//    ineedmd_radio_send_string(&cEsc_Char, 1);
+//    ineedmd_radio_send_string(&cEsc_Char, 1);
+//    ineedmd_radio_send_string(&cEsc_Char, 1);
 
     //SET RESET, reset to factory defaults
     vDEBUG_RDIO_SETUP("SET RESET, RFD");
@@ -701,7 +714,7 @@ int  iIneedMD_radio_setup(void)
 
     //parse string for the BT address
     iEC = iIneedmd_parse_addr(cRcv_buff, uiBT_addr);
-  #if DEBUG
+  #ifdef DEBUG
     if(iEC != 1){ while(1){}};//todo: proper error code, no magic number
   #endif
 
@@ -737,17 +750,20 @@ int  iIneedMD_radio_setup(void)
 
     //set the connection status to false while waiting for an outside connection
     bIs_connection = false;
+    iIneedmd_radio_cmnd_mode(false);
 
     //enable the interrupt to the radio
-//    iRadio_interface_int_enable();
+    iRadio_interface_int_enable();
 //    iHW_delay(ONESEC_DELAY);
     MAP_SysCtlDelay(ui32SysClock);
     //todo: check the ready pin
     vDEBUG_RDIO_SETUP("Radio ready");
+    //Todo: this DOES NOT belong here
+    MAP_IntMasterEnable();
   }
   else
   {
-#if DEBUG
+#ifdef DEBUG
     vDEBUG_RDIO_SETUP("additional platforms are not defined");
     while(1){};
 #endif
@@ -768,7 +784,7 @@ int  iIneedMD_radio_check_for_connection(void)
   #define vDEBUG_RDIO_CHKCONN(a)
 #endif
 #define rc_chkbuff_size 128
-  int iEC;
+  int iEC = 0;
   uint8_t uiRcv_buff[rc_chkbuff_size];
   bool bIs_radio_data = false;
 
@@ -785,42 +801,18 @@ int  iIneedMD_radio_check_for_connection(void)
       bIs_radio_data = UARTCharsAvail(INEEDMD_RADIO_UART);
       iEC = iIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size);
 
-      if(iEC == 1)
+      //determine origin of the data frame
+      if(iEC > 0)
       {
-        return 1;
-      }
-//      //check if the received string is a SSP request
-//      iEC = iIneed_md_parse_ssp(cRcv_buff, uiRemote_dev_addr, &uiRemote_dev_key);
+        vRADIO_ECHO_FRAME(uiRcv_buff, iEC);
 
-//      if(iEC == 1)
-//      {
-//        //build the SSP response frame
-//        memset(cSend_buff, 0x00, rc_chkbuff_size);
-//        snprintf(cSend_buff, rc_chkbuff_size, SSP_CONFIRM, uiRemote_dev_addr[0], uiRemote_dev_addr[1], uiRemote_dev_addr[2], uiRemote_dev_addr[3], uiRemote_dev_addr[4], uiRemote_dev_addr[5]);
-//        //send the SSP response
-//        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-//
-//        //receive the ssp confirm from the remote device
-//        iEC = iIneedmd_radio_rcv_string(cRcv_buff, rc_chkbuff_size);
-//
-//        //build the RING frame
-//        memset(cSend_buff, 0x00, rc_chkbuff_size);
-//        snprintf(cSend_buff, rc_chkbuff_size, RING, uiRemote_dev_addr[0], uiRemote_dev_addr[1], uiRemote_dev_addr[2], uiRemote_dev_addr[3], uiRemote_dev_addr[4], uiRemote_dev_addr[5]);
-//        //send the RING frame
-//        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-//
-//        //activate the mux mode
-////        memset(cSend_buff, 0x00, rc_chkbuff_size);
-////        snprintf(cSend_buff, rc_chkbuff_size, SET_CONTROL_MUX, SET_CONTROL_MUX_MODE);
-////        //send the mux frame
-////        ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-//
-//        return 1;
-//      }
-//      else
-//      {
-//        return 0;
-//      }
+        //check if the frame is a ineedMD command protocol frame
+        if(uiRcv_buff[0] == 0x9C)
+        {
+          //hand the frame off to the command protocol process
+
+        }
+      }
     }
     else
     {
@@ -870,6 +862,30 @@ int iIneedMD_radio_process(void)
  * Get status from the radio
  */
 
+#ifdef INEEDMD_RADIO_CMND_ECHO
+void vRADIO_ECHO_FRAME(uint8_t * uiFrame, uint16_t uiFrame_len)
+{
+#ifdef DEBUG
+  uint16_t uiIndex = 0, uiSend_index = 0;
+
+  uint8_t uiSend_Frame[512]; //todo: magic number warning!
+  char cHex_format[] = "%.2x ";
+  if((uiFrame_len * 4) > 512)
+  {
+    return;
+  }
+
+  memset(uiSend_Frame, 0x00, 512);
+
+  for(uiIndex = 0; uiIndex <= uiFrame_len; uiIndex++)
+  {
+    uiSend_index += snprintf((char *)&uiSend_Frame[uiSend_index], 512, cHex_format, uiFrame[uiIndex]);
+  }
+
+  vRADIO_ECHO((char *)uiSend_Frame);
+#endif // DEBUG
+}
+#endif
 /*
  * END
  */

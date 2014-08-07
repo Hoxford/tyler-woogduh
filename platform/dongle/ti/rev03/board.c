@@ -572,9 +572,8 @@ int iRadio_gpio_read(uint16_t uiMask)
 int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask)
 {
   MAP_GPIODirModeSet(uiRadio_Pin_Port, uiPIN_Out_Mask, GPIO_DIR_MODE_OUT);
-#if DEBUG
-  while(1){}; //todo: fcn not defined yet
-#endif
+
+  //todo: read the register and verify settings took hold
   return 1;
 }
 

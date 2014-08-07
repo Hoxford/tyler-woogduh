@@ -101,6 +101,7 @@ main(void)
   //power on the radio
   iIneedMD_radio_setup();
 
+  vDEBUG("Starting super loop");
   while(1)
   {
     iPet_the_dog();
