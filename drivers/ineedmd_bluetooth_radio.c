@@ -34,6 +34,7 @@
 
 #include "board.h"
 #include "ineedmd_bluetooth_radio.h"
+#include "app_inc/ineedmd_command_protocol.h"
 #include "utils_inc/proj_debug.h"
 
 //*****************************************************************************
@@ -759,7 +760,6 @@ int  iIneedMD_radio_setup(void)
     //todo: check the ready pin
     vDEBUG_RDIO_SETUP("Radio ready");
     //Todo: this DOES NOT belong here
-    MAP_IntMasterEnable();
   }
   else
   {
@@ -809,7 +809,7 @@ int  iIneedMD_radio_check_for_connection(void)
         //check if the frame is a ineedMD command protocol frame
         if(uiRcv_buff[0] == 0x9C)
         {
-          //hand the frame off to the command protocol process
+          iIneedmd_Rcv_cmnd_frame(uiRcv_buff, iEC);
 
         }
       }

@@ -19,13 +19,15 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
-#define COMMAND_FLAG 0x01
-#define STATUS_FLAG  0x02
-#define MEASURE_FLAG 0x03
-#define STATUS_HIBERNATE 0x00
-#define STATUS_SLEEP 0x20
-#define STATUS_ON 0x40
-#define STATUS_POWER 0x60
+#define INMD_FRAME_BUFF_SIZE    256
+
+#define COMMAND_FLAG      0x01
+#define STATUS_FLAG       0x02
+#define MEASURE_FLAG      0x03
+#define STATUS_HIBERNATE  0x00
+#define STATUS_SLEEP      0x20
+#define STATUS_ON         0x40
+#define STATUS_POWER      0x60
 
 #define printf  debug_out
 #define sprintf  debug_out
@@ -33,6 +35,11 @@
 //*****************************************************************************
 // variables
 //*****************************************************************************
+static uint8_t uiINMD_Protocol_frame[INMD_FRAME_BUFF_SIZE];
+static uint16_t uiINMD_Protocol_frame_len = 0;
+
+static bool bIs_protocol_frame = false;
+
 static const int dataApplicable[7] = { 0, 1, 0, 1, 1, 1, 1 };
 static char NACK[5]; //this is a string
 static char ACK[5]; //this too is a string
@@ -61,19 +68,18 @@ static const char status0x15[] = { 0x9C, 0x03, 0x0E, 0x16, 0x03, 0x10, 0x0A, 0x9
 // function declarations
 //*****************************************************************************
 
-int debug_out(char * cOut_buff,...);
+//int debug_out(char * cOut_buff,...);
 //int SearchArrCmd(char cArrCmd);
 void writeDataToPort(char * cOut_buff);
+
+#ifdef DEBUG
+  #define debug_out  vDEBUG
+#else
+  #define debug_out(c,__VA_ARGS__)
+#endif
 //*****************************************************************************
 // functions
 //*****************************************************************************
-
-//todo: define this
-int debug_out(char * cOut_buff,...)
-{
-  //route to debug uart
-  return 1;
-}
 
 //todo: define this
 //int SearchArrCmd(char cArrCmd)
@@ -349,7 +355,64 @@ void parseCommand(unsigned char szCommand[],int cntCommand)
     break;
   }
 }
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int iIneedmd_Rcv_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len)
+{
+  int iEC = 0;
+  void * vDid_copy = NULL;
+  memset(uiINMD_Protocol_frame, 0x00, INMD_FRAME_BUFF_SIZE);
 
+  if(uiCmnd_Frame_len >= INMD_FRAME_BUFF_SIZE)
+  {
+    iEC = -1;
+  }
+  else
+  {
+    vDid_copy = memcpy(uiINMD_Protocol_frame, uiCmnd_Frame, uiCmnd_Frame_len);
+    if(vDid_copy != NULL)
+    {
+      bIs_protocol_frame = true;
+      uiINMD_Protocol_frame_len = uiCmnd_Frame_len;
+    }
+    else
+    {
+      iEC = -2;
+    }
+  }
+  return iEC;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int iIneedmd_Send_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len)
+{
+  return 1;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+bool iIneedmd_is_protocol_frame(void)
+{
+  bool bWas_frame;
+
+  bWas_frame = bIs_protocol_frame;
+  bIs_protocol_frame = false;
+
+  return bWas_frame;
+}
 //*****************************************************************************
 // name:
 // description:
@@ -358,6 +421,14 @@ void parseCommand(unsigned char szCommand[],int cntCommand)
 //*****************************************************************************
 int iIneedmd_command_process(void)
 {
+  bool bIs_frame = false;
+
+  bIs_frame = iIneedmd_is_protocol_frame();
+
+  if(bIs_frame == true)
+  {
+    parseCommand(uiINMD_Protocol_frame, uiINMD_Protocol_frame_len);
+  }
   return 1;
 }
 

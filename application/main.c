@@ -108,7 +108,7 @@ main(void)
 
     iIneedMD_radio_process();
 
-//    iIneedmd_command_process();
+    iIneedmd_command_process();
 
 //    led_test();
 //    check_battery();

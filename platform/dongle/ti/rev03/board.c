@@ -720,6 +720,8 @@ int iRadio_interface_int_enable(void)
   //
   ROM_IntEnable(INEEDMD_RADIO_UART_INT);
   ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT);
+
+  MAP_IntMasterEnable();
   return 1;
 }
 
