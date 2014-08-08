@@ -27,7 +27,7 @@
 // enums
 //*****************************************************************************
 //return error codes
-typedef enum ERROR_CODE
+typedef enum
 {
     ER_OK,
     ER_FAIL,
@@ -45,7 +45,7 @@ typedef enum ERROR_CODE
     ER_OPENED,
     ER_OPEN,
     ER_NODATA   
-};
+}ERROR_CODE;
 
 //*****************************************************************************
 // structures

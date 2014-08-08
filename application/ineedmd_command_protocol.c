@@ -19,6 +19,7 @@
 #include "board.h"
 #include "app_inc/ineedmd_command_protocol.h"
 #include "app_inc/ineedmd_waveform.h"
+#include "app_inc/ineedmd_watchdog.h"
 #include "ineedmd_bluetooth_radio.h"
 #include "utils_inc/proj_debug.h"
 
@@ -756,8 +757,7 @@ void ParseFrame(void *pt)
         else if(Frame[4] == 0x0F)
         {
           printf("Performing DFU...");
-          USBPortEnable();
-          ROM_UpdateUSB(0);
+          ineedmd_watchdog_doorbell();
         }
         //the output expected is TEST DATA PATTERN 1
 //        printf("\nReceived \"test\" request...");

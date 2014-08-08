@@ -34,6 +34,7 @@
 
 #include "board.h"
 #include "ineedmd_bluetooth_radio.h"
+#include "ineedmd_led.h"
 #include "app_inc/ineedmd_command_protocol.h"
 #include "utils_inc/proj_debug.h"
 
@@ -683,9 +684,16 @@ int  iIneedMD_radio_setup(void)
     //todo: perform a syntax error check
     //set the radio in command mode
     iIneedmd_radio_cmnd_mode(true);
-//    ineedmd_radio_send_string(&cEsc_Char, 1);
-//    ineedmd_radio_send_string(&cEsc_Char, 1);
-//    ineedmd_radio_send_string(&cEsc_Char, 1);
+//    MAP_SysCtlDelay(ui32SysClock);
+//    iRadio_send_char(&cEsc_Char);
+//    iRadio_send_char(&cEsc_Char);
+//    iRadio_send_char(&cEsc_Char);
+//    MAP_SysCtlDelay(ui32SysClock);
+
+//    ineedmd_radio_send_string("\r\nLIST\r\n", strlen("\r\nLIST\r\n"));
+    ineedmd_radio_send_string("\r\nCLOSE 0\r\n", strlen("\r\nCLOSE 0\r\n"));
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
     //SET RESET, reset to factory defaults
     vDEBUG_RDIO_SETUP("SET RESET, RFD");
@@ -804,7 +812,6 @@ int  iIneedMD_radio_setup(void)
     MAP_SysCtlDelay(ui32SysClock);
     //todo: check the ready pin
     vDEBUG_RDIO_SETUP("Radio ready");
-    //Todo: this DOES NOT belong here
   }
   else
   {
@@ -836,6 +843,8 @@ int  iIneedMD_radio_check_for_connection(void)
   //check if connection with a remote device has been established
   if(bIs_connection == false)
   {
+//    ineedmd_led_pattern(BT_ATTEMPTING);
+
     //begin establishing a connection with a remote device
     bIs_radio_data = bRadio_is_data();
 
