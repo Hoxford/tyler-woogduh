@@ -34,6 +34,7 @@
 
 #include "board.h"
 #include "ineedmd_bluetooth_radio.h"
+#include "ineedmd_led.h"
 #include "app_inc/ineedmd_command_protocol.h"
 #include "utils_inc/proj_debug.h"
 
@@ -179,6 +180,7 @@
 #define BT_MACADDR_NUM_BYTES  6
 #define BG_SIZE              1024
 #define BG_SEND_SIZE         256
+#define BG_SEND_SIZE_SMALL   32
 
 #define ONESEC_DELAY         100
 
@@ -187,11 +189,15 @@
 ******************************************************************************/
 volatile bool bIs_data;
 volatile bool bIs_connection = false;
+volatile bool bIs_frame_to_send = false;
 
 uint8_t   uiBT_addr[6];        //BT module mac address
 char      cBT_addr_string[18]; //BT module mac address in string format
 uint8_t   uiRemote_dev_addr[6];        //remote BT module mac address
 char      cRemore_dev_addr_string[18]; //remote BT module mac address in string format
+uint8_t   uiSend_frame[BG_SEND_SIZE_SMALL];
+uint16_t  uiSend_frame_len = 0;
+
 uint32_t  uiRemote_dev_key = 0;
 uint8_t   uiSet_control_mux_hex_disable[] = {0xBF, 0xFF, 0x00, 0x11, 0x53, 0x45, 0x54, 0x20, 0x43, 0x4f, 0x4e, 0x54, 0x52, 0x4f, 0x4c, 0x20, 0x4d, 0x55, 0x58, 0x20, 0x30, 0x00};
 uint8_t   uiIneedmd_radio_type = INEEDMD_PLATFORM_RADIO_TYPE;
@@ -319,6 +325,44 @@ int ineedmd_radio_send_frame(uint8_t *send_frame, uint16_t uiFrame_size)
   return i;
 }
 
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+int  iIneedmd_radio_que_frame(uint8_t *send_frame, uint16_t uiFrame_size)
+{
+  int iEC = 0;
+  uint8_t * uiFrame_cpy = NULL;
+
+  if(uiFrame_size > BG_SEND_SIZE_SMALL)
+  {
+    uiSend_frame_len = 0;
+    bIs_frame_to_send = false;
+    iEC = -1;
+  }
+  else
+  {
+    memset(uiSend_frame, 0x00, BG_SEND_SIZE_SMALL);
+    uiFrame_cpy = memcpy(uiSend_frame, send_frame, uiFrame_size);
+    if(uiFrame_cpy == NULL)
+    {
+      uiSend_frame_len = 0;
+      bIs_frame_to_send = false;
+      iEC = -2;
+    }
+    else
+    {
+      uiSend_frame_len = uiFrame_size;
+      bIs_frame_to_send = true;
+      iEC = 0;
+    }
+  }
+
+  return iEC;
+}
+
 /*
  * get message from the radio
  */
@@ -370,6 +414,8 @@ int iIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
 
     if(uiRcv_frame[i] == INEEDMD_CMND_EOF)
     {
+      //increment i to compensate for the last byte
+      i++;
       break;
     }
 //    else
@@ -638,9 +684,16 @@ int  iIneedMD_radio_setup(void)
     //todo: perform a syntax error check
     //set the radio in command mode
     iIneedmd_radio_cmnd_mode(true);
-//    ineedmd_radio_send_string(&cEsc_Char, 1);
-//    ineedmd_radio_send_string(&cEsc_Char, 1);
-//    ineedmd_radio_send_string(&cEsc_Char, 1);
+//    MAP_SysCtlDelay(ui32SysClock);
+//    iRadio_send_char(&cEsc_Char);
+//    iRadio_send_char(&cEsc_Char);
+//    iRadio_send_char(&cEsc_Char);
+//    MAP_SysCtlDelay(ui32SysClock);
+
+//    ineedmd_radio_send_string("\r\nLIST\r\n", strlen("\r\nLIST\r\n"));
+    ineedmd_radio_send_string("\r\nCLOSE 0\r\n", strlen("\r\nCLOSE 0\r\n"));
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
     //SET RESET, reset to factory defaults
     vDEBUG_RDIO_SETUP("SET RESET, RFD");
@@ -759,7 +812,6 @@ int  iIneedMD_radio_setup(void)
     MAP_SysCtlDelay(ui32SysClock);
     //todo: check the ready pin
     vDEBUG_RDIO_SETUP("Radio ready");
-    //Todo: this DOES NOT belong here
   }
   else
   {
@@ -791,6 +843,8 @@ int  iIneedMD_radio_check_for_connection(void)
   //check if connection with a remote device has been established
   if(bIs_connection == false)
   {
+//    ineedmd_led_pattern(BT_ATTEMPTING);
+
     //begin establishing a connection with a remote device
     bIs_radio_data = bRadio_is_data();
 
@@ -877,7 +931,7 @@ void vRADIO_ECHO_FRAME(uint8_t * uiFrame, uint16_t uiFrame_len)
 
   memset(uiSend_Frame, 0x00, 512);
 
-  for(uiIndex = 0; uiIndex <= uiFrame_len; uiIndex++)
+  for(uiIndex = 0; uiIndex <= (uiFrame_len - 1); uiIndex++)
   {
     uiSend_index += snprintf((char *)&uiSend_Frame[uiSend_index], 512, cHex_format, uiFrame[uiIndex]);
   }

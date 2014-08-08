@@ -79,6 +79,7 @@
 volatile bool bIs_usart_data = false;
 volatile bool bIs_usart_timeout = false;
 volatile bool bIs_USB_sof = false;
+volatile bool bWaveform_timer_tick = false;
 uint32_t uiSys_clock_rate_ms = 0;
 
 //
@@ -204,6 +205,36 @@ Set_Timer0_Sleep()
 //    TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_ONE_SHOT);
     TimerConfigure(TIMER0_BASE, TIMER_CFG_A_ONE_SHOT);
 	
+}
+
+/******************************************************************************
+* name:
+* description: services the sys tick interrupt that is proced every ms
+* param description:
+* return value description:
+******************************************************************************/
+void vSystick_int_service(void)
+{
+  bWaveform_timer_tick = true;
+
+  //todo: add other tick variables here
+}
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+bool bWaveform_did_timer_tick(void)
+{
+  bool bDid_waveform_timer_tick = false;
+  bDid_waveform_timer_tick = bWaveform_timer_tick;
+
+  //todo: disable interrupts
+  bWaveform_timer_tick = false;
+  //todo: enable interrupts
+
+  return bDid_waveform_timer_tick;
 }
 
 
@@ -1361,6 +1392,8 @@ int
 iBoard_init(void)
 {
 
+  uint32_t uiSys_clock_rate;
+
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
 
@@ -1389,6 +1422,15 @@ iBoard_init(void)
 
   //setup the USB port.  This can't be used in this clock mode.
   USBPortEnable();
+
+  MAP_SysTickEnable();
+  uiSys_clock_rate = MAP_SysCtlClockGet();
+
+  uiSys_clock_rate = uiSys_clock_rate/40000;
+
+  MAP_SysTickPeriodSet(uiSys_clock_rate);
+
+  MAP_SysTickIntEnable();
 
   return 1;
 }

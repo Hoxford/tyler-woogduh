@@ -13,6 +13,7 @@ int ineedmd_watchdog_setup(void);
 int ineedmd_watchdog_pat(void);
 
 int ineedmd_watchdog_feed(void);
+int ineedmd_watchdog_doorbell(void);
 int ineedmd_watchdog_debug_mode(void);
 
 

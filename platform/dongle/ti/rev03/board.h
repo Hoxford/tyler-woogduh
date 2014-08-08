@@ -98,6 +98,8 @@
 
 
 void Set_Timer0_Sleep();
+void vSystick_int_service(void);
+bool bWaveform_did_timer_tick(void);
 void PowerInitFunction(void);
 void PortFunctionInit(void);
 void ConfigureSleep(void);
