@@ -41,6 +41,7 @@ void ResetISR(void);
 static void NmiSR(void);
 static void FaultISR(void);
 static void IntDefaultHandler(void);
+static void vSysTickIntHandler(void);
 static void vUART1_Rx_and_Tx  (void);
 static void Reset_me(void);
 static void Timer0AIntHandler(void);
@@ -100,7 +101,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Debug monitor handler
     0,                                      // Reserved
     IntDefaultHandler,                      // The PendSV handler
-    IntDefaultHandler,                      // The SysTick handler
+    vSysTickIntHandler,                      // The SysTick handler
     IntDefaultHandler,                      // GPIO Port A
     IntDefaultHandler,                      // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
@@ -319,52 +320,14 @@ IntDefaultHandler(void)
 
 //*****************************************************************************
 //
-// This is the code that gets called when the reset pin is shorted set
-// It will call the asm reset code which completly restarts the system.
+// This is the code that gets called for the system tick
 //
 //*****************************************************************************
-static void
-Reset_me(void)
+static void vSysTickIntHandler(void)
 {
-    //
-    // Go into an infinite loop.
-    //
-    while(1)
-    {
-    }
-}
-
-static void
-Timer0AIntHandler(void)
-{
-    //
-    // Clear the timer interrupt flag.
-    //
-    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-}
-
-//*****************************************************************************
-//
-// USP interrupt handler
-//
-//*****************************************************************************
-static void USB0Int(void)
-{
-  uint32_t ui32Status;
-
-  //
-  // Get the interrrupt status.
-  //
-  ui32Status = ROM_USBIntStatusControl(INEEDMD_USB);
-
-  vUSBServiceInt(ui32Status);
-
-  MAP_USBIntStatusControl(INEEDMD_USB);
-  MAP_USBIntStatusEndpoint(USB0_BASE);
-
+  vSystick_int_service();
   return;
 }
-
 
 //*****************************************************************************
 //
@@ -399,3 +362,53 @@ vUART1_Rx_and_Tx(void)
 
   return;
 }
+
+//*****************************************************************************
+//
+// This is the code that gets called when the reset pin is shorted set
+// It will call the asm reset code which completly restarts the system.
+//
+//*****************************************************************************
+static void
+Reset_me(void)
+{
+  ResetISR();
+    //
+    // Go into an infinite loop.
+    //
+//    while(1)
+//    {
+//    }
+}
+
+static void
+Timer0AIntHandler(void)
+{
+    //
+    // Clear the timer interrupt flag.
+    //
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+}
+
+//*****************************************************************************
+//
+// USB interrupt handler
+//
+//*****************************************************************************
+static void USB0Int(void)
+{
+  uint32_t ui32Status;
+
+  //
+  // Get the interrrupt status.
+  //
+  ui32Status = ROM_USBIntStatusControl(INEEDMD_USB);
+
+  vUSBServiceInt(ui32Status);
+
+  MAP_USBIntStatusControl(INEEDMD_USB);
+  MAP_USBIntStatusEndpoint(USB0_BASE);
+
+  return;
+}
+

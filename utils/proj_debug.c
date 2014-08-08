@@ -94,22 +94,8 @@ void vUSB_driverlib_out(char *pcFilename, uint32_t ui32Line)
 void vDEBUG(char * cMsg, ...)
 {
 
-  uint32_t i, uiMsg_len, uiCurrent_SysClk;
+  uint32_t i, uiMsg_len;
   uiMsg_len = strlen(cMsg);
-
-  //check if the clock has changed
-  uiCurrent_SysClk = MAP_SysCtlClockGet();
-  if(uiCurrent_SysClk != uiDbg_SysClock)
-  {
-    //if the clock has changed re-init the debug port
-//    UARTDisable(DEBUG_UART);
-//    MAP_SysCtlPeripheralDisable(DEBUG_SYSCTL_PERIPH_UART);
-//    vDEBUG_init();
-//    UARTConfigSetExpClk(DEBUG_UART, uiCurrent_SysClk, DEBUG_BAUD, DEBUG_UART_CONFIG);
-    uiDbg_SysClock = uiCurrent_SysClk;
-//    MAP_SysCtlPeripheralEnable(DEBUG_SYSCTL_PERIPH_UART);
-//    UARTEnable(DEBUG_UART);
-  }
 
   for (i = 0; i<uiMsg_len; i++)
   {

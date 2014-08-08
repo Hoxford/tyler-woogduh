@@ -19,6 +19,7 @@
 #include "app_inc/ineedmd_command_protocol.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
+#include "utils_inc/error_codes.h"
 #include "ff.h"
 
 //*****************************************************************************
@@ -87,6 +88,7 @@ int iPet_the_dog( void )
 int
 main(void)
 {
+
   iInit_wd(WD_TIMEOUT);
   iBoard_init();
   vDEBUG_init();
@@ -108,7 +110,9 @@ main(void)
 
     iIneedMD_radio_process();
 
-//    iIneedmd_command_process();
+    iIneedmd_command_process();
+
+    iIneedmd_waveform_process();
 
 //    led_test();
 //    check_battery();

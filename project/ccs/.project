@@ -61,6 +61,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_power_modes.c</locationURI>
 		</link>
 		<link>
+			<name>application/ineedmd_waveform.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_waveform.c</locationURI>
+		</link>
+		<link>
 			<name>application/main.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/application/main.c</locationURI>
