@@ -4,8 +4,7 @@ import sys
 sys.path.append("~/Dropbox/ineedMD Test/Simulators/Python Simulator/SerialCommunication")
 import commands
 
-#ser = serial.Serial(port ='/dev/tty.usbserial', baudrate =115200)
-ser = serial.Serial(port = 6, baudrate =115200)
+ser = serial.Serial(port ='/dev/tty.usbserial', baudrate =115200)
 print "opened port and running main()"
 
 

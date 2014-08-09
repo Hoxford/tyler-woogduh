@@ -38,7 +38,7 @@
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
-
+#include "utils_inc/error_codes.h"
 
 
 #define INEEDMD_PORTA_ADC_PWRDN_OUT_PIN 0x80
@@ -98,6 +98,8 @@
 
 
 void Set_Timer0_Sleep();
+void vSystick_int_service(void);
+bool bWaveform_did_timer_tick(void);
 void PowerInitFunction(void);
 void PortFunctionInit(void);
 void ConfigureSleep(void);
@@ -114,11 +116,15 @@ int RadioUARTDisable(void);
 int iRadio_Power_On(void);
 int iRadio_Power_Off(void);
 int iRadio_interface_enable(void);
+int iRadio_gpio_set(uint16_t uiMask);
+int iRadio_gpio_clear(uint16_t uiMask);
+int iRadio_gpio_read(uint16_t uiMask);
+int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask);
 int iRadio_send_char(char * byte);
 int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
 int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
 int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
-int iRadio_rcv_char(char *cRcv_char);
+ERROR_CODE iRadio_rcv_char(char *cRcv_char);
 int iRadio_rcv_byte(uint8_t *uiRcv_byte);
 int iRadio_interface_int_enable(void);
 int iRadio_interface_int_disable(void);

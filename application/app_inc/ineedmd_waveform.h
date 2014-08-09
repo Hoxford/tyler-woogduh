@@ -1,12 +1,12 @@
 //*****************************************************************************
 //
-// ineedmd_command_protocol.h - include file for the indeedMD command protocol
+// ineedmd_waveform.c - waveform application for the patient EKG data processing
 //
 // Copyright (c) notice
 //
 //*****************************************************************************
-#ifndef __INEEDMD_COMMAND_PROTOCOL_H__
-#define __INEEDMD_COMMAND_PROTOCOL_H__
+#ifndef __INEEDMD_WAVEFORM_H__
+#define __INEEDMD_WAVEFORM_H__
 //*****************************************************************************
 // includes
 //*****************************************************************************
@@ -15,9 +15,9 @@
 // defines
 //*****************************************************************************
 
-//*****************************************************************************
-// variables
-//*****************************************************************************
+/******************************************************************************
+* variables
+******************************************************************************/
 
 //*****************************************************************************
 // external variables
@@ -38,8 +38,10 @@
 //*****************************************************************************
 // function declarations
 //*****************************************************************************
-int iIneedmd_Rcv_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
-int iIneedmd_Send_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
-int iIneedmd_command_process(void);
+int iIneedmd_waveform_enable_TestSignal(void);
+int iIneedmd_waveform_disable_TestSignal(void);
+bool iIneedmd_is_test_running(void);
+void ineedmd_measurement_ramp(void);
+int iIneedmd_waveform_process(void);
 
-#endif //__INEEDMD_COMMAND_PROTOCOL_H__
+#endif// __INEEDMD_WAVEFORM_H__

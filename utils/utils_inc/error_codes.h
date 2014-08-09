@@ -1,12 +1,12 @@
 //*****************************************************************************
 //
-// ineedmd_command_protocol.h - include file for the indeedMD command protocol
+// error_codes.h - system wide function error codes
 //
 // Copyright (c) notice
 //
 //*****************************************************************************
-#ifndef __INEEDMD_COMMAND_PROTOCOL_H__
-#define __INEEDMD_COMMAND_PROTOCOL_H__
+#ifndef __ERROR_CODES_H__
+#define __ERROR_CODES_H__
 //*****************************************************************************
 // includes
 //*****************************************************************************
@@ -15,9 +15,9 @@
 // defines
 //*****************************************************************************
 
-//*****************************************************************************
-// variables
-//*****************************************************************************
+/******************************************************************************
+* variables
+******************************************************************************/
 
 //*****************************************************************************
 // external variables
@@ -26,6 +26,31 @@
 //*****************************************************************************
 // enums
 //*****************************************************************************
+//return error codes
+typedef enum
+{
+    ER_OK,
+    ER_FAIL,
+    ER_TRUE,
+    ER_FALSE,
+    ER_YES,
+    ER_NO,
+    ER_TIMEOUT,
+    ER_PARAM,
+    ER_PARAM1,
+    ER_PARAM2,
+    ER_PARAM3,
+    ER_BUFF_SIZE,
+    ER_NOMEM,
+    ER_CLOSED,
+    ER_CLOSE,
+    ER_OPENED,
+    ER_OPEN,
+    ER_NODATA,
+    ER_COMMAND,
+    ER_MODES,
+    ER_MODE
+}ERROR_CODE;
 
 //*****************************************************************************
 // structures
@@ -38,8 +63,5 @@
 //*****************************************************************************
 // function declarations
 //*****************************************************************************
-int iIneedmd_Rcv_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
-int iIneedmd_Send_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
-int iIneedmd_command_process(void);
 
-#endif //__INEEDMD_COMMAND_PROTOCOL_H__
+#endif //__ERROR_CODES_H__

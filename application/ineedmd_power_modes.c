@@ -38,17 +38,22 @@
 
 void
 shut_it_all_down(){
-
+//#define DEBUG_shut_it_all_down
+#ifdef DEBUG_shut_it_all_down
+  #define  vDEBUG_SHUT_DWN  debug_printf
+#else
+  #define vDEBUG_SHUT_DWN(a)
+#endif
        debug_printf("going to sleep");
         // power down the radio
         if (iRadio_Power_Off()==1)
         {
-                debug_printf("..radio asleep");
+          vDEBUG_SHUT_DWN("..radio asleep");
         }
         // power down the ADC
         if (EKGSPIDisable()==1)
         {
-                debug_printf("..EKG ADC asleep");
+          vDEBUG_SHUT_DWN("..EKG ADC asleep");
         }
         // led's off  controller powers itself down 5ms after LEDS are off
         ineedmd_led_pattern(LED_OFF);
@@ -57,16 +62,22 @@ shut_it_all_down(){
 
 //        if (BatMeasureADCDisable()==1)
 //        {
-//                debug_printf("..Battery measurement asleep");
+//          vDEBUG_SHUT_DWN("..Battery measurement asleep");
 //        }
 
 //        USBPortDisable();
+#undef vDEBUG_SHUT_DWN
 }
 
 
 void
 sleep_for_tenths(int number_tenths_seconds){
-
+//#define DEBUG_sleep_for_tenths
+#ifdef DEBUG_sleep_for_tenths
+  #define  vDEBUG_SLEEP_10THS  debug_printf
+#else
+  #define vDEBUG_SLEEP_10THS(a)
+#endif
 
         // start timer
     //
@@ -96,8 +107,7 @@ sleep_for_tenths(int number_tenths_seconds){
     // go to a slow clock
     if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
     {
-            debug_printf("..CPU slow");
-
+      vDEBUG_SLEEP_10THS("..CPU slow");
     }
     //
     // Enable Timer0(A)
@@ -110,12 +120,11 @@ sleep_for_tenths(int number_tenths_seconds){
     TimerDisable(TIMER0_BASE, TIMER_A);
     IntDisable(INT_TIMER0A);
     IntMasterDisable();
-    debug_printf("waking_up");
+    vDEBUG_SLEEP_10THS("waking_up");
             //go to a fast clock
     if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
     {
-            debug_printf("..CPU half speed");
+      vDEBUG_SLEEP_10THS("..CPU half speed");
     }
-
+#undef vDEBUG_SLEEP_10THS
 }
-

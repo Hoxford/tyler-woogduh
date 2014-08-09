@@ -78,7 +78,10 @@
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
 volatile bool bIs_usart_timeout = false;
+volatile bool bRdio_track_timeout_tick = false;
+volatile uint32_t uiRdio_timeout_tick = 0;
 volatile bool bIs_USB_sof = false;
+volatile bool bWaveform_timer_tick = false;
 uint32_t uiSys_clock_rate_ms = 0;
 
 //
@@ -121,7 +124,7 @@ int set_system_speed (unsigned int how_fast)
       // let it stabalise
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
       //reset up the i2c bus
 
       break;
@@ -132,7 +135,7 @@ int set_system_speed (unsigned int how_fast)
       // let it stabalise
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
       //reset up the i2c bus
 
       break;
@@ -144,7 +147,7 @@ int set_system_speed (unsigned int how_fast)
       // let it stabalise
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
+      SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
       //reset up the i2c bus
 
       break;
@@ -204,6 +207,41 @@ Set_Timer0_Sleep()
 //    TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_ONE_SHOT);
     TimerConfigure(TIMER0_BASE, TIMER_CFG_A_ONE_SHOT);
 	
+}
+
+/******************************************************************************
+* name:
+* description: services the sys tick interrupt that is proced every ms
+* param description:
+* return value description:
+******************************************************************************/
+void vSystick_int_service(void)
+{
+  bWaveform_timer_tick = true;
+
+  if(bRdio_track_timeout_tick == true)
+  {
+    uiRdio_timeout_tick++;
+  }
+
+  //todo: add other tick variables here
+}
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+bool bWaveform_did_timer_tick(void)
+{
+  bool bDid_waveform_timer_tick = false;
+  bDid_waveform_timer_tick = bWaveform_timer_tick;
+
+  //todo: disable interrupts
+  bWaveform_timer_tick = false;
+  //todo: enable interrupts
+
+  return bDid_waveform_timer_tick;
 }
 
 
@@ -473,8 +511,10 @@ RadioUARTEnable(void)
     // Enable pin PC4 for UART1 U1RX
     //
     MAP_GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4);
+
+    UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
   //re set up the UART so it's timings are about correct
-    UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+    UARTConfigSetExpClk( INEEDMD_RADIO_UART, 16000000, 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
     UARTEnable(INEEDMD_RADIO_UART);
 //	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
@@ -535,11 +575,43 @@ int iRadio_interface_enable(void)
   // Configure the UART for 115,200, 8-N-1 operation.
   // This function uses SysCtlClockGet() to get the system clock
   // frequency.
-  UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+//  UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
 
   //And the Radio UART
   UARTEnable(INEEDMD_RADIO_UART);
 
+  return 1;
+}
+
+int iRadio_gpio_set(uint16_t uiMask)
+{
+#if DEBUG
+  while(1){}; //todo: fcn not defined yet
+#endif
+  return 1;
+}
+
+int iRadio_gpio_clear(uint16_t uiMask)
+{
+#if DEBUG
+  while(1){}; //todo: fcn not defined yet
+#endif
+  return 1;
+}
+
+int iRadio_gpio_read(uint16_t uiMask)
+{
+#if DEBUG
+  while(1){}; //todo: fcn not defined yet
+#endif
+  return 1;
+}
+
+int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask)
+{
+  MAP_GPIODirModeSet(uiRadio_Pin_Port, uiPIN_Out_Mask, GPIO_DIR_MODE_OUT);
+
+  //todo: read the register and verify settings took hold
   return 1;
 }
 
@@ -634,19 +706,42 @@ int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 // param description:
 // return value description:
 //*****************************************************************************
-int iRadio_rcv_char(char *cRcv_char)
+ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 {
+  ERROR_CODE eEC = ER_OK;
+  bool bChar_avail = false;
 
-//  *cRcv_char = UARTCharGet(INEEDMD_RADIO_UART);
-  *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
-//  *cRcv_char = 0xFF;
-
-  while(*cRcv_char == 0xFF)
+  bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
+  if(bChar_avail == false)
   {
-//    iHW_delay(1);
+    uiRdio_timeout_tick = 0;
+    bRdio_track_timeout_tick = true;
+    while(bChar_avail == false)
+    {
+      bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
+      if(uiRdio_timeout_tick == 100) //todo: MAGIC Number!
+      {
+        eEC = ER_TIMEOUT;
+        break;
+      }
+    }
+  }
+  else
+  {
+    bRdio_track_timeout_tick = false;
+    uiRdio_timeout_tick = 0;
+  }
+
+  if(eEC == ER_OK)
+  {
+    //get the character
     *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
   }
-  return 1;
+  else
+  {
+    //nothing
+  }
+  return eEC;
 }
 
 //*****************************************************************************
@@ -686,6 +781,8 @@ int iRadio_interface_int_enable(void)
   //
   ROM_IntEnable(INEEDMD_RADIO_UART_INT);
   ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT);
+
+  MAP_IntMasterEnable();
   return 1;
 }
 
@@ -1325,6 +1422,8 @@ int
 iBoard_init(void)
 {
 
+  uint32_t uiSys_clock_rate;
+
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
 
@@ -1353,6 +1452,15 @@ iBoard_init(void)
 
   //setup the USB port.  This can't be used in this clock mode.
   USBPortEnable();
+
+  MAP_SysTickEnable();
+  uiSys_clock_rate = MAP_SysCtlClockGet();
+
+  uiSys_clock_rate = uiSys_clock_rate/40000;
+
+  MAP_SysTickPeriodSet(uiSys_clock_rate);
+
+  MAP_SysTickIntEnable();
 
   return 1;
 }
