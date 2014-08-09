@@ -32,6 +32,8 @@
 //Pull the processor
 #include <inc/tm4c1233h6pm.h>
 
+#include "utils_inc/error_codes.h"
+
 #include "board.h"
 #include "ineedmd_bluetooth_radio.h"
 #include "ineedmd_led.h"
@@ -118,6 +120,8 @@
 
 #define SET_BT_WHAT_NAME  "\r\nSET BT NAME IneedMD-NUTS\r\n"
 #define SET_BT_NAME       "\r\nSET BT NAME IneedMD-%x%x\r\n"
+#define SET_BT_PAIRCOUNT  "\r\nSET BT PAIRCOUNT %d\r\n"
+  #define SET_BT_PAIRCOUNT_MAX_PAIRINGS  16
 #define SET_BT_BDADDR        "SET BT BDADDR\r\n"  //gets the BT address, yes gets it even though it says SET
 #define SET_BT_BDADDR_PARSE  "%s %s %s %x %c %x %c %x %c %x %c %x %c %x"
 #define SET_BT_SSP      "\r\nSET BT SSP %d %d\r\n"
@@ -209,8 +213,8 @@ uint8_t   uiIneedmd_radio_type = INEEDMD_PLATFORM_RADIO_TYPE;
 int iIneedmd_radio_cmnd_mode(bool bMode_Set);
 int iIneed_md_parse_ssp (char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_key);
 int iIneedmd_parse_addr  (char * cString_buffer , uint8_t * uiAddr);
-int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size);
-int iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size);
+ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size);
+ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size);
 #ifdef INEEDMD_RADIO_CMND_ECHO
   void vRADIO_ECHO_FRAME(uint8_t * uiFrame, uint16_t uiFrame_len);
 #else
@@ -432,9 +436,10 @@ int iIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
 /*
  * get message from the radio
  */
-int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
+ERROR_CODE iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
+  ERROR_CODE eEC = ER_OK;
   bool bSetup_is_data;
   uint32_t ui32Status;
   iRadio_interface_int_enable();
@@ -448,7 +453,12 @@ int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
       break;
     }
 
-    iRadio_rcv_char(&cRcv_string[i]);
+    eEC = iRadio_rcv_char(&cRcv_string[i]);
+
+    if(eEC == ER_TIMEOUT)
+    {
+      break;
+    }
 
     if(i >= (READY_STRLEN - 1))
     {
@@ -481,15 +491,17 @@ int iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
   }
 
   iRadio_interface_int_disable();
-  return i;
+
+  return eEC;
 }
 
 /*
  * get boot message from the radio
  */
-int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
+ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
+  ERROR_CODE eEC = ER_OK;
   while(true)
   {
     if(i == uiBuff_size)
@@ -497,10 +509,13 @@ int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
       break;
     }
 
-    iRadio_rcv_char(&cRcv_string[i]);
+    eEC = iRadio_rcv_char(&cRcv_string[i]);
 
-    //check if the end of the boot message was reached
-    //check if the number of char is greater then the minimum expected
+    if(eEC == ER_TIMEOUT)
+    {
+      break;
+    }
+
     if(i >= (READY_STRLEN - 1))
     {
       //check if the most recent char is an end of line
@@ -513,30 +528,20 @@ int iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
         }
       }
     }
-//    char *cEnd_of_frame;
-//    if(cRcv_string[i] == '\n') keep this until the above READY check is solid
-//    {
-//      cEnd_of_frame = &cRcv_string[i - 7];
-//      if((cEnd_of_frame[0] == 'R') &&
-//         (cEnd_of_frame[1] == 'E') &&
-//         (cEnd_of_frame[2] == 'A') &&
-//         (cEnd_of_frame[3] == 'D') &&
-//         (cEnd_of_frame[4] == 'Y'))
-//      {
-//        break;
-//      }
-//    }
 
     ++i;
   }
 
 //  iRadio_interface_int_disable();
-  return i;
+
+  return eEC;
 }
 
-int iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
+ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
+
+  ERROR_CODE eEC = ER_OK;
 
   while(true)
   {
@@ -545,7 +550,12 @@ int iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
       break;
     }
 
-    iRadio_rcv_char(&cRcv_string[i]);
+    eEC = iRadio_rcv_char(&cRcv_string[i]);
+
+    if(eEC == ER_TIMEOUT)
+    {
+      break;
+    }
 
     if(i >= (ENDOF_SET_SETTINGS_STRLEN - 1))
     {
@@ -558,7 +568,7 @@ int iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
     ++i;
   }
 
-  return i;
+  return eEC;
 }
 
 /*
@@ -779,6 +789,12 @@ int  iIneedMD_radio_setup(void)
     //send the new name
     ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
+    //Set the max number of pairings
+    vDEBUG_RDIO_SETUP("SET BT PAIRCOUNT, set max number of pairings");
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_BT_PAIRCOUNT, SET_BT_PAIRCOUNT_MAX_PAIRINGS);
+    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+
     //set the escape mode
     vDEBUG_RDIO_SETUP("SET CONTROL ESCAPE, set the escape mode");
     memset(cSend_buff, 0x00, BG_SIZE);
@@ -795,11 +811,11 @@ int  iIneedMD_radio_setup(void)
 //    iHW_delay(ONESEC_DELAY);
     MAP_SysCtlDelay(ui32SysClock);
 
-    vDEBUG_RDIO_SETUP("SET, get settings");
-    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
-    memset(cRcv_buff, 0x00, BG_SIZE);
-    iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
-    vRADIO_ECHO(cRcv_buff);
+//    vDEBUG_RDIO_SETUP("SET, get settings");
+//    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
+//    vRADIO_ECHO(cRcv_buff);
     //todo: verify settings properly set
 
     //set the connection status to false while waiting for an outside connection

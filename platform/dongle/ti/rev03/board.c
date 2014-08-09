@@ -78,6 +78,8 @@
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
 volatile bool bIs_usart_timeout = false;
+volatile bool bRdio_track_timeout_tick = false;
+volatile uint32_t uiRdio_timeout_tick = 0;
 volatile bool bIs_USB_sof = false;
 volatile bool bWaveform_timer_tick = false;
 uint32_t uiSys_clock_rate_ms = 0;
@@ -216,6 +218,11 @@ Set_Timer0_Sleep()
 void vSystick_int_service(void)
 {
   bWaveform_timer_tick = true;
+
+  if(bRdio_track_timeout_tick == true)
+  {
+    uiRdio_timeout_tick++;
+  }
 
   //todo: add other tick variables here
 }
@@ -699,19 +706,42 @@ int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 // param description:
 // return value description:
 //*****************************************************************************
-int iRadio_rcv_char(char *cRcv_char)
+ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 {
+  ERROR_CODE eEC = ER_OK;
+  bool bChar_avail = false;
 
-//  *cRcv_char = UARTCharGet(INEEDMD_RADIO_UART);
-  *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
-//  *cRcv_char = 0xFF;
-
-  while(*cRcv_char == 0xFF)
+  bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
+  if(bChar_avail == false)
   {
-//    iHW_delay(1);
+    uiRdio_timeout_tick = 0;
+    bRdio_track_timeout_tick = true;
+    while(bChar_avail == false)
+    {
+      bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
+      if(uiRdio_timeout_tick == 100) //todo: MAGIC Number!
+      {
+        eEC = ER_TIMEOUT;
+        break;
+      }
+    }
+  }
+  else
+  {
+    bRdio_track_timeout_tick = false;
+    uiRdio_timeout_tick = 0;
+  }
+
+  if(eEC == ER_OK)
+  {
+    //get the character
     *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
   }
-  return 1;
+  else
+  {
+    //nothing
+  }
+  return eEC;
 }
 
 //*****************************************************************************
