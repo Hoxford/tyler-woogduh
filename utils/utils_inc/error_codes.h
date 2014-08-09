@@ -33,6 +33,8 @@ typedef enum
     ER_FAIL,
     ER_TRUE,
     ER_FALSE,
+    ER_YES,
+    ER_NO,
     ER_TIMEOUT,
     ER_PARAM,
     ER_PARAM1,
@@ -44,7 +46,10 @@ typedef enum
     ER_CLOSE,
     ER_OPENED,
     ER_OPEN,
-    ER_NODATA   
+    ER_NODATA,
+    ER_COMMAND,
+    ER_MODES,
+    ER_MODE
 }ERROR_CODE;
 
 //*****************************************************************************
