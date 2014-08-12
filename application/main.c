@@ -118,6 +118,51 @@ void switch_on_adc_for_lead_detection(void)
 //*****************************************************************************
 void check_for_update(void)
 {
+//
+//  bool bUSB_plugged_in = false;
+//  uint32_t ui32SysClock = MAP_SysCtlClockGet();
+//  USBPortEnable();
+//  MAP_SysCtlDelay(ui32SysClock);
+////  sleep_for_tenths(10);
+//
+//  //check if there is a USB data connection attached
+//  bUSB_plugged_in = bIs_usb_physical_data_conn();
+//  if(bUSB_plugged_in == true)
+//  {
+//
+//
+//    volatile uint32_t ui32Loop;
+//    uint16_t uiLead_status;
+//  //check the state of the short on the ekg connector
+//  //checks the short on the update_pin GPIO
+//  //if short call the map_usbupdate() to force a USB update.
+//    uiLead_status = ineedmd_adc_Check_Lead_Off();
+//#define LEAD_SHORT 0x82FF
+//  if(uiLead_status == LEAD_SHORT)
+//  {
+//      ineedmd_led_pattern(DFU_MODE);
+//
+//      //give the watch dog a long timeout, woof
+//      ineedmd_watchdog_feed();
+//      set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
+//      MAP_SysCtlDelay(ui32SysClock);
+//      //proc the rom usb DFU
+//      ROM_UpdateUSB(0);
+//
+//      //Should never get here since update is in progress
+//      while(1){};
+//  }
+//  else
+//  {
+//    USBPortDisable();
+//    return;
+//  }
+//  }
+//  else
+//  {
+//    USBPortDisable();
+//    return;
+//  }
   uint32_t uiLead_status;
   bool bUSB_plugged_in = false;
   USBPortEnable();
@@ -140,13 +185,13 @@ void check_for_update(void)
       MAP_SysCtlClockSet(SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL  | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ | SYSCTL_INT_OSC_DIS);
       MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
       MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
-      uint32_t ui32SysClock = MAP_SysCtlClockGet();
-      MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
-      MAP_SysTickIntEnable();
-      MAP_SysTickEnable();
-      MAP_IntMasterDisable();
-      MAP_SysTickIntDisable();
-      MAP_SysTickDisable();
+//      uint32_t ui32SysClock = MAP_SysCtlClockGet();
+//      MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
+//      MAP_SysTickIntEnable();
+//      MAP_SysTickEnable();
+//      MAP_IntMasterDisable();
+//      MAP_SysTickIntDisable();
+//      MAP_SysTickDisable();
       HWREG(NVIC_DIS0) = 0xffffffff;
       HWREG(NVIC_DIS1) = 0xffffffff;
       // 1. Enable USB PLL
@@ -156,14 +201,15 @@ void check_for_update(void)
       MAP_SysCtlUSBPLLEnable();
       // 3. Enable USB D+ D- pins
       // 4. Activate USB DFU
-      MAP_SysCtlDelay(ui32SysClock / 3);
+//      MAP_SysCtlDelay(ui32SysClock / 3);
 
       // Re-enable interrupts at NVIC level
       MAP_IntMasterEnable();
 
       //set the led's to DFU mode
-      ineedmd_led_pattern(DFU_MODE);
+      ineedmd_led_pattern(DFU_MODE2);
 
+      set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
       //begin the DFU usb update procedure
       ROM_UpdateUSB(0);
 
@@ -191,6 +237,8 @@ main(void)
   vDEBUG_init();
   vDEBUG("Hello World!");
 
+  set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
+
   ineedmd_led_pattern(LED_OFF);
 
   //set up the watchdog
@@ -211,21 +259,22 @@ main(void)
   //mount the file system
 //  iFileSys_mount(&sFile_Sys, 0, 1);
 
+
   iADC_setup();
 
   //set up the module radio
-  iIneedMD_radio_setup();
+//  iIneedMD_radio_setup();
 
   vDEBUG("Starting super loop");
   while(1)
   {
     ineedmd_watchdog_pat();
 
-    iIneedMD_radio_process();
+//    iIneedMD_radio_process();
 
-    iIneedmd_command_process();
+//    iIneedmd_command_process();
 
-    iIneedmd_waveform_process();
+//    iIneedmd_waveform_process();
 
 //    led_test();
 //    check_battery();

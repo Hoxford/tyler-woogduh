@@ -1453,14 +1453,14 @@ iBoard_init(void)
   //setup the USB port.  This can't be used in this clock mode.
   USBPortEnable();
 
-  MAP_SysTickEnable();
-  uiSys_clock_rate = MAP_SysCtlClockGet();
-
-  uiSys_clock_rate = uiSys_clock_rate/40000;
-
-  MAP_SysTickPeriodSet(uiSys_clock_rate);
-
-  MAP_SysTickIntEnable();
+//  MAP_SysTickEnable();
+//  uiSys_clock_rate = MAP_SysCtlClockGet();
+//
+//  uiSys_clock_rate = uiSys_clock_rate/40000;
+//
+//  MAP_SysTickPeriodSet(uiSys_clock_rate);
+//
+//  MAP_SysTickIntEnable();
 
   return 1;
 }

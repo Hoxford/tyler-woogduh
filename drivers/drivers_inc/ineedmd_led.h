@@ -56,6 +56,7 @@
 #define LED_CHIRP_ORANGE                0x12
 #define LED_CHIRP_GREEN                 0x13
 #define DFU_MODE                        0x14
+#define DFU_MODE2                       0x15
 
 extern void ineedmd_led_pattern(unsigned int);
 void led_test(void);  //runs the gamut of LED patters
