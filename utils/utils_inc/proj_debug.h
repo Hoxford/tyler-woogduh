@@ -16,7 +16,8 @@
 // defines
 //*****************************************************************************
 #define __error__(a, b)
-#define vDEBUG(a, __VA_ARGS__)
+//#define vDEBUG(a, __VA_ARGS__)
+#define vDEBUG(a, ...)
 #define vDEBUG_init()
 //*****************************************************************************
 // variables

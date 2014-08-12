@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include "driverlib/rom.h"
 #include "board.h"
 #include "app_inc/ineedmd_command_protocol.h"
@@ -44,9 +45,11 @@
   #define PrintCommand  vCMND_ECHO_FRAME
   #define debug_out     vDEBUG
 #else
-  #define printf(a, __VA_ARGS__)
+//  #define printf(a, __VA_ARGS__)
+  #define printf(a,...)
   #define PrintCommand(a,x)
-  #define debug_out(c,__VA_ARGS__)
+//  #define debug_out(c,__VA_ARGS__)
+  #define debug_out(c,...)
 #endif //DEBUG
 
 //*****************************************************************************
@@ -57,13 +60,13 @@ static uint16_t uiINMD_Protocol_frame_len = 0;
 
 static bool bIs_protocol_frame = false;
 
-static const int dataApplicable[7] = { 0, 1, 0, 1, 1, 1, 1 };
+//static const int dataApplicable[7] = { 0, 1, 0, 1, 1, 1, 1 };
 static char NACK[NACK_FRAME_SIZE]; //this is a string
 static char ACK[ACK_FRAME_SIZE]; //this too is a string
-static const char status0X11[] = { 0x9C, 0x01, 0x11, 0x01, 0x64, 0x50, 0x0B, 0xB8, 0xD7, 0x68, 0x56, 0x00, 0xC0, 0x00, 0x00, 0x00, 0xC9 }; //reply for high voltage query.
-static const char status0x13[] = { 0x9C, 0x04, 0x20, 0x21, 0x22,0xC9 };
-static const char status0x14[] = { 0x9C, 0x04, 0x20, 0x21, 0x22, 0xC9 };
-static const char status0x15[] = { 0x9C, 0x03, 0x0E, 0x16, 0x03, 0x10, 0x0A, 0x9C, 0xC9, 0xC9, 0x0E, 0x2C, 0x9C, 0xC9 };
+//static const char status0X11[] = { 0x9C, 0x01, 0x11, 0x01, 0x64, 0x50, 0x0B, 0xB8, 0xD7, 0x68, 0x56, 0x00, 0xC0, 0x00, 0x00, 0x00, 0xC9 }; //reply for high voltage query.
+//static const char status0x13[] = { 0x9C, 0x04, 0x20, 0x21, 0x22,0xC9 };
+//static const char status0x14[] = { 0x9C, 0x04, 0x20, 0x21, 0x22, 0xC9 };
+//static const char status0x15[] = { 0x9C, 0x03, 0x0E, 0x16, 0x03, 0x10, 0x0A, 0x9C, 0xC9, 0xC9, 0x0E, 0x2C, 0x9C, 0xC9 };
 
 //*****************************************************************************
 // external variables
@@ -237,7 +240,7 @@ int ValidatePacketType(const unsigned char dataPacketType)
 //*****************************************************************************
 void parseCommand(unsigned char szCommand[],int cntCommand)
 {
-#ifdef 0
+#ifdef USE_ME
   /* INPUT:
       The string that contains the command. This command string will be containing the command, the relevant data (if any).
      OUTPUT:
@@ -497,7 +500,7 @@ void ParseFrame(void *pt)
   Each command will have various test cases that will have to be covered. So keep on thinking on that.
   */
   const unsigned char status0x14[] = { 0x9C, 0x05, 0x17, 0x02, 0x00, 0x01, 0xD7, 0x68, 0x56, 0x00, 0x00, 0x00, 0x14, 0x00, 0x02, 0xD7, 0x68, 0xAA, 0x00, 0x00, 0x00, 0x60, 0xC9 }; //reply for high voltage query.
-  const char status0x13[] = { 0x9C, 0x04, 0x20, 0x21, 0x22, 0xC9 };
+//  const char status0x13[] = { 0x9C, 0x04, 0x20, 0x21, 0x22, 0xC9 };
   const unsigned char status0X11[] = { 0x9C, 0x02, 0x11, 0x01, 0x64, 0x50, 0x0B, 0xB8, 0xD7, 0x68, 0x56, 0x00, 0xC0, 0x00, 0x00, 0x00, 0xC9 };
   const unsigned char status0x17[] = { 0x9c, 0x03, 0x18, 0x16, 0x01, 0x03, 0x1B, 0x10, 0x00, 0x0A, 0x10, 0x9C, 0x22, 0xC9, 0x3C, 0xC9, 0xA5, 0x0E, 0x0B, 0x2C, 0x8C, 0x9C, 0x77, 0xC9 };
   const unsigned char status0x15_Temp[] = { 0x9c, 0x05, 0x17, 0x02, 0x00, 0x01, 0xd7, 0x68, 0x56, 0x00, 0x00, 0x00, 0x14, 0x00, 0x02, 0xd7, 0x68, 0xAA, 0x00, 0x00, 0x00, 0x60, 0xc9 };
@@ -513,12 +516,12 @@ void ParseFrame(void *pt)
   int noPosh = 0; //this is activated to indicate that the datagram received with parent command as 0x12, has no request related to hib, pow, sleep, on.
   //it is just related to Off Alarm.
   int ackFlag = 0;
-  int i; //just for the for loop
+//  int i; //just for the for loop
   //total data bytes = lengthPacket - (1start + 1packetType + 1Length + 1actCommand + 1 stopbyte)
   unsigned char cntDataBytes;// = lengthPacket - 5;
   static int isRealStream;
   int counter;//temporary for 0x17 case
-  DWORD dwBytesWritten;
+//  DWORD dwBytesWritten;
 
   initACKNACK();
 
