@@ -43,7 +43,7 @@ static void FaultISR(void);
 static void IntDefaultHandler(void);
 static void vSysTickIntHandler(void);
 static void vUART1_Rx_and_Tx  (void);
-static void Reset_me(void);
+//static void Reset_me(void);
 static void Timer0AIntHandler(void);
 static void USB0Int(void);
 
@@ -369,17 +369,11 @@ vUART1_Rx_and_Tx(void)
 // It will call the asm reset code which completly restarts the system.
 //
 //*****************************************************************************
-static void
-Reset_me(void)
-{
-  ResetISR();
-    //
-    // Go into an infinite loop.
-    //
-//    while(1)
-//    {
-//    }
-}
+//static void
+//Reset_me(void)
+//{
+//  ResetISR();
+//}
 
 static void
 Timer0AIntHandler(void)
