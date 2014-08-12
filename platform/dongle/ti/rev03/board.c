@@ -1422,7 +1422,7 @@ int
 iBoard_init(void)
 {
 
-  uint32_t uiSys_clock_rate;
+//  uint32_t uiSys_clock_rate;
 
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);

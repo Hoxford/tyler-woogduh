@@ -174,7 +174,7 @@
 #define SET_CONTROL_MUX_HEX_DISABLE
 #define SSP_CONFIRM  "\r\nSSP CONFIRM %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY  "\r\nSSP PASSKEY %x:%x:%x:%x:%x:%x OK\r\n"
-#define SSP_PASSKEY_PARSE  "%s %s %x %c %x %c %x %c %x %c %x %c %x %d %c"
+#define SSP_PASSKEY_PARSE  "%s %s %x %c %x %c %x %c %x %c %x %c %x %d"
 #define SSP_PASSKEY_PARSE_NUM_ELEMENTS  15
 #define SET_RESET         "\r\nSET RESET\r\n"  //sets and returns the factory settings of the module.
 #define READY             "READY.\r\n"
@@ -579,7 +579,11 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
   char cThrow_away[10];
   memset(cThrow_away, 0x00, 10);
   int iError;
+
+  //                                                     %s           %s           %s           %x        %c           %x        %c           %x        %c           %x        %c           %x        %c           %x
   iError = sscanf ( cString_buffer, SET_BT_BDADDR_PARSE, cThrow_away, cThrow_away, cThrow_away, uiAddr++, cThrow_away, uiAddr++, cThrow_away, uiAddr++, cThrow_away, uiAddr++, cThrow_away, uiAddr++, cThrow_away, uiAddr);
+
+  iError = sscanf ( cString_buffer, "%s %s %s %x", cThrow_away, cThrow_away, cThrow_away, uiAddr++);
 
   //check if the raw BT address string from the modem is in the correct format
   if(iError != 14)  //todo: remove this magic number
@@ -629,7 +633,7 @@ int iIneed_md_parse_ssp(char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_k
 {
   int iEC = 0;
   char cThrow_away[20];
-
+                                          //%s           %s           %x            %c           %x            %c           %x            %c           %x            %c           %x            %c           %x          %d
   iEC = sscanf (cBuffer, SSP_PASSKEY_PARSE, cThrow_away, cThrow_away, uiDev_addr++, cThrow_away, uiDev_addr++, cThrow_away, uiDev_addr++, cThrow_away, uiDev_addr++, cThrow_away, uiDev_addr++, cThrow_away, uiDev_addr, uiDev_key);
 
   if(iEC == SSP_PASSKEY_PARSE_NUM_ELEMENTS)
@@ -670,8 +674,6 @@ int  iIneedMD_radio_setup(void)
   #define vDEBUG_RDIO_SETUP(a)
 #endif
   uint32_t iEC;
-//  char  *send_string = NULL;
-  char cEsc_Char = '+';
   char cSend_buff[BG_SIZE];
   char cRcv_buff[BG_SIZE];
   uint32_t ui32SysClock = MAP_SysCtlClockGet();

@@ -48,7 +48,8 @@
 #define ADS1198_ID_ADDRESS              0x00
 
 //device ID (read only)
-#define ADS1198_ID			0x00		//different name than datasheet
+//#undef  ADS1198_ID
+//#define ADS1198_ID			0x00		//different name than datasheet
 
 //global settings
 #define CONFIG1				0x01
@@ -207,7 +208,7 @@
 #define WCTC0				0x01
 
 //Part ID
-#define ADS1198_ID              0xB6
+//#define ADS1198_ID              0xB6
 
 
 
