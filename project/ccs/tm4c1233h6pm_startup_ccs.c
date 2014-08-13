@@ -26,8 +26,9 @@
 #include <stdbool.h>
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "driverlib/uart.h"
 #include "driverlib/timer.h"
+#include "driverlib/uart.h"
+#include "driverlib/udma.h"
 #include <inc/tm4c1233h6pm.h>
 #include <inc/hw_memmap.h>
 #include "board.h"
@@ -46,6 +47,8 @@ static void vUART1_Rx_and_Tx  (void);
 //static void Reset_me(void);
 static void Timer0AIntHandler(void);
 static void USB0Int(void);
+static void uDMAIntHandle(void);
+static void uDMAErrorHandler(void);
 
 //*****************************************************************************
 //
@@ -149,7 +152,7 @@ void (* const g_pfnVectors[])(void) =
     USB0Int,                                // USB0
     IntDefaultHandler,                      // PWM Generator 3
     IntDefaultHandler,                      // uDMA Software Transfer
-    IntDefaultHandler,                      // uDMA Error
+    uDMAErrorHandler,                       // uDMA Error
     IntDefaultHandler,                      // ADC1 Sequence 0
     IntDefaultHandler,                      // ADC1 Sequence 1
     IntDefaultHandler,                      // ADC1 Sequence 2
@@ -339,11 +342,14 @@ static void
 vUART1_Rx_and_Tx(void)
 {
   uint32_t ui32Status;
+  uint32_t ui32Mode;
+  bool     bIsUART_TX_DMA_Enabled = false;
 
-  //
   // Get the interrrupt status.
-  //
   ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+
+  // Clear the asserted interrupts.
+  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
 
   if((ui32Status & UART_INT_RX) == UART_INT_RX)
   {
@@ -355,11 +361,32 @@ vUART1_Rx_and_Tx(void)
     vRadio_interface_int_service_timeout(ui32Status);
 //  }
 
-  //
-  // Clear the asserted interrupts.
-  //
-  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+  //Get the DMA mode for the UART1 receive transfer
+  ui32Mode = ROM_uDMAChannelModeGet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT);
 
+  // Check the DMA control table to see if the UART1 RX is complete.
+  if(ui32Mode == UDMA_MODE_STOP)
+  {
+    vRadio_interface_DMA_rcv_service();
+  }
+
+  // If the UART1 DMA TX channel is disabled, that means the TX DMA transfer is done.
+
+  bIsUART_TX_DMA_Enabled = ROM_uDMAChannelIsEnabled(UDMA_CHANNEL_UART1TX);  //todo set to a MAP_ fcn and re-define UDMA_CHANNEL_UART1TX
+  if(bIsUART_TX_DMA_Enabled == true)
+  {
+
+    //uart dma TX interrupt servie () check if another send needs to be setup
+
+    // Start another DMA transfer to UART1 TX.
+//    ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1TX | UDMA_PRI_SELECT,
+//                               UDMA_MODE_BASIC, g_ui8TxBuf,
+//                               (void *)(UART1_BASE + UART_O_DR),
+//                               sizeof(g_ui8TxBuf));
+
+    // The uDMA TX channel must be re-enabled.
+    ROM_uDMAChannelEnable(UDMA_CHANNEL_UART1TX);
+  }
   return;
 }
 
@@ -406,3 +433,31 @@ static void USB0Int(void)
   return;
 }
 
+//*****************************************************************************
+//
+// DMA interrupt handler
+//
+//*****************************************************************************
+static void uDMAIntHandle(void)
+{
+  return;
+}
+
+//*****************************************************************************
+//
+// DMA error handler
+//
+//*****************************************************************************
+static void uDMAErrorHandler(void)
+{
+#ifdef DEBUG
+  // Go into an infinite loop.
+  while(1){};
+#else
+  //reset the system
+  ResetISR();
+
+  //Should never get here but loop for ever just in case.
+  while(1){};
+#endif
+}
