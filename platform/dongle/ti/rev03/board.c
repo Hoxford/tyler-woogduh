@@ -50,6 +50,7 @@
 #include "inc/hw_nvic.h"
 #include "inc/hw_gpio.h"
 #include "inc/hw_sysctl.h"
+#include "inc/hw_uart.h"
 #include "driverlib/adc.h"
 #include "driverlib/debug.h"
 #include "driverlib/gpio.h"
@@ -59,9 +60,10 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/ssi.h"
 #include "driverlib/sysctl.h"
+#include "driverlib/timer.h"
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
-#include "driverlib/timer.h"
+#include "driverlib/udma.h"
 
 #include "inc/tm4c1233h6pm.h"
 #include "board.h"
@@ -70,8 +72,11 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
-//#def EXAMPLE_DEF  value  //def description
+#define DMA_RDIO_RCV_BUFFSZ     256
+#define NUM_DMA_RDIO_RCV_BUFFS  3
 
+#define DMA_RDIO_TX_BUFFSZ     256
+#define NUM_DMA_RDIO_TX_BUFFS  3
 
 /******************************************************************************
 * variables
@@ -84,6 +89,249 @@ volatile bool bIs_USB_sof = false;
 volatile bool bWaveform_timer_tick = false;
 uint32_t uiSys_clock_rate_ms = 0;
 
+//*****************************************************************************
+// The control table used by the uDMA controller. This table must be aligned to a 1024 byte boundary.
+//*****************************************************************************
+#if defined(ewarm)
+#pragma data_alignment=1024
+uint8_t ui8ControlTable[1024];
+#elif defined(ccs)
+#pragma DATA_ALIGN(ui8ControlTable, 1024)
+uint8_t ui8ControlTable[1024];
+#else
+uint8_t ui8ControlTable[1024] __attribute__ ((aligned(1024)));
+#endif
+
+//*****************************************************************************
+// external variables
+//*****************************************************************************
+
+//*****************************************************************************
+// enums
+//*****************************************************************************
+
+//*****************************************************************************
+// structures
+//*****************************************************************************
+typedef struct
+{
+  bool bBuff_free;
+  bool bBuff_app_queued;
+  uint8_t uiRcv_Buff[DMA_RDIO_RCV_BUFFSZ];
+  uint16_t uiRcv_data_len;
+}tDMA_RX_struct;  //dma transmit data struct
+
+typedef struct
+{
+  bool bBuff_free;
+  uint8_t uiTx_Buff[DMA_RDIO_TX_BUFFSZ];
+  uint16_t uiTx_data_len;
+}tDMA_TX_struct;  //dma transmit data struct
+
+tDMA_RX_struct tDMA_RX_struct_array[NUM_DMA_RDIO_RCV_BUFFS];
+tDMA_TX_struct tDMA_TX_struct_array[NUM_DMA_RDIO_TX_BUFFS];
+
+//*****************************************************************************
+// external functions
+//*****************************************************************************
+
+//*****************************************************************************
+// private function declarations
+//*****************************************************************************
+ERROR_CODE Radio_UART_DMA_Config(void); //configures the DMA tied to the radio UART
+
+//*****************************************************************************
+// private functions
+//*****************************************************************************
+/******************************************************************************
+* name: Radio_UART_DMA_Config
+* description: configures the DMA for the radio uart
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE Radio_UART_DMA_Config(void)
+{
+  ERROR_CODE  eEC = ER_OK;
+  int i;
+  bool bDMA_is_enabled = false;
+  uint32_t  uiDMA_mode = 0;
+
+  tDMA_RX_struct * ptFirst_DMA_RX_struct;
+
+  //init the UART DMA rcv buffers
+  for(i = 0; i < NUM_DMA_RDIO_RCV_BUFFS; i++)
+  {
+    tDMA_RX_struct_array[i].bBuff_app_queued = false;
+    tDMA_RX_struct_array[i].bBuff_free       = true;
+    tDMA_RX_struct_array[i].uiRcv_data_len   = 0;
+    memset(&tDMA_RX_struct_array[i].uiRcv_Buff, 0x00, DMA_RDIO_RCV_BUFFSZ);
+  }
+
+  //init the UART DMA tx buffers
+  for(i = 0; i < NUM_DMA_RDIO_TX_BUFFS; i++)
+  {
+    tDMA_TX_struct_array[i].bBuff_free     = true;
+    tDMA_TX_struct_array[i].uiTx_data_len  = 0;
+    memset(&tDMA_TX_struct_array[i].uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
+  }
+
+  //keep track of the first buffer to use
+  ptFirst_DMA_RX_struct = &tDMA_RX_struct_array[0];
+
+  // Enable the uDMA controller at the system level.  Enable it to continue
+  // to run while the processor is in sleep.
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UDMA);
+  MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
+
+  // Enable the uDMA controller error interrupt.  This interrupt will occur
+  // if there is a bus error during a transfer.
+  MAP_IntEnable(INT_UDMAERR);
+
+  // Enable the uDMA controller.
+  MAP_uDMAEnable();
+
+  // Point at the control table to use for channel control structures.
+  MAP_uDMAControlBaseSet(ui8ControlTable);
+
+  //
+  // Set both the TX and RX trigger thresholds to 4.  This will be used by
+  // the uDMA controller to signal when more data should be transferred.  The
+  // uDMA TX and RX channels will be configured so that it can transfer 4
+  // bytes in a burst when the UART is ready to transfer more data.
+  //
+  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
+
+  // Enable the uDMA interface for both TX and RX channels.
+  MAP_UARTDMAEnable(INEEDMD_RADIO_UART, UART_DMA_RX | UART_DMA_TX);
+
+  // Enable the UART peripheral interrupts.  Note that no UART interrupts
+  // were enabled, but the uDMA controller will cause an interrupt on the
+  // UART interrupt signal when a uDMA transfer is complete.
+  //
+  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
+
+  //
+  //configure the Radio UART receive DMA
+  //
+
+  // Put the attributes in a known state for the uDMA RADIO UART RX channel.  These
+  // should already be disabled by default.
+  //
+  MAP_uDMAChannelAttributeDisable(UDMA_CHANNEL_RADIO_RX,
+                                  UDMA_ATTR_USEBURST |
+                                  UDMA_ATTR_HIGH_PRIORITY |
+                                  UDMA_ATTR_REQMASK);
+
+  // Configure the control parameters for the primary control structure for
+  // the UART RX channel.  The transfer data size is 8 bits, the
+  // source address does not increment since it will be reading from a
+  // register.  The destination address increment is byte 8-bit bytes.  The
+  // arbitration size is set to 4 to match the RX FIFO trigger threshold.
+  // The uDMA controller will use a 4 byte burst transfer if possible.
+  MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
+                            UDMA_SIZE_8 | UDMA_SRC_INC_NONE | UDMA_DST_INC_8 |
+                            UDMA_ARB_4);
+
+  // Set up the transfer parameters for the UART RX primary control
+  // structure.  The mode is set to ping-pong, the transfer source is the
+  // UART data register, and the destination is the receive "A" buffer.  The
+  // transfer size is set to match the size of the buffer.
+  //
+  MAP_uDMAChannelTransferSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
+                             UDMA_MODE_BASIC,
+                             (void *)(INEEDMD_RADIO_UART + UART_O_DR),
+                             ptFirst_DMA_RX_struct->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
+
+  //Enable the Radio DMA UART receive channel
+  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
+
+  //
+  //configure the Radio UART transmit DMA
+  //
+
+  // Put the attributes in a known state for the uDMA Radio UART TX channel.  These
+  // should already be disabled by default.
+  MAP_uDMAChannelAttributeDisable(UDMA_CHANNEL_RADIO_TX,
+                                  UDMA_ATTR_HIGH_PRIORITY |
+                                  UDMA_ATTR_REQMASK);
+
+  // Set the USEBURST attribute for the uDMA UART TX channel.  This will
+  // force the controller to always use a burst when transferring data from
+  // the TX buffer to the UART.
+  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_USEBURST);
+
+  // Configure the control parameters for the Radio UART TX.  The uDMA UART TX
+  // channel is used to transfer a block of data from a buffer to the UART.
+  // The data size is 8 bits.  The source address increment is 8-bit bytes
+  // since the data is coming from a buffer.  The destination increment is
+  // none since the data is to be written to the UART data register.  The
+  // arbitration size is set to 4, which matches the UART TX FIFO trigger
+  // threshold.
+  MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT,
+                            UDMA_SIZE_8 | UDMA_SRC_INC_8 | UDMA_DST_INC_NONE |
+                            UDMA_ARB_4);
+
+  //Enable the Radio DMA UART transmit channel
+  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_TX);
+
+  //Performing setup checks
+
+  //check if the DMA's are enabled
+  if(eEC == ER_OK)
+  {
+    //check if RX DMA is enabled
+    bDMA_is_enabled = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_RX);
+    if(bDMA_is_enabled == false)
+    {
+      eEC = ER_NOT_ENABLED;
+    }
+    else
+    {
+      //todo: this check may not be needed since we have nothing to send yet
+//      //check if the TX DMA is enabled
+//      bDMA_is_enabled = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_TX);
+//      if(bDMA_is_enabled == false)
+//      {
+//        eEC = ER_NOT_ENABLED;
+//      }
+//      else
+//      {
+        eEC = ER_OK;
+//      }
+    }
+  }
+
+  //check the DMA's mode
+  if(eEC == ER_OK)
+  {
+    //check RX DMA mode
+    uiDMA_mode = ROM_uDMAChannelModeGet((UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT));
+    if((uiDMA_mode && UDMA_MODE_BASIC) != UDMA_MODE_BASIC)
+    {
+      eEC = ER_MODE;
+    }
+    else
+    {
+      //todo: this check may not be needed since we have nothing to send yet
+//      //check if the TX DMA mode
+//      uiDMA_mode = ROM_uDMAChannelModeGet((UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT));
+//      if((uiDMA_mode && UDMA_MODE_BASIC) != UDMA_MODE_BASIC)
+//      {
+//        eEC = ER_MODE;
+//      }
+//      else
+//      {
+        eEC = ER_OK;
+//      }
+    }
+  }
+
+  return eEC;
+}
+
+//*****************************************************************************
+// external functions
+//*****************************************************************************
 //
 //a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
 //
@@ -110,9 +358,12 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
 
 }
 
-
-
-
+//*****************************************************************************
+// name:
+// description: sets the system speed according to the passed in parameter
+// param description:
+// return value description:
+//*****************************************************************************
 int set_system_speed (unsigned int how_fast)
 {
 
@@ -467,8 +718,10 @@ RadioUARTEnable(void)
   //
     //RADIO_CONFIG
     //
+    // Enable the radio UART peripheral
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
-  //No mjik delay as I am doing the GPIO first.
+    //configure the radio UART it to operate even if the CPU is in sleep.
+    MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
     //
     // Enable pin PE0 for GPIOOutput - this is the reet for the radio.
     //
@@ -513,9 +766,18 @@ RadioUARTEnable(void)
     MAP_GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4);
 
     UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
-  //re set up the UART so it's timings are about correct
-    UARTConfigSetExpClk( INEEDMD_RADIO_UART, 16000000, 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
-    UARTEnable(INEEDMD_RADIO_UART);
+
+    //set flow control
+    MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+
+    // Enables the communication FIFO
+    MAP_UARTFIFOEnable(INEEDMD_RADIO_UART);
+
+    //configure the UART speed
+    MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, 16000000, 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+
+    //finally enable the radio UART
+    MAP_UARTEnable(INEEDMD_RADIO_UART);
 //	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
     return 1;
@@ -559,28 +821,25 @@ iRadio_Power_On(void)
 //*****************************************************************************
 int iRadio_interface_enable(void)
 {
+  ERROR_CODE eEC = ER_OK;
+
   RadioUARTEnable();
 
-  //set flow control
-  UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+  //todo not needed?
+  //  //perform a delay
+  ////  iHW_delay(1);
+  //  iHW_delay(100);
 
-  // Enables the communication FIFO
-  UARTFIFOEnable(INEEDMD_RADIO_UART);
+  eEC = Radio_UART_DMA_Config();
 
-  //perform a delay
-//  iHW_delay(1);
-  iHW_delay(100);
-
-  //
-  // Configure the UART for 115,200, 8-N-1 operation.
-  // This function uses SysCtlClockGet() to get the system clock
-  // frequency.
-//  UARTConfigSetExpClk( INEEDMD_RADIO_UART, MAP_SysCtlClockGet(), 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
-
-  //And the Radio UART
-  UARTEnable(INEEDMD_RADIO_UART);
-
-  return 1;
+  if(eEC == ER_OK)
+  {
+    return 1;
+  }
+  else
+  {
+    return -1;
+  }
 }
 
 int iRadio_gpio_set(uint16_t uiMask)
@@ -650,6 +909,62 @@ int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
   }
   return i;
 }
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
+{
+  int i = 0;
+  ERROR_CODE eEC = ER_FAIL;
+  tDMA_TX_struct * ptDMA_TX_Send = NULL;
+
+  //find a free TX buffer
+  for(i = 0; i < NUM_DMA_RDIO_TX_BUFFS; i++)
+  {
+    if(tDMA_TX_struct_array[i].bBuff_free == true)
+    {
+      //ensure the TX buffer is erased
+      memset(&tDMA_TX_struct_array[i].uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
+
+      //fill the TX buffer with the data to send
+      memcpy(&tDMA_TX_struct_array[i].uiTx_Buff, cSend_string, uiBuff_size);
+
+      //save the buffer size
+      tDMA_TX_struct_array[i].uiTx_data_len  = uiBuff_size;
+
+      eEC = ER_OK;
+      break;
+    }
+    else
+    {
+      eEC = ER_NO_BUFF_AVAILABLE;
+    }
+  }
+
+  //check if it is ok to start the DMA
+  if(eEC == ER_OK)
+  {
+    // Set up the transfer parameters for the uDMA Radio UART TX channel.  This will
+    // configure the transfer source and destination and the transfer size.
+    // Basic mode is used because the peripheral is making the uDMA transfer
+    // request.  The source is the TX buffer and the destination is the UART
+    // data register.
+    //
+    ROM_uDMAChannelTransferSet(UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT,
+                               UDMA_MODE_BASIC, ptDMA_TX_Send->uiTx_Buff,
+                               (void *)(INEEDMD_RADIO_UART + UART_O_DR),
+                               ptDMA_TX_Send->uiTx_data_len);
+  }
+
+  while(1){}; //where I left off
+  return eEC;
+}
+
+
 
 //*****************************************************************************
 // name:
@@ -823,6 +1138,12 @@ void vRadio_interface_int_service(uint16_t uiInt_id)
 
 }
 
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
 {
   if((uiInt_id & UART_INT_RT) == UART_INT_RT)
@@ -837,6 +1158,94 @@ void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
   }
 }
 
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vRadio_interface_DMA_rcv_service(void)
+{
+  int index;
+  ERROR_CODE eEC = ER_OK;
+  tDMA_RX_struct * ptDMA_que_buff = NULL;
+
+  //cycle through the buffers and find the one that was filled
+  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+  {
+    ptDMA_que_buff = &tDMA_RX_struct_array[index];
+
+    //check if the buffer is NOT free, therefore potentially was filled via DMA
+    if(ptDMA_que_buff->bBuff_free == false)
+    {
+      //check if the buffer was NOT already queued for an app to review
+      if(ptDMA_que_buff->bBuff_app_queued == false)
+      {
+        //todo parse buff
+
+
+        ptDMA_que_buff->bBuff_app_queued = true;
+
+      }else{/*nothing*/}
+    }else{/*nothing*/}
+  }
+
+  //check if the number of receive buffers checked was exceeded
+  if(index == NUM_DMA_RDIO_RCV_BUFFS)
+  {
+    eEC = ER_NODATA;
+  }else{/*nothing*/}
+
+  //check the error status and proceed accordingly
+  if(eEC == ER_OK)
+  {
+    //cycle the buffers and fine a free one
+    for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+    {
+      ptDMA_que_buff = &tDMA_RX_struct_array[index];
+
+      //check if the buffer is free to fill via DMA
+      if(ptDMA_que_buff->bBuff_free == true)
+      {
+        //check if the buffer was NOT already queued for an app to review
+        if(ptDMA_que_buff->bBuff_app_queued == false)
+        {
+          //set the DMA RX to the next rcv buffer
+          ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT,
+                                     UDMA_MODE_BASIC,
+                                     (void *)(INEEDMD_RADIO_UART + UART_O_DR),
+                                     ptDMA_que_buff->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
+
+        }else{/*nothing*/}
+      }else{/*nothing*/}
+    }
+  }else{/*nothing*/}
+
+  //check if a free buffer could not be located
+  if(index == NUM_DMA_RDIO_RCV_BUFFS)
+  {
+    eEC = ER_NO_BUFF_AVAILABLE;
+  }else{/*nothing*/}
+
+
+  //check for errors
+  if(eEC == ER_NO_BUFF_AVAILABLE)
+  {
+#ifdef DEBUG
+    // Catch no buffers available
+    while(1){};
+#else
+    //todo: perform a system reset maybe?
+#endif
+  }
+  else if(eEC == ER_NODATA)
+  {
+    //todo: need a nodata counter maybe?
+  }
+  else{/*nothing*/}
+
+  return;
+}
 
 //*****************************************************************************
 // name:
@@ -863,33 +1272,33 @@ bool bRadio_is_data(void)
 void
 SDCardSPIInit(void)
 {
-    //
-    //SPI 1 is used for the FLASH
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
-    //
-    // Enable pin PD2 for SSI1 SSI1RX
-    //
-    MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
-    //
-    // Enable pin PD3 for SSI1 SSI1TX
-    //
-    MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
-    //
-    // Enable pin PD0 for SSI1 SSI1CLK
-    //
-    MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
-    //
-    // Enable pin PD1 for SSI1 SSI1FSS
-    //
-    MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
-    MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
-    SSIEnable(INEEDMD_FLASH_SPI);
-    SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
-    SSIEnable(INEEDMD_FLASH_SPI);
-    //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+  //
+  //SPI 1 is used for the FLASH
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+  //
+  // Enable pin PD2 for SSI1 SSI1RX
+  //
+  MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
+  //
+  // Enable pin PD3 for SSI1 SSI1TX
+  //
+  MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
+  //
+  // Enable pin PD0 for SSI1 SSI1CLK
+  //
+  MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
+  //
+  // Enable pin PD1 for SSI1 SSI1FSS
+  //
+  MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
+  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
+  SSIEnable(INEEDMD_FLASH_SPI);
+  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+  SSIEnable(INEEDMD_FLASH_SPI);
+  //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
 
   //
   //SPI 1 is used for the FLASH
@@ -1115,8 +1524,7 @@ bool bIs_usb_physical_data_conn(void)
 *
 */
 
-void
-ConfigureSleep(void)
+void ConfigureSleep(void)
 {
         //
         // Which peripherals are enabled in sleep
@@ -1234,9 +1642,7 @@ ConfigureSleep(void)
         //
 }
 
-void
-
-ConfigureDeepSleep(void)
+void ConfigureDeepSleep(void)
 {
 	//
 	// Which peripherals are enabled in sleep
