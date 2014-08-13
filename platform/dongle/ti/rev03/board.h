@@ -148,6 +148,8 @@ int EKGSPIDisable(void);
 
 void LEDI2CDisable(void);
 void USBPortDisable(void);
+ERROR_CODE eMaster_int_enable(void);
+ERROR_CODE eMaster_int_disable(void);
 int iHW_delay(uint32_t uiDelay);
 int iBoard_init(void);
 

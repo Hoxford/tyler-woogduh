@@ -204,7 +204,7 @@ void check_for_update(void)
 //      MAP_SysCtlDelay(ui32SysClock / 3);
 
       // Re-enable interrupts at NVIC level
-      MAP_IntMasterEnable();
+      eMaster_int_enable();
 
       //set the led's to DFU mode
       ineedmd_led_pattern(DFU_MODE2);

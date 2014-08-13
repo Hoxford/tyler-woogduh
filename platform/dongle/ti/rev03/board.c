@@ -208,7 +208,9 @@ ERROR_CODE Radio_UART_DMA_Config(void)
   // were enabled, but the uDMA controller will cause an interrupt on the
   // UART interrupt signal when a uDMA transfer is complete.
   //
-  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
+//  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
+//  MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+  iRadio_interface_int_enable();
 
   //
   //configure the Radio UART receive DMA
@@ -272,7 +274,8 @@ ERROR_CODE Radio_UART_DMA_Config(void)
                             UDMA_ARB_4);
 
   //Enable the Radio DMA UART transmit channel
-  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_TX);
+  //todo: not needed?
+//  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_TX);
 
   //Performing setup checks
 
@@ -495,7 +498,6 @@ bool bWaveform_did_timer_tick(void)
   return bDid_waveform_timer_tick;
 }
 
-
 void
 PowerInitFunction(void)
 {
@@ -688,9 +690,6 @@ EKGSPIEnable(void)
 
 }
 
-
-
-
 int
 EKGSPIDisable(void)
 {
@@ -703,7 +702,6 @@ EKGSPIDisable(void)
   return 1;
 
 }
-
 
 //*****************************************************************************
 // name: RadioUARTEnable
@@ -769,6 +767,7 @@ RadioUARTEnable(void)
 
     //set flow control
     MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+    UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
 
     // Enables the communication FIFO
     MAP_UARTFIFOEnable(INEEDMD_RADIO_UART);
@@ -783,16 +782,12 @@ RadioUARTEnable(void)
     return 1;
 }
 
-
-
-
 //*****************************************************************************
 // name: iRadioPowerOff
 // description: sets the gpio pin to the radio high to turn on the radio
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
-
 int
 iRadio_Power_Off(void)
 {
@@ -936,6 +931,9 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
       //save the buffer size
       tDMA_TX_struct_array[i].uiTx_data_len  = uiBuff_size;
 
+      //save the pointer to the struct to use to send
+      ptDMA_TX_Send = &tDMA_TX_struct_array[i];
+
       eEC = ER_OK;
       break;
     }
@@ -954,17 +952,16 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
     // request.  The source is the TX buffer and the destination is the UART
     // data register.
     //
-    ROM_uDMAChannelTransferSet(UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT,
-                               UDMA_MODE_BASIC, ptDMA_TX_Send->uiTx_Buff,
+    MAP_uDMAChannelTransferSet(UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT,
+                               UDMA_MODE_AUTO, ptDMA_TX_Send->uiTx_Buff,
                                (void *)(INEEDMD_RADIO_UART + UART_O_DR),
                                ptDMA_TX_Send->uiTx_data_len);
+
+    MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_TX);
   }
 
-  while(1){}; //where I left off
   return eEC;
 }
-
-
 
 //*****************************************************************************
 // name:
@@ -1095,9 +1092,9 @@ int iRadio_interface_int_enable(void)
   // Enable the UART interrupt.
   //
   ROM_IntEnable(INEEDMD_RADIO_UART_INT);
-  ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT);
+  ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
 
-  MAP_IntMasterEnable();
+  eMaster_int_enable();
   return 1;
 }
 
@@ -1431,7 +1428,7 @@ USBPortEnable(void)
     // 3. Enable USB D+ D- pins
     // 4. Activate USB DFU
     MAP_SysCtlDelay(ui32SysClock / 3);
-    MAP_IntMasterEnable(); // Re-enable interrupts at NVIC level
+    eMaster_int_enable(); // Re-enable interrupts at NVIC level
 
     //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
 
@@ -1459,7 +1456,7 @@ USBPortDisable(void)
     uint32_t ui32SysClock = MAP_SysCtlClockGet();
 
     //disable all interrupts
-    MAP_IntMasterDisable();
+    eMaster_int_disable();
 
     //disable the USB0 interrupt
     ROM_IntDisable(INT_USB0);
@@ -1483,7 +1480,7 @@ USBPortDisable(void)
     set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
 
     //re-enable all interrupts
-    MAP_IntMasterEnable();
+    eMaster_int_enable();
 }
 
 //*****************************************************************************
@@ -1512,7 +1509,7 @@ bool bIs_usb_physical_data_conn(void)
   bIs_USB_sof = false;
 
   //re-enable interrupts
-  ROM_IntMasterEnable();
+  eMaster_int_enable();
 
   return bWas_physical_data_conn;
 }
@@ -1762,6 +1759,32 @@ void ConfigureDeepSleep(void)
 }
 
 //*****************************************************************************
+// name: eMaster_int_enable
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eMaster_int_enable(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  MAP_IntMasterEnable();
+  return eEC;
+}
+
+//*****************************************************************************
+// name: eMaster_int_disable
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eMaster_int_disable(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  MAP_IntMasterDisable();
+  return eEC;
+}
+
+//*****************************************************************************
 // name: iHW_delay
 // description: performs a blocking hardware based delay. the delay is in 100ms
 //  "chunks"
@@ -1788,36 +1811,6 @@ iHW_delay(uint32_t uiDelay)
 //  MAP_SysCtlDelay(( MAP_SysCtlClockGet() / 30  )*tenths_of_seconds );
 //}
 
-#if 0
-todo: delete me?
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void
-PortFunctionInit(void)
-{
-
-  GPIOEnable();
-    BatMeasureADCEnable();
-    EKGSPIEnable();
-    RadioUARTEnable();
-    LEDI2CEnable();
-    XTALControlPin();
-    USBPortEnable();
-
-
-
-    //
-    // Set the clocking to run directly from the external crystal/oscillator.
-    // TODO: the crystal got connected to the wrong pins.  This will  need to be changed later in life  - external xtal allows better chance of USB support
-    // crystal on your board.
-
-    set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
-}
-#endif
 //*****************************************************************************
 // name: iBoard_init
 // description: calls the low level board driver initalization functions
@@ -1868,6 +1861,7 @@ iBoard_init(void)
 //
 //  MAP_SysTickIntEnable();
 
+  eMaster_int_enable();
   return 1;
 }
 #endif //__BOARD_C__

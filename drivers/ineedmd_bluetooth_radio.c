@@ -383,7 +383,6 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 /*
  * get the settings from the radio
  */
-
 ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
@@ -774,9 +773,11 @@ int  iIneedMD_radio_setup(void)
 
     //SET RESET, reset to factory defaults
     vDEBUG_RDIO_SETUP("SET RESET, RFD");
-    eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
 //    ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
+    eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
     memset(cRcv_buff, 0x00, BG_SIZE);
+//    iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+    while(1){};
     iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
     vRADIO_ECHO(cRcv_buff);
 
