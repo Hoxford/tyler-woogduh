@@ -65,6 +65,7 @@
 #define INEEDMD_RADIO_RESET_PIN                GPIO_PIN_0
 #define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1
 #define INEEDMD_RADIO_ENABLE_PIN               GPIO_PIN_2
+#define INEEDMD_RADIO_CMND_PIN                 GPIO_PIN_3
 #define INEEDMD_RADIO_UART                     UART1_BASE
 #define INEEDMD_RADIO_UART_INT                 INT_UART1
 #define UDMA_CHANNEL_RADIO_RX                  UDMA_CHANNEL_UART1RX
@@ -110,25 +111,31 @@ void wait_time (unsigned int);
 void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
 int set_system_speed (unsigned int);
 
-void GPIOEnable(void);
-int BatMeasureADCEnable(void);
-int EKGSPIEnable(void);
-int RadioUARTEnable(void);
-int RadioUARTDisable(void);
-int iRadio_Power_On(void);
-int iRadio_Power_Off(void);
-int iRadio_interface_enable(void);
-int iRadio_gpio_set(uint16_t uiMask);
-int iRadio_gpio_clear(uint16_t uiMask);
-int iRadio_gpio_read(uint16_t uiMask);
-int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask);
-int iRadio_send_char(char * byte);
-int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
-ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size);
-int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
-int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
-ERROR_CODE iRadio_rcv_char(char *cRcv_char);
-int iRadio_rcv_byte(uint8_t *uiRcv_byte);
+void        GPIOEnable(void);
+int         BatMeasureADCEnable(void);
+int         EKGSPIEnable(void);
+int         RadioUARTEnable(void);
+int         RadioUARTDisable(void);
+int         iRadio_Power_On(void);
+int         iRadio_Power_Off(void);
+ERROR_CODE  eSet_radio_to_cmnd_mode(void);
+ERROR_CODE  eIs_radio_in_cmnd_mode(void);
+ERROR_CODE  eSet_radio_to_data_mode(void);
+ERROR_CODE  eIs_radio_in_data_mode(void);
+ERROR_CODE  eUsing_radio_uart_dma(void);
+int         iRadio_interface_enable(void);
+int         iRadio_gpio_set(uint16_t uiMask);
+int         iRadio_gpio_clear(uint16_t uiMask);
+int         iRadio_gpio_read(uint16_t uiMask);
+int         iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask);
+int         iRadio_send_char(char * byte);
+int         iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
+ERROR_CODE  eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size);
+int         iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
+int         iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
+ERROR_CODE  iRadio_rcv_char(char *cRcv_char);
+int         iRadio_rcv_byte(uint8_t *uiRcv_byte);
+ERROR_CODE  eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size);
 int iRadio_interface_int_enable(void);
 int iRadio_interface_int_disable(void);
 void vRadio_interface_int_service(uint16_t uiInt_id);

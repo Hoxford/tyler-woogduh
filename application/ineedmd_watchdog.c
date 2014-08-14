@@ -46,7 +46,7 @@ ERROR_CODE ineedmd_watchdog_setup(void)
   MAP_WatchdogEnable(WD_BASE);
   MAP_WatchdogIntClear(WD_BASE);
 #ifdef DEBUG
-//  ineedmd_watchdog_debug_mode();
+  ineedmd_watchdog_debug_mode();
 #endif
   uiWD_shake = MAP_WatchdogValueGet(WD_BASE);
 
@@ -120,7 +120,7 @@ ERROR_CODE ineedmd_watchdog_doorbell(void)
 ERROR_CODE ineedmd_watchdog_debug_mode(void)
 {
   ERROR_CODE eEC = ER_OK;
-//  MAP_WatchdogStallEnable(WD_BASE);
+  MAP_WatchdogStallEnable(WD_BASE);
 
   //todo: see if wd reg changes with the rom call and can be measured
   return eEC;

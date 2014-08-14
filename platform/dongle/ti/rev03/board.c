@@ -72,6 +72,7 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
+#define USE_RADIO_UART_DMA      true
 #define DMA_RDIO_RCV_BUFFSZ     256
 #define NUM_DMA_RDIO_RCV_BUFFS  3
 
@@ -87,6 +88,9 @@ volatile bool bRdio_track_timeout_tick = false;
 volatile uint32_t uiRdio_timeout_tick = 0;
 volatile bool bIs_USB_sof = false;
 volatile bool bWaveform_timer_tick = false;
+static   bool bIs_Radio_UART_using_dma = false;
+static   bool bIs_Radio_in_cmnd_mode = false;
+static   bool bDid_Rcv_Radio_cmnd_buff = false;
 uint32_t uiSys_clock_rate_ms = 0;
 
 //*****************************************************************************
@@ -244,6 +248,8 @@ ERROR_CODE Radio_UART_DMA_Config(void)
                              (void *)(INEEDMD_RADIO_UART + UART_O_DR),
                              ptFirst_DMA_RX_struct->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
 
+  ptFirst_DMA_RX_struct->bBuff_free = false;
+
   //Enable the Radio DMA UART receive channel
   MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
 
@@ -327,6 +333,12 @@ ERROR_CODE Radio_UART_DMA_Config(void)
         eEC = ER_OK;
 //      }
     }
+  }
+
+  if(eEC == ER_OK)
+  {
+    //set the UART using dma control variable
+    bIs_Radio_UART_using_dma = true;
   }
 
   return eEC;
@@ -777,7 +789,8 @@ RadioUARTEnable(void)
 
     //finally enable the radio UART
     MAP_UARTEnable(INEEDMD_RADIO_UART);
-//	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
+
+//    while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
 
     return 1;
 }
@@ -795,6 +808,90 @@ iRadio_Power_Off(void)
   return 1;
 }
 
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eSet_radio_to_cmnd_mode(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  iRadio_gpio_config(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN);
+
+  return eEC;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eIs_radio_in_cmnd_mode(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiPin_Read = 0;
+
+  uiPin_Read = MAP_GPIOPinRead(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+
+  if((uiPin_Read & INEEDMD_RADIO_CMND_PIN) == INEEDMD_RADIO_CMND_PIN)
+  {
+    eEC = ER_TRUE;
+  }
+  else
+  {
+    eEC = ER_FALSE;
+  }
+
+  return eEC;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eSet_radio_to_data_mode(void)
+{
+
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eIs_radio_in_data_mode(void)
+{
+
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eUsing_radio_uart_dma(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  if(USE_RADIO_UART_DMA == true)
+  {
+    eEC = ER_TRUE;
+  }
+  else
+  {
+    eEC = ER_FALSE;
+  }
+
+  return eEC;
+}
 //*****************************************************************************
 // name: iRadioPowerOn
 // description: sets the gpio pin to the radio high to turn on the radio
@@ -825,7 +922,11 @@ int iRadio_interface_enable(void)
   ////  iHW_delay(1);
   //  iHW_delay(100);
 
-  eEC = Radio_UART_DMA_Config();
+
+  if(USE_RADIO_UART_DMA == true)
+  {
+    eEC = Radio_UART_DMA_Config();
+  }
 
   if(eEC == ER_OK)
   {
@@ -933,6 +1034,8 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
 
       //save the pointer to the struct to use to send
       ptDMA_TX_Send = &tDMA_TX_struct_array[i];
+
+      tDMA_TX_struct_array[i].bBuff_free = false;
 
       eEC = ER_OK;
       break;
@@ -1076,6 +1179,72 @@ int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 // param description:
 // return value description:
 //*****************************************************************************
+ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
+{
+  ERROR_CODE eEC = ER_OK;
+  int index = 0;
+  int iCpy_index = 0;
+  tDMA_RX_struct * ptDMA_que_buff = NULL;
+
+  while(bDid_Rcv_Radio_cmnd_buff == false)
+  {
+    //check a timeout
+  }
+
+  //cycle through the buffers and find the one that was filled
+  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+  {
+    ptDMA_que_buff = &tDMA_RX_struct_array[index];
+
+    //check if the buffer is NOT free, therefore filled with data
+    if(ptDMA_que_buff->bBuff_free == false)
+    {
+      //check if the buffer was queued for an app to review
+      if(ptDMA_que_buff->bBuff_app_queued == true)
+      {
+        for(iCpy_index = 0; iCpy_index < uiMax_buff_size; iCpy_index++)
+        {
+          if(iCpy_index >= uiMax_buff_size)
+          {
+            eEC = ER_OVERWRITE;
+            break;
+          }
+          if(eEC == ER_OK)
+          {
+            cRcv_buff[iCpy_index] = ptDMA_que_buff->uiRcv_Buff[iCpy_index];
+          }
+
+          if(cRcv_buff[iCpy_index] == 0x00)
+          {
+            eEC = ER_DONE;
+            break;
+          }
+        }
+
+      }else{/*nothing*/}
+    }else{/*nothing*/}
+
+    if(eEC == ER_DONE)
+    {
+      eEC = ER_OK;
+      break;
+    }
+  }
+
+  if(index == NUM_DMA_RDIO_RCV_BUFFS)
+  {
+    eEC = ER_NODATA;
+  }
+
+  return eEC;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
 int iRadio_interface_int_enable(void)
 {
   uint32_t ui32Status;
@@ -1107,10 +1276,10 @@ int iRadio_interface_int_enable(void)
 int iRadio_interface_int_disable(void)
 {
   //
-  // Enable the UART interrupt.
+  // Disable the radio uart interrupt.
   //
   ROM_IntDisable(INEEDMD_RADIO_UART_INT);
-  ROM_UARTIntDisable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT);
+  ROM_UARTIntDisable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
   return 1;
 }
 
@@ -1131,8 +1300,21 @@ void vRadio_interface_int_service(uint16_t uiInt_id)
 
 //    iRadio_rcv_string(cRcv_string, 256);
   }
-
-
+  else if(uiInt_id == UART_INT_CTS)  //CTS interrupt id, signalling data was received
+  {
+    //check if the radio uart is using DMA
+    if(bIs_Radio_UART_using_dma == true)
+    {
+      //service the DMA receive
+      vRadio_interface_DMA_rcv_service();
+    }
+    //else just set the usart data control variable
+    else
+    {
+      bIs_usart_data = true;
+    }
+  }
+  else{/* do nothing */}
 }
 
 //*****************************************************************************
@@ -1178,11 +1360,23 @@ void vRadio_interface_DMA_rcv_service(void)
       //check if the buffer was NOT already queued for an app to review
       if(ptDMA_que_buff->bBuff_app_queued == false)
       {
-        //todo parse buff
+        eEC = eIs_radio_in_cmnd_mode();
+        if(eEC == ER_TRUE)
+        {
+          bDid_Rcv_Radio_cmnd_buff = true;
+          ptDMA_que_buff->bBuff_app_queued = true;
+          eEC = ER_OK;
+          continue;
+        }
+        else
+        {
+          eEC = ER_OK;
+        }
 
-
-        ptDMA_que_buff->bBuff_app_queued = true;
-
+        if(ptDMA_que_buff->uiRcv_Buff[0] == 0x9C)
+        {
+          continue;
+        }
       }else{/*nothing*/}
     }else{/*nothing*/}
   }

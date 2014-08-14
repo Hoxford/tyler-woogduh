@@ -239,8 +239,7 @@ int iIneedmd_radio_cmnd_mode(bool bMode_Set)
   //todo: ABSTRACT!
   if(bMode_Set == true)
   {
-    iRadio_gpio_config(GPIO_PORTE_BASE, GPIO_PIN_3); //PE3
-    MAP_GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_3, GPIO_PIN_3);
+    eSet_radio_to_cmnd_mode();
   }
   else if(bMode_Set == false)
   {
@@ -299,6 +298,21 @@ ERROR_CODE eSend_Radio_CMND(char * cCmnd_buff, uint16_t uiCmnd_Buff_size)
 * param description:
 * return value description:
 ******************************************************************************/
+ERROR_CODE eRcv_Radio_CMND_Resp(char * cCmnd_buff, uint16_t uiMax_buff_size)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+
+
+  return eEC;
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 int iIneed_md_parse_ssp(char * cBuffer, uint8_t * uiDev_addr, uint32_t * uiDev_key)
 {
   int iEC = 0;
@@ -343,39 +357,57 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
  */
 ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 {
-  int i = 0;
+  uint32_t i = 0;
   ERROR_CODE eEC = ER_OK;
-  while(true)
+
+  eEC = eUsing_radio_uart_dma();
+  if(eEC == ER_TRUE)
   {
-    if(i == uiBuff_size)
-    {
-      break;
-    }
+    eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
 
-    eEC = iRadio_rcv_char(&cRcv_string[i]);
-
-    if(eEC == ER_TIMEOUT)
+  }
+  else
+  {
+    while(true)
     {
-      break;
-    }
-
-    if(i >= (READY_STRLEN - 1))
-    {
-      //check if the most recent char is an end of line
-      if(cRcv_string[i] == '\n')
+      if(i == uiBuff_size)
       {
-        //check if the last part of the boot message is the end of the boot message
-        if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+        break;
+      }
+
+      eEC = iRadio_rcv_char(&cRcv_string[i]);
+
+      if(eEC == ER_TIMEOUT)
+      {
+        break;
+      }
+
+      if(i >= (READY_STRLEN - 1))
+      {
+        //check if the most recent char is an end of line
+        if(cRcv_string[i] == '\n')
         {
-          break;
+          //check if the last part of the boot message is the end of the boot message
+          if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+          {
+            i = 0xFFFF;
+            break;
+          }
         }
       }
+
+      ++i;
     }
 
-    ++i;
+    if(i == 0xFFFF)
+    {
+      eEC = ER_OK;
+    }
+    else
+    {
+      eEC = ER_FAIL;
+    }
   }
-
-//  iRadio_interface_int_disable();
 
   return eEC;
 }
@@ -777,8 +809,8 @@ int  iIneedMD_radio_setup(void)
     eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
     memset(cRcv_buff, 0x00, BG_SIZE);
 //    iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
-    while(1){};
     iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+    while(1){};
     vRADIO_ECHO(cRcv_buff);
 
     //SET, get the settings after perfroming the RFD, this is performed to alert when the RFD was completed
