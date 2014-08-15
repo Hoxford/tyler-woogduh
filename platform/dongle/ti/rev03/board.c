@@ -90,7 +90,8 @@ volatile bool bIs_USB_sof = false;
 volatile bool bWaveform_timer_tick = false;
 static   bool bIs_Radio_UART_using_dma = false;
 static   bool bIs_Radio_in_cmnd_mode = false;
-static   bool bDid_Rcv_Radio_cmnd_buff = false;
+volatile int  iDid_Rcv_Radio_cmnd_buff = 0;
+volatile int  iNum_cts_procs = 0;
 uint32_t uiSys_clock_rate_ms = 0;
 
 //*****************************************************************************
@@ -113,6 +114,13 @@ uint8_t ui8ControlTable[1024] __attribute__ ((aligned(1024)));
 //*****************************************************************************
 // enums
 //*****************************************************************************
+typedef enum
+{
+  RB_NONE,
+  RB_IWRAP_CMND,
+  RB_INEEDMD_CMND,
+  RB_OTHER
+}eRcv_Buff_type;
 
 //*****************************************************************************
 // structures
@@ -120,7 +128,7 @@ uint8_t ui8ControlTable[1024] __attribute__ ((aligned(1024)));
 typedef struct
 {
   bool bBuff_free;
-  bool bBuff_app_queued;
+  eRcv_Buff_type eApp_Buff_Dest;
   uint8_t uiRcv_Buff[DMA_RDIO_RCV_BUFFSZ];
   uint16_t uiRcv_data_len;
 }tDMA_RX_struct;  //dma transmit data struct
@@ -165,7 +173,7 @@ ERROR_CODE Radio_UART_DMA_Config(void)
   //init the UART DMA rcv buffers
   for(i = 0; i < NUM_DMA_RDIO_RCV_BUFFS; i++)
   {
-    tDMA_RX_struct_array[i].bBuff_app_queued = false;
+    tDMA_RX_struct_array[i].eApp_Buff_Dest = RB_NONE;
     tDMA_RX_struct_array[i].bBuff_free       = true;
     tDMA_RX_struct_array[i].uiRcv_data_len   = 0;
     memset(&tDMA_RX_struct_array[i].uiRcv_Buff, 0x00, DMA_RDIO_RCV_BUFFSZ);
@@ -1186,10 +1194,12 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
   int iCpy_index = 0;
   tDMA_RX_struct * ptDMA_que_buff = NULL;
 
-  while(bDid_Rcv_Radio_cmnd_buff == false)
+  while(iDid_Rcv_Radio_cmnd_buff == 0)
   {
     //check a timeout
   }
+
+  iDid_Rcv_Radio_cmnd_buff--;
 
   //cycle through the buffers and find the one that was filled
   for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
@@ -1200,7 +1210,7 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
     if(ptDMA_que_buff->bBuff_free == false)
     {
       //check if the buffer was queued for an app to review
-      if(ptDMA_que_buff->bBuff_app_queued == true)
+      if(ptDMA_que_buff->eApp_Buff_Dest != RB_NONE)
       {
         for(iCpy_index = 0; iCpy_index < uiMax_buff_size; iCpy_index++)
         {
@@ -1219,6 +1229,13 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
             eEC = ER_DONE;
             break;
           }
+        }
+
+        //check of the copy was complete and free the buffer
+        if(eEC == ER_DONE)
+        {
+          ptDMA_que_buff->eApp_Buff_Dest = RB_NONE;
+          ptDMA_que_buff->bBuff_free = true;
         }
 
       }else{/*nothing*/}
@@ -1305,6 +1322,7 @@ void vRadio_interface_int_service(uint16_t uiInt_id)
     //check if the radio uart is using DMA
     if(bIs_Radio_UART_using_dma == true)
     {
+      iNum_cts_procs++;
       //service the DMA receive
       vRadio_interface_DMA_rcv_service();
     }
@@ -1346,7 +1364,7 @@ void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
 void vRadio_interface_DMA_rcv_service(void)
 {
   int index;
-  ERROR_CODE eEC = ER_OK;
+  ERROR_CODE eEC = ER_FAIL;
   tDMA_RX_struct * ptDMA_que_buff = NULL;
 
   //cycle through the buffers and find the one that was filled
@@ -1358,13 +1376,13 @@ void vRadio_interface_DMA_rcv_service(void)
     if(ptDMA_que_buff->bBuff_free == false)
     {
       //check if the buffer was NOT already queued for an app to review
-      if(ptDMA_que_buff->bBuff_app_queued == false)
+      if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
       {
         eEC = eIs_radio_in_cmnd_mode();
         if(eEC == ER_TRUE)
         {
-          bDid_Rcv_Radio_cmnd_buff = true;
-          ptDMA_que_buff->bBuff_app_queued = true;
+          iDid_Rcv_Radio_cmnd_buff++;
+          ptDMA_que_buff->eApp_Buff_Dest = RB_IWRAP_CMND;
           eEC = ER_OK;
           continue;
         }
@@ -1375,22 +1393,29 @@ void vRadio_interface_DMA_rcv_service(void)
 
         if(ptDMA_que_buff->uiRcv_Buff[0] == 0x9C)
         {
+          ptDMA_que_buff->eApp_Buff_Dest = RB_INEEDMD_CMND;
           continue;
         }
       }else{/*nothing*/}
     }else{/*nothing*/}
   }
 
-  //check if the number of receive buffers checked was exceeded
-  if(index == NUM_DMA_RDIO_RCV_BUFFS)
+  //check the error code to determine if none of the buffers were serviced
+  if(eEC == ER_FAIL)
   {
+    //There is no data to send to the application
     eEC = ER_NODATA;
   }else{/*nothing*/}
 
   //check the error status and proceed accordingly
   if(eEC == ER_OK)
   {
-    //cycle the buffers and fine a free one
+    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+
+    //preset the error code
+    eEC = ER_FAIL;
+
+    //cycle the buffers and fine a free one to assign to the DMA
     for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
     {
       ptDMA_que_buff = &tDMA_RX_struct_array[index];
@@ -1399,7 +1424,7 @@ void vRadio_interface_DMA_rcv_service(void)
       if(ptDMA_que_buff->bBuff_free == true)
       {
         //check if the buffer was NOT already queued for an app to review
-        if(ptDMA_que_buff->bBuff_app_queued == false)
+        if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
         {
           //set the DMA RX to the next rcv buffer
           ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT,
@@ -1407,13 +1432,19 @@ void vRadio_interface_DMA_rcv_service(void)
                                      (void *)(INEEDMD_RADIO_UART + UART_O_DR),
                                      ptDMA_que_buff->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
 
+          //mark the buffer as in use
+          ptDMA_que_buff->bBuff_free = false;
+          MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
+          eEC = ER_OK;
+          break;
+
         }else{/*nothing*/}
       }else{/*nothing*/}
     }
   }else{/*nothing*/}
 
-  //check if a free buffer could not be located
-  if(index == NUM_DMA_RDIO_RCV_BUFFS)
+  //check if a free buffer was not allocated
+  if(eEC == ER_FAIL)
   {
     eEC = ER_NO_BUFF_AVAILABLE;
   }else{/*nothing*/}
@@ -1432,6 +1463,12 @@ void vRadio_interface_DMA_rcv_service(void)
   else if(eEC == ER_NODATA)
   {
     //todo: need a nodata counter maybe?
+#ifdef DEBUG
+    // Catch no data available
+    while(1){};
+#else
+    //todo: need a nodata counter maybe?
+#endif
   }
   else{/*nothing*/}
 
@@ -1607,7 +1644,7 @@ USBPortEnable(void)
 //    MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
 //    MAP_SysTickIntEnable();
 //    MAP_SysTickEnable();
-//    MAP_IntMasterDisable();
+//    eMaster_int_disable();
 //    MAP_SysTickIntDisable();
 //    MAP_SysTickDisable();
     HWREG(NVIC_DIS0) = 0xffffffff;
@@ -1696,8 +1733,7 @@ bool bIs_usb_physical_data_conn(void)
 {
   bool bWas_physical_data_conn;
 
-  //disable all interrupts
-  ROM_IntMasterDisable();
+  eMaster_int_disable();
 
   bWas_physical_data_conn = bIs_USB_sof;
   bIs_USB_sof = false;
@@ -2015,7 +2051,7 @@ int
 iBoard_init(void)
 {
 
-//  uint32_t uiSys_clock_rate;
+  uint32_t uiSys_clock_rate;
 
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
@@ -2046,14 +2082,14 @@ iBoard_init(void)
   //setup the USB port.  This can't be used in this clock mode.
   USBPortEnable();
 
-//  MAP_SysTickEnable();
-//  uiSys_clock_rate = MAP_SysCtlClockGet();
-//
-//  uiSys_clock_rate = uiSys_clock_rate/40000;
-//
-//  MAP_SysTickPeriodSet(uiSys_clock_rate);
-//
-//  MAP_SysTickIntEnable();
+  MAP_SysTickEnable();
+  uiSys_clock_rate = MAP_SysCtlClockGet();
+
+  uiSys_clock_rate = uiSys_clock_rate/40000;
+
+  MAP_SysTickPeriodSet(uiSys_clock_rate);
+
+  MAP_SysTickIntEnable();
 
   eMaster_int_enable();
   return 1;

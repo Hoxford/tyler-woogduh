@@ -359,12 +359,88 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 {
   uint32_t i = 0;
   ERROR_CODE eEC = ER_OK;
+  bool bWas_any_data_rcved = false;
+  char * cBoot_msg = NULL;
 
   eEC = eUsing_radio_uart_dma();
   if(eEC == ER_TRUE)
   {
-    eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
+    for(i = 0; i < 5; i++)  //Check all available buffers to review buffers  //todo: magic number alert
+    {
+      eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
+      if(eEC == ER_OK)
+      {
+          //Find the boot message
+          cBoot_msg = strstr(cRcv_string, READY);
+          if(cBoot_msg == NULL)
+          {
+            eEC = ER_INVALID_RESPONSE;
+            continue;
+          }
+          else
+          {
+            eEC = ER_VALID;
+            break;
+          }
+          //set a data received control variable to mark some data was received from radio
+          bWas_any_data_rcved = true;
+      }
+      else if(eEC == ER_NODATA)
+      {
+        //check if the radio was completly silent
+        if(bWas_any_data_rcved == false)
+        {
+          eEC = ER_FAIL;
+        }
+        else{/*do nothing*/}
+        continue;
+      }
+      else
+      {
+        /*nothing*/
+  #ifdef DEBUG
+        while(1){};//catch a fail to receive
+  #endif
+      }
+      //todo: perform a delay == time between cmnd send and cmnd resp
+    }
 
+    //check if all receive attempts were invalid
+    if(eEC == ER_INVALID_RESPONSE)
+    {
+      vDEBUG("Invalid boot message from radio");
+    }
+    //check if all received frames were invalid and additional receive attempts were empty frames
+    else if(eEC == ER_NODATA)
+    {
+      vDEBUG("Invalid frames rcvd from radio");
+    }
+    //check if radio was completly silent to the reset command
+    else if(eEC == ER_FAIL)
+    {
+      if(i == 5)//todo: magic number alert
+      {
+        //todo, check if buffers are completly empty
+        eEC = ER_TIMEOUT;
+        vDEBUG("No boot msg rcvd, timeout");
+      }
+      else
+      {
+        vDEBUG("No boot msg rcvd, radio silent");
+      }
+    }
+    //check if radio response was as expected
+    else if(eEC == ER_VALID)
+    {
+      vDEBUG("Boot msg rcvd!");
+      //todo notify HAL we are done receiving commands and to clear out buffers and control variables
+      eEC = ER_OK;
+    }
+    else{/*do nothing*/}
+#ifdef DEBUG  //catch errors
+    if(eEC != ER_OK){while(1){};}
+    else{/*do nothing*/}
+#endif
   }
   else
   {
@@ -418,33 +494,86 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i = 0;
-
   ERROR_CODE eEC = ER_OK;
+  eEC = eUsing_radio_uart_dma();
+  char * cSettings_msg = NULL;
+  bool bWas_any_data_rcvd = false;
 
-  while(true)
+  if(eEC == ER_TRUE)
   {
-    if(i == uiBuff_size)
+    for(i = 0; i < 5; i++)  //Check all available buffers to review buffers
     {
-      break;
+      eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
+      if(eEC == ER_OK)
+      {
+        //determine if settings message received
+        cSettings_msg = strstr(cRcv_string, ENDOF_SET_SETTINGS);
+        if(cSettings_msg == NULL)
+        {
+          eEC = ER_INVALID_RESPONSE;
+        }
+        else
+        {
+          eEC = ER_VALID;
+          break;
+        }
+        //set a data received control variable to mark some data was received from radio
+        bWas_any_data_rcvd = true;
+      }
+      else if(eEC == ER_NODATA)
+      {
+        //check if the radio was completly silent
+        if(bWas_any_data_rcvd == false)
+        {
+          eEC = ER_FAIL;
+        }
+        else{/*do nothing*/}
+        continue;
+      }
+      else
+      {
+        /*nothing*/
+  #ifdef DEBUG
+        while(1){};//catch a fail to receive
+  #endif
+      }
     }
-
-    eEC = iRadio_rcv_char(&cRcv_string[i]);
-
-    if(eEC == ER_TIMEOUT)
+  }
+  else //using blocking type receive
+  {
+    while(true)
     {
-      break;
-    }
-
-    if(i >= (ENDOF_SET_SETTINGS_STRLEN - 1))
-    {
-      if (strcmp(&cRcv_string[i - (ENDOF_SET_SETTINGS_STRLEN - 1)], ENDOF_SET_SETTINGS) == 0)
+      if(i == uiBuff_size)
       {
         break;
       }
-    }
 
-    ++i;
+      eEC = iRadio_rcv_char(&cRcv_string[i]);
+
+      if(eEC == ER_TIMEOUT)
+      {
+        break;
+      }
+
+      if(i >= (ENDOF_SET_SETTINGS_STRLEN - 1))
+      {
+        if (strcmp(&cRcv_string[i - (ENDOF_SET_SETTINGS_STRLEN - 1)], ENDOF_SET_SETTINGS) == 0)
+        {
+          break;
+        }
+      }
+
+      ++i;
+    }
   }
+
+
+  return eEC;
+}
+
+ERROR_CODE eIneedmd_radio_parse_default_settings(char * cSettings_buff)
+{
+  ERROR_CODE eEC = ER_FAIL;
 
   return eEC;
 }
@@ -804,21 +933,37 @@ int  iIneedMD_radio_setup(void)
 //    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 
     //SET RESET, reset to factory defaults
-    vDEBUG_RDIO_SETUP("SET RESET, RFD");
-//    ineedmd_radio_send_string(SET_RESET, strlen(SET_RESET));
     eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("SET RESET, RFD");
+    }else{/*do nothing*/}
     memset(cRcv_buff, 0x00, BG_SIZE);
-//    iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
-    iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
-    while(1){};
-    vRADIO_ECHO(cRcv_buff);
+    eEC = iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+    if(eEC == ER_OK)
+    {
+      vRADIO_ECHO(cRcv_buff);
+    }else{/*do nothing*/}
 
     //SET, get the settings after perfroming the RFD, this is performed to alert when the RFD was completed
-    vDEBUG_RDIO_SETUP("SET, get settings");
-    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
+    eEC = eSend_Radio_CMND(SET_SET, strlen(SET_SET));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("SET, get settings");
+    }
+    else{/*do nothing*/}
+//    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
     memset(cRcv_buff, 0x00, BG_SIZE);
-    iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
-    vRADIO_ECHO(cRcv_buff);
+    eEC = iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
+    if(eEC == ER_OK)
+    {
+      vRADIO_ECHO(cRcv_buff);
+    }
+    else{/*do nothing*/}
+
+    //parse the received settings and verify device is in RFD
+    eEC = eIneedmd_radio_parse_default_settings(cRcv_buff);
+
 
     //RESET, reset the radio software
     vDEBUG_RDIO_SETUP("RESET, perform software reset");

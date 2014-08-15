@@ -189,7 +189,7 @@ void check_for_update(void)
 //      MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
 //      MAP_SysTickIntEnable();
 //      MAP_SysTickEnable();
-//      MAP_IntMasterDisable();
+//      eMaster_int_disable();
 //      MAP_SysTickIntDisable();
 //      MAP_SysTickDisable();
       HWREG(NVIC_DIS0) = 0xffffffff;
