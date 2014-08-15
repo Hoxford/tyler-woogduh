@@ -58,6 +58,9 @@ typedef enum
     ER_MODE,
     ER_TRANSMIT,
     ER_RECEIVE,
+    ER_VALID,
+    ER_INVALID,
+    ER_INVALID_RESPONSE
 }ERROR_CODE;
 
 //*****************************************************************************
