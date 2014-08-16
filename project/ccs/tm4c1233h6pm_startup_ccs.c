@@ -77,6 +77,8 @@ extern uint32_t __STACK_TOP;
 //
 //*****************************************************************************
 // To be added by user
+volatile int iUart_DMA_ints_serviced = 0;
+volatile int iUart_ints_serviced = 0;
 
 //*****************************************************************************
 //
@@ -347,38 +349,49 @@ vUART1_Rx_and_Tx(void)
   uint32_t i = 0;
   bool     bIsUART_TX_DMA_Enabled = false;
 
+  ui32DMA_int_status = MAP_uDMAIntStatus();
+  if(ui32DMA_int_status > 0)
+  {
+    vRadio_interface_DMA_int_service(ui32DMA_int_status);
+    iUart_DMA_ints_serviced++;
+  }
+  MAP_uDMAIntClear(ui32DMA_int_status);
+
   // Get the interrrupt status.
 //  while((ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false)) == 0){i++;};
-  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
-  ui32Status = ui32Status & (UART_INT_RX | UART_INT_RT | UART_INT_CTS);
-  while(ui32Status == 0)
-  {
-    ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
-    ui32Status = ui32Status & (UART_INT_RX | UART_INT_RT | UART_INT_CTS);
-    i++;
-  };
+//  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
+//  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+//  ui32Status = ui32Status & (UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+////  while(ui32Status == 0)
+////  {
+////    ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+////    ui32Status = ui32Status & (UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+////    i++;
+////  };
+//
+//  if(ui32Status > 0)
+//  {
 
-  if(ui32Status > 0)
-  {
-    // Clear the asserted interrupts.
-    MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
-    eMaster_int_disable();
-    if((ui32Status & UART_INT_RX) == UART_INT_RX)
-    {
-      vRadio_interface_int_service(UART_INT_RX);
-    }
+//    iUart_ints_serviced++;
+//    // Clear the asserted interrupts.
+//
+//    MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
 
-    if((ui32Status & UART_INT_RT) == UART_INT_RT)
-    {
-      vRadio_interface_int_service_timeout(ui32Status);
-    }
-
-    if((ui32Status & UART_INT_CTS) == UART_INT_CTS)
-    {
-      vRadio_interface_int_service(UART_INT_CTS);
-    }
-    eMaster_int_enable();
-  }
+//    if((ui32Status & UART_INT_RX) == UART_INT_RX)
+//    {
+//      vRadio_interface_int_service(UART_INT_RX);
+//    }
+//
+//    if((ui32Status & UART_INT_RT) == UART_INT_RT)
+//    {
+//      vRadio_interface_int_service_timeout(ui32Status);
+//    }
+//
+//    if((ui32Status & UART_INT_CTS) == UART_INT_CTS)
+//    {
+//      vRadio_interface_int_service(UART_INT_CTS);
+//    }
+//  }
   //Get the DMA mode for the UART1 receive transfer
 //  ui32Mode = ROM_uDMAChannelModeGet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT);
 //
@@ -405,10 +418,6 @@ vUART1_Rx_and_Tx(void)
 //    // The uDMA TX channel must be re-enabled.
 ////    ROM_uDMAChannelEnable(UDMA_CHANNEL_UART1TX);
 //  }
-
-  ui32DMA_int_status = MAP_uDMAIntStatus();
-  MAP_uDMAIntClear(ui32DMA_int_status);
-  ROM_uDMAChannelDisable(UDMA_CHANNEL_UART1TX);
 
   return;
 }
