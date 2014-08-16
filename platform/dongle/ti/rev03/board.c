@@ -73,16 +73,19 @@
 // defines
 //*****************************************************************************
 #define USE_RADIO_UART_DMA      true
-#define DMA_RDIO_RCV_BUFFSZ     256
-#define NUM_DMA_RDIO_RCV_BUFFS  3
+#define DMA_RDIO_RCV_BUFFSZ     1024
+#define NUM_DMA_RDIO_RCV_BUFFS  2
 
-#define DMA_RDIO_TX_BUFFSZ     256
-#define NUM_DMA_RDIO_TX_BUFFS  3
+#define DMA_RDIO_TX_BUFFSZ             256
+#define NUM_DMA_RDIO_TX_BUFFS          3
+#define RADIO_TX_UDMA_CHANNEL_BITMASK  0b00000000100000000000000000000000
+#define RADIO_RX_UDMA_CHANNEL_BITMASK  0b00000000010000000000000000000000
 
 /******************************************************************************
 * variables
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
+volatile bool bIs_uart_done = false;
 volatile bool bIs_usart_timeout = false;
 volatile bool bRdio_track_timeout_tick = false;
 volatile uint32_t uiRdio_timeout_tick = 0;
@@ -90,8 +93,9 @@ volatile bool bIs_USB_sof = false;
 volatile bool bWaveform_timer_tick = false;
 static   bool bIs_Radio_UART_using_dma = false;
 static   bool bIs_Radio_in_cmnd_mode = false;
-volatile int  iDid_Rcv_Radio_cmnd_buff = 0;
+volatile int  iNum_cmnd_buffs = 0;
 volatile int  iNum_cts_procs = 0;
+volatile bool bIs_DMA_transmit_in_process = false;
 uint32_t uiSys_clock_rate_ms = 0;
 
 //*****************************************************************************
@@ -236,6 +240,8 @@ ERROR_CODE Radio_UART_DMA_Config(void)
                                   UDMA_ATTR_HIGH_PRIORITY |
                                   UDMA_ATTR_REQMASK);
 
+  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_RX, UDMA_ATTR_HIGH_PRIORITY);
+
   // Configure the control parameters for the primary control structure for
   // the UART RX channel.  The transfer data size is 8 bits, the
   // source address does not increment since it will be reading from a
@@ -247,10 +253,7 @@ ERROR_CODE Radio_UART_DMA_Config(void)
                             UDMA_ARB_4);
 
   // Set up the transfer parameters for the UART RX primary control
-  // structure.  The mode is set to ping-pong, the transfer source is the
-  // UART data register, and the destination is the receive "A" buffer.  The
-  // transfer size is set to match the size of the buffer.
-  //
+  // structure.
   MAP_uDMAChannelTransferSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
                              UDMA_MODE_BASIC,
                              (void *)(INEEDMD_RADIO_UART + UART_O_DR),
@@ -274,7 +277,8 @@ ERROR_CODE Radio_UART_DMA_Config(void)
   // Set the USEBURST attribute for the uDMA UART TX channel.  This will
   // force the controller to always use a burst when transferring data from
   // the TX buffer to the UART.
-  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_USEBURST);
+//  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_USEBURST);
+  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_HIGH_PRIORITY);
 
   // Configure the control parameters for the Radio UART TX.  The uDMA UART TX
   // channel is used to transfer a block of data from a buffer to the UART.
@@ -935,6 +939,10 @@ int iRadio_interface_enable(void)
   {
     eEC = Radio_UART_DMA_Config();
   }
+  else
+  {
+    iRadio_interface_int_enable();
+  }
 
   if(eEC == ER_OK)
   {
@@ -1069,6 +1077,8 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
                                ptDMA_TX_Send->uiTx_data_len);
 
     MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_TX);
+
+    bIs_DMA_transmit_in_process = true;
   }
 
   return eEC;
@@ -1193,13 +1203,31 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
   int index = 0;
   int iCpy_index = 0;
   tDMA_RX_struct * ptDMA_que_buff = NULL;
+  uint32_t ui32UART_int_status = 0;
 
-  while(iDid_Rcv_Radio_cmnd_buff == 0)
+  while(bIs_DMA_transmit_in_process == true)
   {
-    //check a timeout
+    //we wait
+  }
+  while(MAP_UARTBusy(INEEDMD_RADIO_UART) == true)
+  {
+    //we wait
   }
 
-  iDid_Rcv_Radio_cmnd_buff--;
+  while(ui32UART_int_status == 0)
+  {
+    eMaster_int_disable();
+    ui32UART_int_status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
+    MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32UART_int_status);
+    ui32UART_int_status = ui32UART_int_status & UART_INT_CTS;
+    if(ui32UART_int_status == UART_INT_CTS)
+    {
+      vRadio_interface_DMA_rcv_service();
+    }
+    eMaster_int_enable();
+  };
+
+
 
   //cycle through the buffers and find the one that was filled
   for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
@@ -1210,8 +1238,14 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
     if(ptDMA_que_buff->bBuff_free == false)
     {
       //check if the buffer was queued for an app to review
-      if(ptDMA_que_buff->eApp_Buff_Dest != RB_NONE)
+      if(ptDMA_que_buff->eApp_Buff_Dest == RB_IWRAP_CMND)
       {
+        iNum_cmnd_buffs++;
+        if(iNum_cmnd_buffs == 1)
+        {
+//          MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+          iNum_cmnd_buffs = 1;
+        }
         for(iCpy_index = 0; iCpy_index < uiMax_buff_size; iCpy_index++)
         {
           if(iCpy_index >= uiMax_buff_size)
@@ -1227,6 +1261,11 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
           if(cRcv_buff[iCpy_index] == 0x00)
           {
             eEC = ER_DONE;
+            //free and empty the buffer
+            ptDMA_que_buff->eApp_Buff_Dest = RB_NONE;
+            ptDMA_que_buff->bBuff_free = true;
+            ptDMA_que_buff->uiRcv_data_len   = 0;
+            memset(ptDMA_que_buff->uiRcv_Buff, 0x00, DMA_RDIO_RCV_BUFFSZ);
             break;
           }
         }
@@ -1236,6 +1275,12 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
         {
           ptDMA_que_buff->eApp_Buff_Dest = RB_NONE;
           ptDMA_que_buff->bBuff_free = true;
+        }
+        else
+        {
+#ifdef DEBUG
+          while(1){};
+#endif
         }
 
       }else{/*nothing*/}
@@ -1256,6 +1301,17 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
   return eEC;
 }
 
+ERROR_CODE eIs_UART_using_DMA(void)
+{
+  if(USE_RADIO_UART_DMA == true)
+  {
+    return ER_TRUE;
+  }
+  else
+  {
+    return ER_FALSE;
+  }
+}
 //*****************************************************************************
 // name:
 // description:
@@ -1329,10 +1385,30 @@ void vRadio_interface_int_service(uint16_t uiInt_id)
     //else just set the usart data control variable
     else
     {
-      bIs_usart_data = true;
+      bIs_uart_done = true;
     }
   }
   else{/* do nothing */}
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status)
+{
+  int i = 0;
+  if((ui32DMA_int_status & RADIO_TX_UDMA_CHANNEL_BITMASK) == RADIO_TX_UDMA_CHANNEL_BITMASK)
+  {
+    bIs_DMA_transmit_in_process = false;
+  }
+
+  if((ui32DMA_int_status & RADIO_RX_UDMA_CHANNEL_BITMASK) == RADIO_RX_UDMA_CHANNEL_BITMASK)
+  {
+    i++;
+  }
 }
 
 //*****************************************************************************
@@ -1381,7 +1457,6 @@ void vRadio_interface_DMA_rcv_service(void)
         eEC = eIs_radio_in_cmnd_mode();
         if(eEC == ER_TRUE)
         {
-          iDid_Rcv_Radio_cmnd_buff++;
           ptDMA_que_buff->eApp_Buff_Dest = RB_IWRAP_CMND;
           eEC = ER_OK;
           continue;
@@ -1489,6 +1564,22 @@ bool bRadio_is_data(void)
   bIs_usart_data = false;
 //todo: enable interrupts
   return bWas_usart_data;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+bool bGet_CTS_Status(void)
+{
+  //todo: disable interrupts
+  bool bWas_CTS_flagged = bIs_uart_done;
+
+  bIs_uart_done = false;
+//todo: enable interrupts
+  return bWas_CTS_flagged;
 }
 
 //*****************************************************************************

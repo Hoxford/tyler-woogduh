@@ -183,7 +183,7 @@
 
 #define BT_MACADDR_NUM_BYTES  6
 #define BG_SIZE              1024
-#define BG_SEND_SIZE         256
+#define BG_SEND_SIZE         128
 #define BG_SEND_SIZE_SMALL   32
 
 #define ONESEC_DELAY         100
@@ -271,9 +271,38 @@ int iIneedmd_radio_cmnd_mode(bool bMode_Set)
 ******************************************************************************/
 ERROR_CODE eSend_Radio_CMND(char * cCmnd_buff, uint16_t uiCmnd_Buff_size)
 {
+#define SAME 0
+  uint32_t i = 0;
+  int iStr_cmp = 0;
   ERROR_CODE eEC = ER_FAIL;
 
-  eEC = eRadio_DMA_send_string(cCmnd_buff, uiCmnd_Buff_size);
+  eEC = eIs_UART_using_DMA();
+  if(eEC == ER_TRUE)
+  {
+    iStr_cmp = strcmp(cCmnd_buff, SET_SET);
+    if(iStr_cmp == SAME)
+    {
+      //do special DMA setup
+//      eEC = ePrep_large_DMA_rcv_buff();
+    }
+    eEC = eRadio_DMA_send_string(cCmnd_buff, uiCmnd_Buff_size);
+  }
+  else
+  {
+    i = iRadio_send_string(cCmnd_buff, uiCmnd_Buff_size);
+
+    if(i < strlen(cCmnd_buff))
+    {
+      eEC = ER_FAIL;
+#ifdef DEBUG
+      while(1){};
+#endif //DEBUG
+    }
+    else
+    {
+      eEC = ER_OK;
+    }
+  }
 
   //todo: if error code is not ok try sending it directly?
 
@@ -360,11 +389,16 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
   uint32_t i = 0;
   ERROR_CODE eEC = ER_OK;
   bool bWas_any_data_rcved = false;
+  bool bIs_frame_complete = false;
+  bool bDid_rcv_boot_msg = false;
   char * cBoot_msg = NULL;
+  uint32_t ui32SysClock = MAP_SysCtlClockGet();
 
   eEC = eUsing_radio_uart_dma();
   if(eEC == ER_TRUE)
   {
+    //dma is to fast and causes problems when the device re-boots. A hard delay of 1 second is used to properly compensate for this
+    MAP_SysCtlDelay(ui32SysClock);
     for(i = 0; i < 5; i++)  //Check all available buffers to review buffers  //todo: magic number alert
     {
       eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
@@ -444,35 +478,53 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
   }
   else
   {
-    while(true)
+
+    while(bDid_rcv_boot_msg == false)
     {
-      if(i == uiBuff_size)
-      {
-        break;
-      }
 
-      eEC = iRadio_rcv_char(&cRcv_string[i]);
-
-      if(eEC == ER_TIMEOUT)
+      bIs_frame_complete = bGet_CTS_Status();
+      while(bIs_frame_complete == false)
       {
-        break;
-      }
-
-      if(i >= (READY_STRLEN - 1))
-      {
-        //check if the most recent char is an end of line
-        if(cRcv_string[i] == '\n')
+        if(i == uiBuff_size)
         {
-          //check if the last part of the boot message is the end of the boot message
-          if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
-          {
-            i = 0xFFFF;
-            break;
-          }
+          break;
         }
+
+        eEC = iRadio_rcv_char(&cRcv_string[i]);
+
+        if(eEC == ER_TIMEOUT)
+        {
+          break;
+        }
+
+  //      if(i >= (READY_STRLEN - 1))
+  //      {
+  //        //check if the most recent char is an end of line
+  //        if(cRcv_string[i] == '\n')
+  //        {
+  //          //check if the last part of the boot message is the end of the boot message
+  //          if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+  //          {
+  //            i = 0xFFFF;
+  //            break;
+  //          }
+  //        }
+  //      }
+
+        ++i;
       }
 
-      ++i;
+      //Find the boot message
+      cBoot_msg = strstr(cRcv_string, READY);
+      if(cBoot_msg == NULL)
+      {
+        bDid_rcv_boot_msg = false;
+      }
+      else
+      {
+        bDid_rcv_boot_msg = true;
+        i = 0xFFFF;
+      }
     }
 
     if(i == 0xFFFF)
@@ -499,6 +551,7 @@ ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
   char * cSettings_msg = NULL;
   bool bWas_any_data_rcvd = false;
 
+  eEC = eUsing_radio_uart_dma();
   if(eEC == ER_TRUE)
   {
     for(i = 0; i < 5; i++)  //Check all available buffers to review buffers
@@ -758,8 +811,20 @@ int  iIneedmd_radio_que_frame(uint8_t *send_frame, uint16_t uiFrame_size)
 int iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 {
   int i;
+  ERROR_CODE eEC = ER_FAIL;
+  eEC = eUsing_radio_uart_dma();
+  if(eEC == ER_TRUE)
+  {
+    eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
+    if(eEC == ER_OK)
+    {
 
-  i = iRadio_rcv_string(cRcv_string, uiBuff_size);
+    }
+  }
+  else
+  {
+    i = iRadio_rcv_string(cRcv_string, uiBuff_size);
+  }
 
   return i;
 }
@@ -907,7 +972,6 @@ int  iIneedMD_radio_setup(void)
   {
     memset(uiBT_addr,0x00, BT_MACADDR_NUM_BYTES);
     memset(uiRemote_dev_addr,0x00, BT_MACADDR_NUM_BYTES);
-
     //turn power on to the radio
     ineedmd_radio_power(true);
 
@@ -936,7 +1000,7 @@ int  iIneedMD_radio_setup(void)
     eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
     if(eEC == ER_OK)
     {
-      vDEBUG_RDIO_SETUP("SET RESET, RFD");
+//      vDEBUG_RDIO_SETUP("SET RESET, RFD");
     }else{/*do nothing*/}
     memset(cRcv_buff, 0x00, BG_SIZE);
     eEC = iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
@@ -946,33 +1010,37 @@ int  iIneedMD_radio_setup(void)
     }else{/*do nothing*/}
 
     //SET, get the settings after perfroming the RFD, this is performed to alert when the RFD was completed
-    eEC = eSend_Radio_CMND(SET_SET, strlen(SET_SET));
-    if(eEC == ER_OK)
-    {
-      vDEBUG_RDIO_SETUP("SET, get settings");
-    }
-    else{/*do nothing*/}
-//    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
-    memset(cRcv_buff, 0x00, BG_SIZE);
-    eEC = iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
-    if(eEC == ER_OK)
-    {
-      vRADIO_ECHO(cRcv_buff);
-    }
-    else{/*do nothing*/}
+    //todo: received settings > 1024. DMA Buffers >1024 causing problems
+//    eEC = eSend_Radio_CMND(SET_SET, strlen(SET_SET));
+//    if(eEC == ER_OK)
+//    {
+//      vDEBUG_RDIO_SETUP("SET, get settings");
+//    }
+//    else{/*do nothing*/}
+////    ineedmd_radio_send_string(SET_SET, strlen(SET_SET));
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    eEC = iIneedmd_radio_rcv_settings(cRcv_buff, BG_SIZE);
+//    if(eEC == ER_OK)
+//    {
+//      vRADIO_ECHO(cRcv_buff);
+//    }
+//    else{/*do nothing*/}
 
     //parse the received settings and verify device is in RFD
     eEC = eIneedmd_radio_parse_default_settings(cRcv_buff);
 
-
     //RESET, reset the radio software
-    vDEBUG_RDIO_SETUP("RESET, perform software reset");
-    ineedmd_radio_send_string(RESET, strlen(RESET));
 
-    //get the boot output from the radio software reset, this is performed to alert when the reset was completed
-    memset(cRcv_buff, 0x00, BG_SIZE);
-    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
-    vRADIO_ECHO(cRcv_buff);
+//todo: a reset seems to need a delay as well like the RFD
+//    eEC = eSend_Radio_CMND(RESET, strlen(RESET));
+//    if(eEC == ER_OK)
+//    {
+//      vDEBUG_RDIO_SETUP("RESET, perform software reset");
+//    }
+//    //get the boot output from the radio software reset, this is performed to alert when the reset was completed
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+//    vRADIO_ECHO(cRcv_buff);
 
     //hardware power reset the radio
     vDEBUG_RDIO_SETUP("Power cycle");
@@ -983,19 +1051,29 @@ int  iIneedMD_radio_setup(void)
     vRADIO_ECHO(cRcv_buff);
 
     //SET CONTROL ECHO, set the radio echo
-    vDEBUG_RDIO_SETUP("SET CONTROL ECHO, set the echo");
+//    memset(cSend_buff, 0x00, BG_SIZE);
+//    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
+////    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+//    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
+//    if(eEC == ER_OK)
+//    {
+//      vDEBUG_RDIO_SETUP("SET CONTROL ECHO, set the echo");
+//    }
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+//    vRADIO_ECHO(cRcv_buff);
+
+    //SET BT SSP, tell the radio we are using BT SSP pairing
     memset(cSend_buff, 0x00, BG_SIZE);
-    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
-    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+    snprintf(cSend_buff, BG_SIZE, SET_BT_SSP, SET_BT_SSP_CPLTES, SET_BT_SSP_MITM);
+    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("SET BT SSP, set the SSP pairing");
+    }
     memset(cRcv_buff, 0x00, BG_SIZE);
     iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
     vRADIO_ECHO(cRcv_buff);
-
-    //SET BT SSP, tell the radio we are using BT SSP pairing
-    vDEBUG_RDIO_SETUP("SET BT SSP, set the SSP pairing");
-    memset(cSend_buff, 0x00, BG_SIZE);
-    snprintf(cSend_buff, BG_SIZE, SET_BT_SSP, SET_BT_SSP_CPLTES, SET_BT_SSP_MITM);
-    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
 
     //SET BT AUTH, tell the radio what auth method we are using
     vDEBUG_RDIO_SETUP("SET BT AUTH, set the BT auth method");
