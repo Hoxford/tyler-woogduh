@@ -392,16 +392,13 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
   bool bIs_frame_complete = false;
   bool bDid_rcv_boot_msg = false;
   char * cBoot_msg = NULL;
-  uint32_t ui32SysClock = MAP_SysCtlClockGet();
 
   eEC = eUsing_radio_uart_dma();
   if(eEC == ER_TRUE)
   {
-    //dma is to fast and causes problems when the device re-boots. A hard delay of 1 second is used to properly compensate for this
-    MAP_SysCtlDelay(ui32SysClock);
     for(i = 0; i < 5; i++)  //Check all available buffers to review buffers  //todo: magic number alert
     {
-      eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
+      eEC = eRcv_dma_radio_boot_frame(cRcv_string, uiBuff_size);
       if(eEC == ER_OK)
       {
           //Find the boot message
@@ -1000,7 +997,7 @@ int  iIneedMD_radio_setup(void)
     eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
     if(eEC == ER_OK)
     {
-//      vDEBUG_RDIO_SETUP("SET RESET, RFD");
+      vDEBUG_RDIO_SETUP("SET RESET, RFD");
     }else{/*do nothing*/}
     memset(cRcv_buff, 0x00, BG_SIZE);
     eEC = iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
@@ -1010,7 +1007,7 @@ int  iIneedMD_radio_setup(void)
     }else{/*do nothing*/}
 
     //SET, get the settings after perfroming the RFD, this is performed to alert when the RFD was completed
-    //todo: received settings > 1024. DMA Buffers >1024 causing problems
+//todo: received settings > 1024. DMA Buffers >1024 causing problems
 //    eEC = eSend_Radio_CMND(SET_SET, strlen(SET_SET));
 //    if(eEC == ER_OK)
 //    {
@@ -1027,11 +1024,11 @@ int  iIneedMD_radio_setup(void)
 //    else{/*do nothing*/}
 
     //parse the received settings and verify device is in RFD
-    eEC = eIneedmd_radio_parse_default_settings(cRcv_buff);
+//todo: parse settings needs to be implemented for RFD and post set
+//    eEC = eIneedmd_radio_parse_default_settings(cRcv_buff);
 
     //RESET, reset the radio software
-
-//todo: a reset seems to need a delay as well like the RFD
+////todo: a reset seems to need a delay as well like the RFD
 //    eEC = eSend_Radio_CMND(RESET, strlen(RESET));
 //    if(eEC == ER_OK)
 //    {
@@ -1042,26 +1039,27 @@ int  iIneedMD_radio_setup(void)
 //    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
 //    vRADIO_ECHO(cRcv_buff);
 
-    //hardware power reset the radio
-    vDEBUG_RDIO_SETUP("Power cycle");
-    ineedmd_radio_reset();
-    //get the boot output from radio power up
-    memset(cRcv_buff, 0x00, BG_SIZE);
-    iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
-    vRADIO_ECHO(cRcv_buff);
+    //todo: is this power cycle even necessary?
+//    //hardware power reset the radio
+//    vDEBUG_RDIO_SETUP("Power cycle");
+//    ineedmd_radio_reset();
+//    //get the boot output from radio power up
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iIneedmd_radio_rcv_boot_msg(cRcv_buff, BG_SIZE);
+//    vRADIO_ECHO(cRcv_buff);
 
     //SET CONTROL ECHO, set the radio echo
-//    memset(cSend_buff, 0x00, BG_SIZE);
-//    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
-////    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
-//    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
-//    if(eEC == ER_OK)
-//    {
-//      vDEBUG_RDIO_SETUP("SET CONTROL ECHO, set the echo");
-//    }
-//    memset(cRcv_buff, 0x00, BG_SIZE);
-//    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
-//    vRADIO_ECHO(cRcv_buff);
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_ECHO, SET_CONTROL_ECHO_SETTING);
+//    ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("SET CONTROL ECHO, set the echo");
+    }
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+    vRADIO_ECHO(cRcv_buff);
 
     //SET BT SSP, tell the radio we are using BT SSP pairing
     memset(cSend_buff, 0x00, BG_SIZE);
