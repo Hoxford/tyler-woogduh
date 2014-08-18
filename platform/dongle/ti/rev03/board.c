@@ -1060,6 +1060,12 @@ int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
 //*****************************************************************************
 ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
 {
+#define DEBUG_eRadio_DMA_send_string
+#ifdef DEBUG_eRadio_DMA_send_string
+  #define  vDEBUG_RDIO_DMA_SNDSTR  vDEBUG
+#else
+  #define vDEBUG_RDIO_DMA_SNDSTR(a)
+#endif
   ERROR_CODE eEC = ER_FAIL;
 #if USE_RADIO_UART_DMA == true
   int i = 0;
@@ -1090,6 +1096,7 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
     }
     else
     {
+      vDEBUG_RDIO_DMA_SNDSTR("DMA send str, no buff available to send");
       eEC = ER_NO_BUFF_AVAILABLE;
     }
   }
@@ -1124,6 +1131,7 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
   eEC = ER_NOT_ENABLED;
 #endif //USE_RADIO_UART_DMA
   return eEC;
+#undef vDEBUG_RDIO_DMA_SNDSTR
 }
 
 //*****************************************************************************
