@@ -143,7 +143,6 @@ int iRadio_interface_int_disable(void);
 void vRadio_interface_int_service(uint16_t uiInt_id);
 void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status);
 void vRadio_interface_int_service_timeout(uint16_t uiInt_id);
-void vRadio_interface_DMA_rcv_service(void);
 bool bRadio_is_data(void);
 bool bGet_CTS_Status(void);
 void LEDI2CEnable(void);

@@ -32,6 +32,7 @@
 #include <inc/tm4c1233h6pm.h>
 #include <inc/hw_memmap.h>
 #include "board.h"
+#include "utils_inc/proj_debug.h"
 
 //*****************************************************************************
 //
@@ -297,6 +298,7 @@ NmiSR(void)
 static void
 FaultISR(void)
 {
+    vDEBUG("FaultISR SYS HALT");
     //
     // Enter an infinite loop.
     //
@@ -315,6 +317,7 @@ FaultISR(void)
 static void
 IntDefaultHandler(void)
 {
+    vDEBUG("IntDefaultHandler SYS HALT");
     //
     // Go into an infinite loop.
     //
@@ -484,6 +487,7 @@ static void uDMAErrorHandler(void)
 {
 #ifdef DEBUG
   // Go into an infinite loop.
+  vDEBUG("uDMAErrorHandler SYS HALT");
   while(1){};
 #else
   //reset the system

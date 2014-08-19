@@ -73,7 +73,7 @@
 // defines
 //*****************************************************************************
 //radio uart DMA defines
-#define USE_RADIO_UART_DMA      true
+#define USE_RADIO_UART_DMA      false
 #define DMA_RDIO_RCV_BUFFSZ     1024
 #define NUM_DMA_RDIO_RCV_BUFFS  3
 
@@ -158,6 +158,9 @@ tDMA_TX_struct tDMA_TX_struct_array[NUM_DMA_RDIO_TX_BUFFS];
 // private function declarations
 //*****************************************************************************
 ERROR_CODE Radio_UART_DMA_Config(void); //configures the DMA tied to the radio UART
+void vRadio_interface_DMA_tx_service(void);
+void vRadio_interface_DMA_rcv_service(void);
+ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff);
 
 //*****************************************************************************
 // private functions
@@ -219,7 +222,8 @@ ERROR_CODE Radio_UART_DMA_Config(void)
   // uDMA TX and RX channels will be configured so that it can transfer 4
   // bytes in a burst when the UART is ready to transfer more data.
   //
-  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
+//  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
+  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX1_8, UART_FIFO_RX1_8);
 
   // Enable the uDMA interface for both TX and RX channels.
   MAP_UARTDMAEnable(INEEDMD_RADIO_UART, UART_DMA_RX | UART_DMA_TX);
@@ -254,7 +258,7 @@ ERROR_CODE Radio_UART_DMA_Config(void)
   // The uDMA controller will use a 4 byte burst transfer if possible.
   MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
                             UDMA_SIZE_8 | UDMA_SRC_INC_NONE | UDMA_DST_INC_8 |
-                            UDMA_ARB_4);
+                            UDMA_ARB_1);
 
   // Set up the transfer parameters for the UART RX primary control
   // structure.
@@ -293,7 +297,7 @@ ERROR_CODE Radio_UART_DMA_Config(void)
   // threshold.
   MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT,
                             UDMA_SIZE_8 | UDMA_SRC_INC_8 | UDMA_DST_INC_NONE |
-                            UDMA_ARB_4);
+                            UDMA_ARB_1);
 
   //Enable the Radio DMA UART transmit channel
   //todo: not needed?
@@ -363,6 +367,194 @@ ERROR_CODE Radio_UART_DMA_Config(void)
 }
 
 //*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vRadio_interface_DMA_tx_service(void)
+{
+  int index;
+#if USE_RADIO_UART_DMA == true
+  tDMA_TX_struct * ptDMA_tx_buff = NULL;
+
+  //cycle through the buffers and find the one that was transmitted
+  for(index = 0; index < NUM_DMA_RDIO_TX_BUFFS; index++)
+  {
+    ptDMA_tx_buff = &tDMA_TX_struct_array[index];
+
+    //check if the buffer is NOT free, therefore filled for TX
+    if(ptDMA_tx_buff->bBuff_free == false)
+    {
+      ptDMA_tx_buff->bBuff_free = true;
+      memset(ptDMA_tx_buff->uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
+    }else{/*nothing*/}
+  }
+#endif
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vRadio_interface_DMA_rcv_service(void)
+{
+#define DEBUG_vRadio_interface_DMA_rcv_service
+#ifdef DEBUG_vRadio_interface_DMA_rcv_service
+  #define  vDEBUG_DMA_RCV_SRVC  vDEBUG
+#else
+  #define vDEBUG_DMA_RCV_SRVC(a)
+#endif
+  ERROR_CODE eEC = ER_FAIL;
+#if USE_RADIO_UART_DMA == true
+  int index;
+  tDMA_RX_struct * ptDMA_que_buff = NULL;
+
+  //cycle through the buffers and find the one that was filled
+  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+  {
+    ptDMA_que_buff = &tDMA_RX_struct_array[index];
+
+    //check if the buffer is NOT free, therefore potentially was filled via DMA
+    if(ptDMA_que_buff->bBuff_free == false)
+    {
+      //check if the buffer was NOT already queued for an app to review
+      if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
+      {
+        eEC = eIs_radio_in_cmnd_mode();
+        if(eEC == ER_TRUE)
+        {
+          ptDMA_que_buff->eApp_Buff_Dest = RB_IWRAP_CMND;
+          eEC = ER_OK;
+          continue;
+        }
+        else
+        {
+          eEC = ER_OK;
+        }
+
+        if(ptDMA_que_buff->uiRcv_Buff[0] == 0x9C)
+        {
+          ptDMA_que_buff->eApp_Buff_Dest = RB_INEEDMD_CMND;
+          continue;
+        }
+      }else{/*nothing*/}
+    }else{/*nothing*/}
+  }
+
+  //check the error code to determine if none of the buffers were serviced
+  if(eEC == ER_FAIL)
+  {
+    //There is no data to send to the application
+    eEC = ER_NODATA;
+  }else{/*nothing*/}
+
+  //check the error status and proceed accordingly
+  if(eEC == ER_OK)
+  {
+//    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+
+    //preset the error code
+    eEC = ER_FAIL;
+
+    //cycle the buffers and fine a free one to assign to the DMA
+    for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+    {
+      ptDMA_que_buff = &tDMA_RX_struct_array[index];
+
+      //check if the buffer is free to fill via DMA
+      if(ptDMA_que_buff->bBuff_free == true)
+      {
+        //check if the buffer was NOT already queued for an app to review
+        if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
+        {
+          //set the DMA RX to the next rcv buffer
+          ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT,
+                                     UDMA_MODE_BASIC,
+                                     (void *)(INEEDMD_RADIO_UART + UART_O_DR),
+                                     ptDMA_que_buff->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
+
+          //mark the buffer as in use
+          ptDMA_que_buff->bBuff_free = false;
+          MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
+          eEC = ER_OK;
+          break;
+
+        }else{/*nothing*/}
+      }else{/*nothing*/}
+    }
+  }else{/*nothing*/}
+
+  //check if a free buffer was not allocated
+  if(eEC == ER_FAIL)
+  {
+    eEC = ER_NO_BUFF_AVAILABLE;
+  }else{/*nothing*/}
+
+
+  //check for errors
+  if(eEC == ER_NO_BUFF_AVAILABLE)
+  {
+#ifdef DEBUG
+    // Catch no buffers available
+    vDEBUG_DMA_RCV_SRVC("Dma rcv srvc SYS HALT, no buff available");
+    while(1){};
+#else
+    //todo: perform a system reset maybe?
+#endif
+  }
+  else if(eEC == ER_NODATA)
+  {
+    //todo: need a nodata counter maybe?
+#ifdef DEBUG
+    // Catch no data available
+    vDEBUG_DMA_RCV_SRVC("Dma rcv srvc SYS HALT, no data available");
+    while(1){};
+#else
+    //todo: need a nodata counter maybe?
+#endif
+  }
+  else{/*nothing*/}
+#endif //USE_RADIO_UART_DMA
+  return;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff)
+{
+  ERROR_CODE eEC = ER_FAIL;
+#if USE_RADIO_UART_DMA == true
+  int index = 0;
+  tDMA_RX_struct * ptDMA_rx_buff = NULL;
+
+  //cycle through the buffers and find the one that was filled
+  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+  {
+    ptDMA_rx_buff = &tDMA_RX_struct_array[index];
+
+    //check if the buffer is NOT free, therefore potentially was filled via DMA
+    if(ptDMA_rx_buff->bBuff_free == false)
+    {
+      //check if the buffer was NOT already queued for an app to review
+      if(ptDMA_rx_buff->eApp_Buff_Dest == RB_NONE)
+      {
+        *ptDMA_curr_rx_buff = ptDMA_rx_buff;
+        eEC = ER_OK;
+      }else{/*nothing*/}
+    }else{/*nothing*/}
+  }
+#endif
+  return eEC;
+}
+//*****************************************************************************
+
 // external functions
 //*****************************************************************************
 //
@@ -986,7 +1178,8 @@ int iRadio_interface_enable(void)
 
 int iRadio_gpio_set(uint16_t uiMask)
 {
-#if DEBUG
+#ifdef DEBUG
+  vDEBUG("iRadio_gpio_set() not defined yet SYS HALT");
   while(1){}; //todo: fcn not defined yet
 #endif
   return 1;
@@ -994,7 +1187,8 @@ int iRadio_gpio_set(uint16_t uiMask)
 
 int iRadio_gpio_clear(uint16_t uiMask)
 {
-#if DEBUG
+#ifdef DEBUG
+  vDEBUG("iRadio_gpio_clear() not defined yet SYS HALT");
   while(1){}; //todo: fcn not defined yet
 #endif
   return 1;
@@ -1002,7 +1196,8 @@ int iRadio_gpio_clear(uint16_t uiMask)
 
 int iRadio_gpio_read(uint16_t uiMask)
 {
-#if DEBUG
+#ifdef DEBUG
+  vDEBUG("iRadio_gpio_read() not defined yet SYS HALT");
   while(1){}; //todo: fcn not defined yet
 #endif
   return 1;
@@ -1096,7 +1291,7 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
     }
     else
     {
-      vDEBUG_RDIO_DMA_SNDSTR("DMA send str, no buff available to send");
+      //set the error code to no buff available
       eEC = ER_NO_BUFF_AVAILABLE;
     }
   }
@@ -1125,8 +1320,17 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
 
     MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_TX);
 
+
+
     bIs_DMA_transmit_in_process = true;
   }
+  else if(eEC == ER_NO_BUFF_AVAILABLE)
+  {
+#ifdef DEBUG
+    vDEBUG_RDIO_DMA_SNDSTR("DMA send str SYS HALTED, no buff available to send");
+    while(1){};
+#endif
+  }else{/*nothing*/}
 #elif  USE_RADIO_UART_DMA == false
   eEC = ER_NOT_ENABLED;
 #endif //USE_RADIO_UART_DMA
@@ -1249,44 +1453,62 @@ int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 //*****************************************************************************
 ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
 {
-  ERROR_CODE eEC = ER_OK;
+#define DEBUG_eRcv_dma_radio_cmnd_frame
+#ifdef DEBUG_eRcv_dma_radio_cmnd_frame
+  #define  vDEBUG_RDIO_DMARCV_CMNDFRAME  vDEBUG
+#else
+  #define vDEBUG_RDIO_DMARCV_CMNDFRAME(a)
+#endif
+  ERROR_CODE eEC = ER_FAIL;
 #if USE_RADIO_UART_DMA == true
   int index = 0;
   int iCpy_index = 0;
   tDMA_RX_struct * ptDMA_que_buff = NULL;
-  uint32_t ui32UART_int_status = 0;
+  tDMA_RX_struct * ptDMA_curr_fill_buff = NULL;
+  bool bIs_DMA_chan_en = false;
+  bool bWhile_char_avail = false;
   uint32_t uiModem_status_get = 0;
+  char * cEnd_of_frame = NULL;
 
   while(bIs_DMA_transmit_in_process == true)
   {
     //we wait
   }
-  while(MAP_UARTBusy(INEEDMD_RADIO_UART) == true)
-  {
-    //we wait
-  }
-
-  MAP_UARTModemControlClear(INEEDMD_RADIO_UART, UART_OUTPUT_RTS);
-
-//  ui32UART_int_status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
-//  while((ui32UART_int_status & UART_INT_CTS) != UART_INT_CTS)
+//  while(MAP_UARTBusy(INEEDMD_RADIO_UART) == true)
 //  {
-//    eMaster_int_disable();
-//    ui32UART_int_status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
-//    ui32UART_int_status = ui32UART_int_status & UART_INT_CTS;
-//    eMaster_int_enable();
-//  };
+//    //we wait
+//  }
 
-//  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32UART_int_status);
+//  uiModem_status_get = MAP_UARTModemStatusGet(INEEDMD_RADIO_UART);
+//  while((uiModem_status_get & UART_INPUT_CTS) != UART_INPUT_CTS)
+//  {
+//    uiModem_status_get = MAP_UARTModemStatusGet(INEEDMD_RADIO_UART);
+//  }
+//  vDEBUG_RDIO_DMARCV_CMNDFRAME("Cmnd rcv, CTS rdio done sending");
 
-  uiModem_status_get = MAP_UARTModemStatusGet(INEEDMD_RADIO_UART);
-  while((uiModem_status_get & UART_INPUT_CTS) != UART_INPUT_CTS)
+//  bWhile_char_avail = MAP_UARTCharsAvail(INEEDMD_RADIO_UART);
+//  while(bWhile_char_avail == true)
+//  {
+//    bWhile_char_avail = MAP_UARTCharsAvail(INEEDMD_RADIO_UART);
+//  }
+//
+//  bIs_DMA_chan_en = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_RX);
+//  if(bIs_DMA_chan_en == true)
+//  {
+//    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+//  }else{/*nothing*/}
+
+  eGet_curr_DMA_fill_buff(&ptDMA_curr_fill_buff);
+
+  cEnd_of_frame = strstr((char *)ptDMA_curr_fill_buff->uiRcv_Buff, "\r\n");
+  while(cEnd_of_frame == NULL)
   {
-    uiModem_status_get = MAP_UARTModemStatusGet(INEEDMD_RADIO_UART);
+    cEnd_of_frame = strstr((char *)ptDMA_curr_fill_buff->uiRcv_Buff, "\r\n");
   }
 
-  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
-  MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+  //todo: edit this comment once a better understanding of the CTS isr is understood
+  //service the DMA rcv buffers since the CTS isr isn't firing
+  vRadio_interface_DMA_rcv_service();
 
   //cycle through the buffers and find the one that was filled
   for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
@@ -1300,27 +1522,34 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
       if(ptDMA_que_buff->eApp_Buff_Dest == RB_IWRAP_CMND)
       {
         iNum_cmnd_buffs++;
-        if(iNum_cmnd_buffs == 1)
-        {
-//          MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
-          iNum_cmnd_buffs = 1;
-        }
+        if(iNum_cmnd_buffs == 1)                             //todo: debug delete
+        {                                                    //
+//          MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);   //
+          iNum_cmnd_buffs = 1;                               //
+        }                                                    //
+        //preset error code to ok for copy status
+        eEC = ER_OK;
         for(iCpy_index = 0; iCpy_index < uiMax_buff_size; iCpy_index++)
         {
+          //check if the transfer to buffer was overfilled
           if(iCpy_index >= uiMax_buff_size)
           {
             eEC = ER_OVERWRITE;
             break;
           }
+
+          //copy the receive byte to the transfer buffer
           if(eEC == ER_OK)
           {
             cRcv_buff[iCpy_index] = ptDMA_que_buff->uiRcv_Buff[iCpy_index];
           }
 
+          //Check if the end of the received frame was reached
           if(cRcv_buff[iCpy_index] == 0x00)
           {
             eEC = ER_DONE;
             //free and empty the buffer
+            vDEBUG_RDIO_DMARCV_CMNDFRAME("Cmnd rcv, cpy done & buff freed");
             ptDMA_que_buff->eApp_Buff_Dest = RB_NONE;
             ptDMA_que_buff->bBuff_free = true;
             ptDMA_que_buff->uiRcv_data_len   = 0;
@@ -1329,41 +1558,60 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
           }
         }
 
-        //check of the copy was complete and free the buffer
-        if(eEC == ER_DONE)
-        {
-          ptDMA_que_buff->eApp_Buff_Dest = RB_NONE;
-          ptDMA_que_buff->bBuff_free = true;
-        }
-        else
+        //check fatal errors
+        if(eEC == ER_OVERWRITE)
         {
 #ifdef DEBUG
+          vDEBUG_RDIO_DMARCV_CMNDFRAME("Cmnd rcv SYS HALTED, cpy overwrite");
           while(1){};
 #endif
         }
-
+        else if(eEC == ER_FAIL)
+        {
+#ifdef DEBUG
+          vDEBUG_RDIO_DMARCV_CMNDFRAME("Cmnd rcv SYS HALTED, undefined error state");
+          while(1){};
+#endif
+        }else{/*nothing*/}
       }else{/*nothing*/}
     }else{/*nothing*/}
 
+    //check the error codes
     if(eEC == ER_DONE)
     {
+      //buffer transfer was complete
       eEC = ER_OK;
       break;
-    }
+    }else{/*nothing*/}
   }
 
+  //check if all receive buffers were checked and no data was copied
   if(index == NUM_DMA_RDIO_RCV_BUFFS)
   {
-    eEC = ER_NODATA;
-  }
+    if(eEC == ER_FAIL)
+    {
+      //no data was received
+      eEC = ER_NODATA;
+    }else{/*nothing*/}
+#ifdef DEBUG
+    vDEBUG_RDIO_DMARCV_CMNDFRAME("Cmnd rcv SYS HALTED, no data rcvd");
+    while(1){};
+#endif
+  }else{/*nothing*/}
 
 #elif  USE_RADIO_UART_DMA == false
   eEC = ER_NOT_ENABLED;
+#ifdef DEBUG
+  vDEBUG_RDIO_DMARCV_CMNDFRAME("Cmnd rcv SYS HALTED, DMA not used fcn should not be called");
+  while(1){};
+#endif
 #endif //USE_RADIO_UART_DMA
 
   return eEC;
+#undef vDEBUG_RDIO_DMARCV_CMNDFRAME
 }
 
+//todo: eRcv_dma_radio_boot_frame may not be needed
 //*****************************************************************************
 // name:
 // description:
@@ -1372,19 +1620,19 @@ ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
 //*****************************************************************************
 ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
 {
-  ERROR_CODE eEC = ER_OK;
+#define DEBUG_eRcv_dma_radio_boot_frame
+#ifdef DEBUG_eRcv_dma_radio_boot_frame
+  #define  vDEBUG_DMARCV_BOOTFRM  vDEBUG
+#else
+  #define vDEBUG_DMARCV_BOOTFRM(a)
+#endif
+  ERROR_CODE eEC = ER_FAIL;
 #if USE_RADIO_UART_DMA == true
   int index = 0;
   int iCpy_index = 0;
   tDMA_RX_struct * ptDMA_que_buff = NULL;
-  uint32_t ui32UART_int_status = 0;
+  bool bIs_DMA_chan_en = false;
   uint32_t uiModem_status_get = 0;
-  uint32_t ui32SysClock = MAP_SysCtlClockGet();
-
-  MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
-  //dma is to fast and causes problems when the device re-boots. A hard delay of 1 second is used to properly compensate for this
-  MAP_SysCtlDelay(ui32SysClock);
-  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
 
   while(bIs_DMA_transmit_in_process == true)
   {
@@ -1395,15 +1643,18 @@ ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
     //we wait
   }
 
-  MAP_UARTModemControlClear(INEEDMD_RADIO_UART, UART_OUTPUT_RTS);
-
   uiModem_status_get = MAP_UARTModemStatusGet(INEEDMD_RADIO_UART);
   while((uiModem_status_get & UART_INPUT_CTS) != UART_INPUT_CTS)
   {
     uiModem_status_get = MAP_UARTModemStatusGet(INEEDMD_RADIO_UART);
   }
+  vDEBUG_DMARCV_BOOTFRM("Boot rcv, CTS rdio done sending");
 
-  MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+  bIs_DMA_chan_en = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_RX);
+  if(bIs_DMA_chan_en == true)
+  {
+    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+  }else{/*nothing*/}
 
   //cycle through the buffers and find the one that was filled
   for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
@@ -1417,27 +1668,34 @@ ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
       if(ptDMA_que_buff->eApp_Buff_Dest == RB_IWRAP_CMND)
       {
         iNum_cmnd_buffs++;
-        if(iNum_cmnd_buffs == 1)
-        {
-//          MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
-          iNum_cmnd_buffs = 1;
-        }
+        if(iNum_cmnd_buffs == 1)                             //todo: debug delete
+        {                                                    //
+//          MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);   //
+          iNum_cmnd_buffs = 1;                               //
+        }                                                    //
+        //preset error code to ok for copy status
+        eEC = ER_OK;
         for(iCpy_index = 0; iCpy_index < uiMax_buff_size; iCpy_index++)
         {
+          //check if the transfer to buffer was overfilled
           if(iCpy_index >= uiMax_buff_size)
           {
             eEC = ER_OVERWRITE;
             break;
           }
+
+          //copy the receive byte to the transfer buffer
           if(eEC == ER_OK)
           {
             cRcv_buff[iCpy_index] = ptDMA_que_buff->uiRcv_Buff[iCpy_index];
           }
 
+          //Check if the end of the received frame was reached
           if(cRcv_buff[iCpy_index] == 0x00)
           {
             eEC = ER_DONE;
             //free and empty the buffer
+            vDEBUG_DMARCV_BOOTFRM("Boot rcv, cpy done & buff freed");
             ptDMA_que_buff->eApp_Buff_Dest = RB_NONE;
             ptDMA_que_buff->bBuff_free = true;
             ptDMA_que_buff->uiRcv_data_len   = 0;
@@ -1446,39 +1704,57 @@ ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
           }
         }
 
-        //check of the copy was complete and free the buffer
-        if(eEC == ER_DONE)
-        {
-          ptDMA_que_buff->eApp_Buff_Dest = RB_NONE;
-          ptDMA_que_buff->bBuff_free = true;
-        }
-        else
+        //check fatal errors
+        if(eEC == ER_OVERWRITE)
         {
 #ifdef DEBUG
+          vDEBUG_DMARCV_BOOTFRM("Boot rcv SYS HALTED, cpy overwrite");
           while(1){};
 #endif
         }
-
+        else if(eEC == ER_FAIL)
+        {
+#ifdef DEBUG
+          vDEBUG_DMARCV_BOOTFRM("Boot rcv SYS HALTED, undefined error state");
+          while(1){};
+#endif
+        }else{/*nothing*/}
       }else{/*nothing*/}
     }else{/*nothing*/}
 
+    //check the error codes
     if(eEC == ER_DONE)
     {
+      //buffer transfer was complete
       eEC = ER_OK;
       break;
-    }
+    }else{/*nothing*/}
   }
 
+  //check if all receive buffers were checked and no data was copied
   if(index == NUM_DMA_RDIO_RCV_BUFFS)
   {
-    eEC = ER_NODATA;
-  }
+    if(eEC == ER_FAIL)
+    {
+      //no data was received
+      eEC = ER_NODATA;
+    }else{/*nothing*/}
+#ifdef DEBUG
+    vDEBUG_DMARCV_BOOTFRM("Boot rcv SYS HALTED, no data rcvd");
+    while(1){};
+#endif
+  }else{/*nothing*/}
 
 #elif  USE_RADIO_UART_DMA == false
   eEC = ER_NOT_ENABLED;
+#ifdef DEBUG
+  vDEBUG_DMARCV_BOOTFRM("Boot rcv SYS HALTED, DMA not used fcn should not be called");
+  while(1){};
+#endif
 #endif //USE_RADIO_UART_DMA
 
   return eEC;
+#undef vDEBUG_DMARCV_BOOTFRM
 }
 
 ERROR_CODE eIs_UART_using_DMA(void)
@@ -1514,7 +1790,7 @@ int iRadio_interface_int_enable(void)
   // Enable the UART interrupt.
   //
   ROM_IntEnable(INEEDMD_RADIO_UART_INT);
-  ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+  ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_TX | UART_INT_RX | UART_INT_RT | UART_INT_CTS);
 
   eMaster_int_enable();
   return 1;
@@ -1532,7 +1808,7 @@ int iRadio_interface_int_disable(void)
   // Disable the radio uart interrupt.
   //
   ROM_IntDisable(INEEDMD_RADIO_UART_INT);
-  ROM_UARTIntDisable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+  ROM_UARTIntDisable(INEEDMD_RADIO_UART, UART_INT_TX | UART_INT_RX | UART_INT_RT | UART_INT_CTS);
   return 1;
 }
 
@@ -1583,6 +1859,9 @@ void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status)
   if((ui32DMA_int_status & RADIO_TX_UDMA_CHANNEL_BITMASK) == RADIO_TX_UDMA_CHANNEL_BITMASK)
   {
     bIs_DMA_transmit_in_process = false;
+//    MAP_UARTModemControlClear(INEEDMD_RADIO_UART, UART_OUTPUT_RTS);
+//    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_TX);
+//    vRadio_interface_DMA_tx_service();
   }
 
   if((ui32DMA_int_status & RADIO_RX_UDMA_CHANNEL_BITMASK) == RADIO_RX_UDMA_CHANNEL_BITMASK)
@@ -1609,126 +1888,6 @@ void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
   {
     bIs_usart_timeout = false;
   }
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void vRadio_interface_DMA_rcv_service(void)
-{
-  ERROR_CODE eEC = ER_FAIL;
-#if USE_RADIO_UART_DMA == true
-  int index;
-  tDMA_RX_struct * ptDMA_que_buff = NULL;
-
-  //cycle through the buffers and find the one that was filled
-  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
-  {
-    ptDMA_que_buff = &tDMA_RX_struct_array[index];
-
-    //check if the buffer is NOT free, therefore potentially was filled via DMA
-    if(ptDMA_que_buff->bBuff_free == false)
-    {
-      //check if the buffer was NOT already queued for an app to review
-      if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
-      {
-        eEC = eIs_radio_in_cmnd_mode();
-        if(eEC == ER_TRUE)
-        {
-          ptDMA_que_buff->eApp_Buff_Dest = RB_IWRAP_CMND;
-          eEC = ER_OK;
-          continue;
-        }
-        else
-        {
-          eEC = ER_OK;
-        }
-
-        if(ptDMA_que_buff->uiRcv_Buff[0] == 0x9C)
-        {
-          ptDMA_que_buff->eApp_Buff_Dest = RB_INEEDMD_CMND;
-          continue;
-        }
-      }else{/*nothing*/}
-    }else{/*nothing*/}
-  }
-
-  //check the error code to determine if none of the buffers were serviced
-  if(eEC == ER_FAIL)
-  {
-    //There is no data to send to the application
-    eEC = ER_NODATA;
-  }else{/*nothing*/}
-
-  //check the error status and proceed accordingly
-  if(eEC == ER_OK)
-  {
-//    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
-
-    //preset the error code
-    eEC = ER_FAIL;
-
-    //cycle the buffers and fine a free one to assign to the DMA
-    for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
-    {
-      ptDMA_que_buff = &tDMA_RX_struct_array[index];
-
-      //check if the buffer is free to fill via DMA
-      if(ptDMA_que_buff->bBuff_free == true)
-      {
-        //check if the buffer was NOT already queued for an app to review
-        if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
-        {
-          //set the DMA RX to the next rcv buffer
-          ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT,
-                                     UDMA_MODE_BASIC,
-                                     (void *)(INEEDMD_RADIO_UART + UART_O_DR),
-                                     ptDMA_que_buff->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
-
-          //mark the buffer as in use
-          ptDMA_que_buff->bBuff_free = false;
-          MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
-          eEC = ER_OK;
-          break;
-
-        }else{/*nothing*/}
-      }else{/*nothing*/}
-    }
-  }else{/*nothing*/}
-
-  //check if a free buffer was not allocated
-  if(eEC == ER_FAIL)
-  {
-    eEC = ER_NO_BUFF_AVAILABLE;
-  }else{/*nothing*/}
-
-
-  //check for errors
-  if(eEC == ER_NO_BUFF_AVAILABLE)
-  {
-#ifdef DEBUG
-    // Catch no buffers available
-    while(1){};
-#else
-    //todo: perform a system reset maybe?
-#endif
-  }
-  else if(eEC == ER_NODATA)
-  {
-    //todo: need a nodata counter maybe?
-#ifdef DEBUG
-    // Catch no data available
-    while(1){};
-#else
-    //todo: need a nodata counter maybe?
-#endif
-  }
-  else{/*nothing*/}
-#endif //USE_RADIO_UART_DMA
-  return;
 }
 
 //*****************************************************************************
