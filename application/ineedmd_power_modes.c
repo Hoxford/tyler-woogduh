@@ -85,14 +85,14 @@ sleep_for_tenths(int number_tenths_seconds){
     //
 
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    ROM_IntMasterEnable();
+    eMaster_int_enable();
     ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
     TimerLoadSet(TIMER0_BASE, TIMER_A, (50000 * number_tenths_seconds) );
 
     //
     // Enable processor interrupts.
     //
-    IntMasterEnable();
+    eMaster_int_enable();
     //
     // Configure the Timer0 interrupt for timer timeout.
     //
@@ -118,13 +118,13 @@ sleep_for_tenths(int number_tenths_seconds){
     ROM_SysCtlDeepSleep();
 
     TimerDisable(TIMER0_BASE, TIMER_A);
-    IntDisable(INT_TIMER0A);
-    IntMasterDisable();
+    eMaster_int_disable();
     vDEBUG_SLEEP_10THS("waking_up");
             //go to a fast clock
     if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
     {
       vDEBUG_SLEEP_10THS("..CPU half speed");
     }
+    eMaster_int_enable();
 #undef vDEBUG_SLEEP_10THS
 }

@@ -189,7 +189,7 @@ void check_for_update(void)
 //      MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
 //      MAP_SysTickIntEnable();
 //      MAP_SysTickEnable();
-//      MAP_IntMasterDisable();
+//      eMaster_int_disable();
 //      MAP_SysTickIntDisable();
 //      MAP_SysTickDisable();
       HWREG(NVIC_DIS0) = 0xffffffff;
@@ -204,7 +204,7 @@ void check_for_update(void)
 //      MAP_SysCtlDelay(ui32SysClock / 3);
 
       // Re-enable interrupts at NVIC level
-      MAP_IntMasterEnable();
+      eMaster_int_enable();
 
       //set the led's to DFU mode
       ineedmd_led_pattern(DFU_MODE2);
@@ -263,7 +263,7 @@ main(void)
   iADC_setup();
 
   //set up the module radio
-//  iIneedMD_radio_setup();
+  iIneedMD_radio_setup();
 
   vDEBUG("Starting super loop");
   while(1)
