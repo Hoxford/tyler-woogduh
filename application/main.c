@@ -263,16 +263,16 @@ main(void)
   iADC_setup();
 
   //set up the module radio
-//  iIneedMD_radio_setup();
+  iIneedMD_radio_setup();
 
   vDEBUG("Starting super loop");
   while(1)
   {
     ineedmd_watchdog_pat();
 
-//    iIneedMD_radio_process();
+    iIneedMD_radio_process();
 
-//    iIneedmd_command_process();
+    iIneedmd_command_process();
 
 //    iIneedmd_waveform_process();
 

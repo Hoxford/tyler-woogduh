@@ -35,13 +35,19 @@ typedef enum
     ER_FALSE,
     ER_YES,
     ER_NO,
+    ER_ENABLED,
+    ER_NOT_ENABLED,
     ER_TIMEOUT,
+    ER_DONE,
     ER_PARAM,
     ER_PARAM1,
     ER_PARAM2,
     ER_PARAM3,
     ER_BUFF_SIZE,
+    ER_NO_BUFF,
+    ER_NO_BUFF_AVAILABLE,
     ER_NOMEM,
+    ER_OVERWRITE,
     ER_CLOSED,
     ER_CLOSE,
     ER_OPENED,
@@ -49,7 +55,12 @@ typedef enum
     ER_NODATA,
     ER_COMMAND,
     ER_MODES,
-    ER_MODE
+    ER_MODE,
+    ER_TRANSMIT,
+    ER_RECEIVE,
+    ER_VALID,
+    ER_INVALID,
+    ER_INVALID_RESPONSE
 }ERROR_CODE;
 
 //*****************************************************************************

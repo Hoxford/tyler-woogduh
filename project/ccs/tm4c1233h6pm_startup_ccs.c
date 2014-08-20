@@ -26,11 +26,13 @@
 #include <stdbool.h>
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "driverlib/uart.h"
 #include "driverlib/timer.h"
+#include "driverlib/uart.h"
+#include "driverlib/udma.h"
 #include <inc/tm4c1233h6pm.h>
 #include <inc/hw_memmap.h>
 #include "board.h"
+#include "utils_inc/proj_debug.h"
 
 //*****************************************************************************
 //
@@ -43,7 +45,7 @@ static void FaultISR(void);
 static void IntDefaultHandler(void);
 static void vSysTickIntHandler(void);
 static void vUART1_Rx_and_Tx  (void);
-static void Reset_me(void);
+//static void Reset_me(void);
 static void Timer0AIntHandler(void);
 static void USB0Int(void);
 
@@ -292,6 +294,7 @@ NmiSR(void)
 static void
 FaultISR(void)
 {
+    vDEBUG("FaultISR SYS HALT");
     //
     // Enter an infinite loop.
     //
@@ -310,6 +313,7 @@ FaultISR(void)
 static void
 IntDefaultHandler(void)
 {
+    vDEBUG("IntDefaultHandler SYS HALT");
     //
     // Go into an infinite loop.
     //
@@ -369,17 +373,11 @@ vUART1_Rx_and_Tx(void)
 // It will call the asm reset code which completly restarts the system.
 //
 //*****************************************************************************
-static void
-Reset_me(void)
-{
-  ResetISR();
-    //
-    // Go into an infinite loop.
-    //
-//    while(1)
-//    {
-//    }
-}
+//static void
+//Reset_me(void)
+//{
+//  ResetISR();
+//}
 
 static void
 Timer0AIntHandler(void)
