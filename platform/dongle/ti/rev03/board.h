@@ -117,6 +117,7 @@ int         RadioUARTDisable(void);
 int         iRadio_Power_On(void);
 int         iRadio_Power_Off(void);
 ERROR_CODE  eSet_radio_to_cmnd_mode(void);
+ERROR_CODE eSet_radio_to_data_mode(void);
 ERROR_CODE  eUsing_radio_uart_dma(void);
 int         iRadio_interface_enable(void);
 int         iRadio_gpio_set(uint16_t uiMask);

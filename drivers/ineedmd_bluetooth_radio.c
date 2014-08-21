@@ -61,16 +61,12 @@
 #define INEEDMD_CMND_SOF    0x9C
 #define INEEDMD_CMND_EOF    0xC9
 
-#define PIO               "\r\nPIO %s %x %x\r\n"
-//todo: completly define these
-  #define PIO_CMND_GET
-  #define PIO_CMND_GETDIR
-  #define PIO_CMND_GETBIAS
-  #define PIO_CMND_SET
-  #define PIO_CMND_SETDIR
-  #define PIO_CMND_SETBIAS
-  #define PIO_CMND_RESET
-    #define PIO_CMND
+#define PIO_GET           "PIO GET\r\n"
+#define PIO_GETDIR        "PIO GETDIR\r\n"
+#define PIO_GETBIAS       "PIO GETBIAS\r\n"
+#define PIO_SET           "PIO SET %.4x %.4x\r\n"
+#define PIO_SETDIR        "PIO SETDIR %.4x %.4x\r\n"
+#define PIO_SETBIAS       "PIO SETBIAS %.4x %.4x\r\n"
   #define PIO_MASK_PIO0   0x0001
   #define PIO_MASK_PIO1   0x0002
   #define PIO_MASK_PIO2   0x0004
@@ -83,20 +79,37 @@
   #define PIO_MASK_PIO9   0x0200
   #define PIO_MASK_PIO10  0x0400
   #define PIO_MASK_PIO11  0x0800
-    #define PIO_MASK_PIO
-  #define PIO_STATE_PIO0
-  #define PIO_STATE_PIO1
-  #define PIO_STATE_PIO2
-  #define PIO_STATE_PIO3
-  #define PIO_STATE_PIO4
-  #define PIO_STATE_PIO5
-  #define PIO_STATE_PIO6
-  #define PIO_STATE_PIO7
-  #define PIO_STATE_PIO8
-  #define PIO_STATE_PIO9
-  #define PIO_STATE_PIO10
-  #define PIO_STATE_PIO11
-    #define PIO_STATE
+  #define PIO_STATE_LOW_PIO0    0x0000
+  #define PIO_STATE_HIGH_PIO0   0x0001
+  #define PIO_STATE_LOW_PIO1    0x0000
+  #define PIO_STATE_HIGH_PIO1   0x0002
+  #define PIO_STATE_LOW_PIO2    0x0000
+  #define PIO_STATE_HIGH_PIO2   0x0004
+  #define PIO_STATE_LOW_PIO3    0x0000
+  #define PIO_STATE_HIGH_PIO3   0x0008
+  #define PIO_STATE_LOW_PIO4    0x0000
+  #define PIO_STATE_HIGH_PIO4   0x0010
+  #define PIO_STATE_LOW_PIO5    0x0000
+  #define PIO_STATE_HIGH_PIO5   0x0020
+  #define PIO_STATE_LOW_PIO6    0x0000
+  #define PIO_STATE_HIGH_PIO6   0x0040
+  #define PIO_STATE_LOW_PIO7    0x0000
+  #define PIO_STATE_HIGH_PIO7   0x0080
+  #define PIO_STATE_LOW_PIO8    0x0000
+  #define PIO_STATE_HIGH_PIO8   0x0100
+  #define PIO_STATE_LOW_PIO9    0x0000
+  #define PIO_STATE_HIGH_PIO9   0x0200
+  #define PIO_STATE_LOW_PIO10   0x0000
+  #define PIO_STATE_HIGH_PIO10  0x0400
+  #define PIO_STATE_LOW_PIO11   0x0000
+  #define PIO_STATE_HIGH_PIO11  0x0800
+    #define PIO_SET_MASK
+    #define PIO_SET_STATE
+    #define PIO_SETDIR_MASK    PIO_MASK_PIO0
+    #define PIO_SETDIR_STATE   PIO_STATE_HIGH_PIO0
+    #define PIO_SETBIAS_MASK   PIO_MASK_PIO0
+    #define PIO_SETBIAS_STATE  PIO_STATE_HIGH_PIO0
+#define PIO_RESET  "PIO RESET\r\n"
 #define RESET             "\r\nRESET\r\n"
 #define SDP               "\r\nSDP %s %s %s\r\nSDP\r\n"
   #define SDP_REMOTE_DEV_ADDR    cRemore_dev_addr_string
@@ -155,7 +168,7 @@
                                       | SET_CONTROL_ECHO_COMMAND_OFF   \
                                       | SET_CONTROL_ECHO_SET_EVENT_OFF \
                                       | SET_CONTROL_ECHO_SYNTAX_ERR_ON)
-#define SET_CONTROL_ESCAPE "SET CONTROL ESCAPE %d %.2x %d\r\n"
+#define SET_CONTROL_ESCAPE "SET CONTROL ESCAPE %c %.2x %d\r\n"
   #define SET_CONTROL_ESCAPE_ESC_CHAR_DISABLE  '-'
   #define SET_CONTROL_ESCAPE_ESC_CHAR_DEFAULT  '+'
   #define SET_CONTROL_ESCAPE_ESC_CHAR_NEW      '?'
@@ -166,7 +179,7 @@
   #define SET_CONTROL_ESCAPE_DTR_MODE_CMND_MODE   1
   #define SET_CONTROL_ESCAPE_DTR_MODE_CLOSE_CONN  2
   #define SET_CONTROL_ESCAPE_DTR_MODE_SOFT_RST    3
-    #define SET_CONTROL_ESCAPE_DTR_MODE  SET_CONTROL_ESCAPE_DTR_MODE_CLOSE_CONN
+    #define SET_CONTROL_ESCAPE_DTR_MODE  SET_CONTROL_ESCAPE_DTR_MODE_CMND_MODE
 #define SET_CONTROL_MUX  "\r\nSET CONTROL MUX %d\r\n"
   #define SET_CONTROL_MUX_MODE_DISABLE  0
   #define SET_CONTROL_MUX_MODE_ENABLE   1
@@ -242,22 +255,13 @@ int iIneedmd_radio_cmnd_mode(bool bMode_Set)
 #else
   #define vDEBUG_RDIO_CMND_MODE(a)
 #endif
-  //todo: ABSTRACT!
   if(bMode_Set == true)
   {
     eSet_radio_to_cmnd_mode();
   }
   else if(bMode_Set == false)
   {
-//    int32_t iPin_Set;
-//    iPin_Set = MAP_GPIOPinRead(GPIO_PORTE_BASE, GPIO_PIN_3);
-//    if(GPIO_PIN_3 == iPin_Set)
-//    {
-//      iPin_Set = MAP_GPIOPinRead(GPIO_PORTE_BASE, 0xff); //todo: define magic number to all pins or something
-//      iPin_Set =iPin_Set & 0xf7;
-      MAP_GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_3, 0);
-//    }
-
+    eSet_radio_to_data_mode();
   }
   else
   {
@@ -992,6 +996,67 @@ int  iIneedMD_radio_setup(void)
     iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
     vRADIO_ECHO(cRcv_buff);
 
+    //PIO GETDIR, get the radio io direction
+    memset(cSend_buff, 0x00, BG_SIZE);
+    eEC = eSend_Radio_CMND(PIO_GETDIR, strlen(PIO_GETDIR));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("Rdio setup, PIO GETDIR, get the radio io direction");
+    }
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+    vRADIO_ECHO(cRcv_buff);
+
+    //PIO SETDIR, tell the radio what auth method we are using
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, PIO_SETDIR, PIO_SETDIR_MASK, PIO_SETDIR_STATE);
+    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("Rdio setup, PIO SETDIR, set the radio io pins");
+      vRADIO_ECHO(cSend_buff);
+    }
+
+    //PIO GETDIR, Get the radio pio direction
+    eEC = eSend_Radio_CMND(PIO_GETDIR, strlen(PIO_GETDIR));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("Rdio setup, PIO GETDIR, get the radio io pin direction");
+    }
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+    vRADIO_ECHO(cRcv_buff);
+
+//    //PIO SETBIAS, set the radio io pin bias to strong low high pullup
+//    memset(cSend_buff, 0x00, BG_SIZE);
+//    snprintf(cSend_buff, BG_SIZE, PIO_SETBIAS, PIO_SETBIAS_MASK, PIO_SETBIAS_STATE);
+//    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
+//    if(eEC == ER_OK)
+//    {
+//      vDEBUG_RDIO_SETUP("Rdio setup, PIO SETBIAS, set the radio io pin bias to strong low high");
+//    }
+
+    //PIO GETBIAS, Get the radio pio bias
+    eEC = eSend_Radio_CMND(PIO_GETBIAS, strlen(PIO_GETBIAS));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("Rdio setup, PIO GETBIAS, get the radio io pin bias");
+    }
+    memset(cRcv_buff, 0x00, BG_SIZE);
+    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+    vRADIO_ECHO(cRcv_buff);
+
+//    //PIO GETDIR, get the radio io direction
+//    memset(cSend_buff, 0x00, BG_SIZE);
+//    eEC = eSend_Radio_CMND(PIO_GETDIR, strlen(PIO_GETDIR));
+//    if(eEC == ER_OK)
+//    {
+//      vDEBUG_RDIO_SETUP("Rdio setup, PIO GETDIR, get the radio io direction");
+//    }
+//    memset(cRcv_buff, 0x00, BG_SIZE);
+//    iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
+//    vRADIO_ECHO(cRcv_buff);
+
     //SET BT AUTH, tell the radio what auth method we are using
     memset(cSend_buff, 0x00, BG_SIZE);
     snprintf(cSend_buff, BG_SIZE, SET_BT_AUTH, SET_BT_AUTH_MODE, SET_BT_AUTH_PIN_CODE);
@@ -999,6 +1064,7 @@ int  iIneedMD_radio_setup(void)
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, SET BT AUTH, set the BT auth method");
+      vRADIO_ECHO(cSend_buff);
     }
 
     //SET BT SSP, tell the radio we are using BT SSP pairing
@@ -1008,6 +1074,7 @@ int  iIneedMD_radio_setup(void)
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, SET BT SSP, set the SSP pairing");
+      vRADIO_ECHO(cSend_buff);
     }
 
     //SET PROFILE SPP, tells the radio we are using SPP protocol
@@ -1018,6 +1085,7 @@ int  iIneedMD_radio_setup(void)
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, SET PROFILE SPP, set the SPP protocol");
+      vRADIO_ECHO(cSend_buff);
     }
 
     // sets the battery mode for the radio,  configures the - low bat warning voltage - the low voltage lock out - the charge release voltage - that this signal is radio GPIO 01
@@ -1027,6 +1095,7 @@ int  iIneedMD_radio_setup(void)
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, SET_CONTROL_BATT");
+      vRADIO_ECHO(cSend_buff);
     }
 
     //get BT address
@@ -1034,6 +1103,7 @@ int  iIneedMD_radio_setup(void)
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, SET BT BDADDR, get the BT mac addr");
+      vRADIO_ECHO(SET_BT_BDADDR);
     }
     memset(cRcv_buff, 0x00, BG_SIZE);
     iEC = iIneedmd_radio_rcv_string(cRcv_buff, BG_SIZE);
@@ -1063,6 +1133,7 @@ int  iIneedMD_radio_setup(void)
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, SET BT PAIRCOUNT, set max number of pairings");
+      vRADIO_ECHO(cSend_buff);
     }
 
     //set the escape mode
@@ -1080,6 +1151,7 @@ int  iIneedMD_radio_setup(void)
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, RESET, perform software reset");
+      vRADIO_ECHO(RESET);
     }
 
     vDEBUG_RDIO_SETUP("Rdio setup, waiting for the radio to come back from reset");

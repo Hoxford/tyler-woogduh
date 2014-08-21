@@ -347,7 +347,7 @@ vUART1_Rx_and_Tx(void)
   //
   // Get the interrrupt status.
   //
-  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
 
   if((ui32Status & UART_INT_RX) == UART_INT_RX)
   {

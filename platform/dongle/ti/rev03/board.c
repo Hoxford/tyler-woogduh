@@ -532,6 +532,8 @@ RadioUARTEnable(void)
     // Enables the communication FIFO
     UARTFIFOEnable(INEEDMD_RADIO_UART);
 
+    MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX7_8, UART_FIFO_RX1_8);
+
     //Do the final UART enable that enables transmitting and receiving
     UARTEnable(INEEDMD_RADIO_UART);
 
@@ -561,8 +563,32 @@ ERROR_CODE eSet_radio_to_cmnd_mode(void)
 {
   ERROR_CODE eEC = ER_FAIL;
 
-  iRadio_gpio_config(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+  ROM_GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_1);
+  ROM_GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_PIN_1);
+//  iRadio_gpio_config(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+//  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, 0);
+  iHW_delay(10);
   MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN);
+
+  eEC = ER_OK;
+
+  return eEC;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eSet_radio_to_data_mode(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, 0);
+
+  eEC = ER_OK;
 
   return eEC;
 }
