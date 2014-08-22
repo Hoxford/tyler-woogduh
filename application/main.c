@@ -207,7 +207,7 @@ void check_for_update(void)
       MAP_IntMasterEnable();
 
       //set the led's to DFU mode
-      ineedmd_led_pattern(DFU_MODE2);
+      ineedmd_led_pattern(DFU_MODE);
 
       set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
       //begin the DFU usb update procedure
@@ -220,6 +220,21 @@ void check_for_update(void)
     }
   }
   USBPortDisable();
+}
+
+void check_for_reset(void)
+{
+  //uint32_t uiLead_status = ineedmd_adc_Check_Lead_Off();
+#define LEAD_SHORT_RESET 0xA0FF
+  if(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT_RESET)
+  {
+    vDEBUG("Reset short in place!");
+    vDEBUG("Device going into reset");
+    ineedmd_led_pattern(REBOOT);
+    //should never reach this but if so sys will reboot
+    ineedmd_watchdog_doorbell();
+    while(1);
+  }
 }
 
 //*****************************************************************************
@@ -259,26 +274,25 @@ main(void)
   //mount the file system
 //  iFileSys_mount(&sFile_Sys, 0, 1);
 
-
   iADC_setup();
 
   //set up the module radio
   iIneedMD_radio_setup();
 
-  vDEBUG("Starting super loop");
+  vDEBUG("Waiting For Connection");
+
+  vDEBUG("Connection Found Starting super loop");
   while(1)
   {
     ineedmd_watchdog_pat();
-
     iIneedMD_radio_process();
-
     iIneedmd_command_process();
-
-//    iIneedmd_waveform_process();
+    iIneedmd_waveform_process();
 
 //    led_test();
 //    check_battery();
 //    check_for_update();
+    check_for_reset();
   }
 
   //todo debug and possible reset

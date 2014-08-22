@@ -23,22 +23,8 @@
 #include "app_inc/ineedmd_watchdog.h"
 #include "ineedmd_bluetooth_radio.h"
 #include "utils_inc/proj_debug.h"
-
-//*****************************************************************************
-// defines
-//*****************************************************************************
-#define INMD_FRAME_BUFF_SIZE    256
-#define NACK_FRAME_SIZE  12
-#define ACK_FRAME_SIZE   12
-#define DWORD    unsigned long
-
-#define COMMAND_FLAG      0x01
-#define STATUS_FLAG       0x02
-#define MEASURE_FLAG      0x03
-#define STATUS_HIBERNATE  0x00
-#define STATUS_SLEEP      0x20
-#define STATUS_ON         0x40
-#define STATUS_POWER      0x60
+#include "ineedmd_led.h"
+#include "app_inc/ineedmd_power_modes.h"
 
 #ifdef DEBUG
   #define printf        vDEBUG
@@ -83,7 +69,7 @@ static char ACK[ACK_FRAME_SIZE]; //this too is a string
 //*****************************************************************************
 // external functions
 //*****************************************************************************
-
+extern void check_for_update(void);
 //*****************************************************************************
 // function declarations
 //*****************************************************************************
@@ -114,6 +100,26 @@ void initACKNACK(void)
   sprintf(ACK, "%.2X %.2X %.2X %.2X", 0x9C, 0x00, 0x04, 0xC9);
 }
 
+int ineedmd_send_ack()
+{
+  uint8_t ACK_[4] = {0x9c, 0x00, 0x04, 0xC9};
+  ineedmd_radio_send_frame(ACK_, 4);
+  printf("ACK\n");
+  //needed for android
+  //ineedmd_radio_send_string("\r", strlen("\r"));
+  return 1;
+}
+
+
+int ineedmd_send_nack()
+{
+  uint8_t NACK_[4] = {0x9c, 0xFF, 0x04, 0xC9};
+  ineedmd_radio_send_frame(NACK_, 4);
+  printf("NACK\n");
+  //needed for android
+  //ineedmd_radio_send_string("\r", strlen("\r"));
+  return 1;
+}
 //todo: define this
 //int SearchArrCmd(char cArrCmd)
 //{
@@ -730,37 +736,208 @@ void ParseFrame(void *pt)
           }
           break;
         case 0x00: //false
-          isRealStream = 0;
-          printf("\nStop real-time streaming....");
+            isRealStream = 0;
+            printf("\nStop real-time streaming....");
           //writeDataToPort(ACK);
-          break;
+            break;
           /*default:
           printf("\nMissing argument to indicate beginning of streaming real time! Sending NACK!");
           writeDataToPort(NACK);*/
-          break;
+            break;
         default:
-          printf("\nMissing argument 'TRUE/FALSE'!");
-          printf("\nSending NACK!");
-          writeDataToPort(NACK);
-          break;
+            printf("\nMissing argument 'TRUE/FALSE'!");
+            printf("\nSending NACK!");
+            writeDataToPort(NACK);
+            break;
         }
         break;
 
-      case 0x18://request to send test signal.
-        if(Frame[4] == 0x01)
+      case REQUEST_TO_TEST://request to send test signal.
+        //printf("Received Request to Test");
+        if(Frame[4] == EKG_TEST_PAT)
         {
           printf("Received \"test\" request...");
           iIneedmd_waveform_enable_TestSignal();
         }
-        else if(Frame[4] == 0x00)
+        else if(Frame[4] == LED_TEST_PATTERN)
+        {
+          printf("Received LED test request");
+          switch(Frame[5])
+          {
+            case LED_OFF:
+              printf("LED_OFF");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(LED_OFF);
+              break;
+            case POWER_ON_BATT_LOW:
+              printf("POWER_ON_BATT_LOW");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(POWER_ON_BATT_LOW);
+              break;
+            case POWER_ON_BATT_GOOD:
+              printf("POWER_ON_BATT_GOOD");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(POWER_ON_BATT_GOOD);
+              break;
+            case BATT_CHARGING:
+              printf("BATT_CHARGING");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(BATT_CHARGING);
+              break;
+            case BATT_CHARGING_LOW:
+              printf("BATT_CHARGING_LOW");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(BATT_CHARGING_LOW);
+              break;
+            case LEAD_LOOSE:
+              printf("LEAD_LOOSE");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(LEAD_LOOSE);
+              break;
+            case LEAD_GOOD_UPLOADING:
+              printf("LEAD_GOOD_UPLOADING");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(LEAD_GOOD_UPLOADING);
+              break;
+            case DIG_FLATLINE:
+              printf("DIG_FLATLINE");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(DIG_FLATLINE);
+              break;
+            case BT_CONNECTED:
+              printf("BT_CONNECTED");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(BT_CONNECTED);
+              break;
+            case BT_ATTEMPTING:
+              printf("BT_ATTEMPTING");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(BT_ATTEMPTING);
+              break;
+            case BT_FAILED:
+              printf("BT_FAILED");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(BT_FAILED);
+              break;
+            case USB_CONNECTED:
+              printf("USB_CONNECTED");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(USB_CONNECTED);
+              break;
+            case USB_FAILED:
+              printf("USB_FAILED");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(USB_FAILED);
+              break;
+            case DATA_TRANSFER:
+              printf("DATA_TRANSFER");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(DATA_TRANSFER);
+              break;
+            case TRANSFER_DONE:
+              printf("TRANSFER_DONE");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(TRANSFER_DONE);
+              break;
+            case STORAGE_WARNING:
+              printf("STORAGE_WARNING");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(STORAGE_WARNING);
+              break;
+            case ERASING:
+              printf("ERASING");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(ERASING);
+              break;
+            case ERASE_DONE:
+              printf("ERASE_DONE");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(ERASE_DONE);
+              break;
+            case DFU_MODE:
+              printf("DFU_MODE");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(DFU_MODE);
+              break;
+            case MV_CAL:
+              printf("MV_CAL");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(MV_CAL);
+              break;
+            case TRI_WVFRM:
+              printf("TRI_WVFRM");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(TRI_WVFRM);
+              break;
+            case REBOOT:
+              printf("REBOOT");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(REBOOT);
+              break;
+            case HIBERNATE:
+              printf("HIBERNATE");
+              ineedmd_send_ack();
+              //TODO: add battery state check
+              ineedmd_led_pattern(HIBERNATE);
+              break;
+            case LEADS_ON:
+              printf("LEADS_ON");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(LEADS_ON);
+              break;
+            case MEMORY_TEST:
+              printf("MEMORY_TEST");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(MEMORY_TEST);
+              break;
+            case COM_BUS_TEST:
+              printf("COM_BUS_TEST");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(COM_BUS_TEST);
+              break;
+            case CPU_CLOCK_TEST:
+              printf("CPU_CLOCK_TEST");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(CPU_CLOCK_TEST);
+              break;
+            case FLASH_TEST:
+              printf("FLASH_TEST");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(FLASH_TEST);
+              break;
+            case TEST_PASS:
+              printf("TEST_PASS");
+              ineedmd_send_ack();
+              ineedmd_led_pattern(TEST_PASS);
+              break;
+            default:
+              printf("Unrecongnized Sequence - No Soup For You");
+              ineedmd_send_nack();
+              ineedmd_led_pattern(LED_OFF);
+              break;
+          }
+        }
+        else if(Frame[4] == STOP_EKG_TEST_PAT)
         {
           printf("Received \"test\" terminate...");
           iIneedmd_waveform_disable_TestSignal();
         }
-        else if(Frame[4] == 0x0F)
+        else if(Frame[4] == REQ_FOR_DFU)
         {
           printf("Performing DFU...");
+          ineedmd_send_ack();
+          check_for_update();
           ineedmd_watchdog_doorbell();
+          //TODO: add dfu entry
+        }
+        else if(Frame[4] == REQ_FOR_RESET)
+        {
+          printf("Performing RESET..");
+          ineedmd_send_ack();
+          //TODO: add reset
+          ineedmd_watchdog_doorbell();
+          //__asm("    .global _c_int00\n"
+          //         "    b.w     _c_int00");
         }
         //the output expected is TEST DATA PATTERN 1
 //        printf("\nReceived \"test\" request...");
@@ -769,8 +946,11 @@ void ParseFrame(void *pt)
 //        printf("Sending pattern 1...");
 //        sprintf(replyToSend, "test data <pattern-1>");//this is temporary, and is going to be updated by the actual packet, which is not known to us at this point.
 //        writeDataToPort(replyToSend);
-
-        break;
+        else
+        {
+          break;
+        }
+      printf("Done");
       }
     }
   }
