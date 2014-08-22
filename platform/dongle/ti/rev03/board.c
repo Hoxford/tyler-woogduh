@@ -43,6 +43,7 @@
 #include "file.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include "utils_inc/proj_debug.h"
 #include "inc/hw_types.h"
@@ -78,6 +79,7 @@
 * variables
 ******************************************************************************/
 volatile bool bIs_usart_data = false;
+volatile uint32_t uiCTS_int_status = 0;
 volatile bool bIs_usart_timeout = false;
 volatile bool bRdio_track_timeout_tick = false;
 volatile uint32_t uiRdio_timeout_tick = 0;
@@ -561,6 +563,15 @@ iRadio_Power_Off(void)
 //*****************************************************************************
 ERROR_CODE eSet_radio_to_cmnd_mode(void)
 {
+#define DEBUG_eSet_radio_to_cmnd_mode
+#ifdef DEBUG_eSet_radio_to_cmnd_mode
+  #define  SND_BUFF_SZ  32
+  #define  vDEBUG_BRD_SET_RDIO_CMND_MODE  vDEBUG
+  char cDbg_snd_buff[SND_BUFF_SZ];
+  uint32_t uiGPIO_rd = 0;
+#else
+  #define vDEBUG_BRD_SET_RDIO_CMND_MODE(a)
+#endif
   ERROR_CODE eEC = ER_FAIL;
 
   ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
@@ -571,9 +582,17 @@ ERROR_CODE eSet_radio_to_cmnd_mode(void)
   iHW_delay(10);
   MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN);
 
+#ifdef DEBUG_eSet_radio_to_cmnd_mode
+  memset(cDbg_snd_buff, 0x00, SND_BUFF_SZ);
+  uiGPIO_rd = MAP_GPIOPinRead(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+  snprintf(cDbg_snd_buff, SND_BUFF_SZ, "Set rdio cmnd md, %.4x", uiGPIO_rd);
+  vDEBUG_BRD_SET_RDIO_CMND_MODE(cDbg_snd_buff);
+#endif
+
   eEC = ER_OK;
 
   return eEC;
+#undef  vDEBUG_BRD_SET_RDIO_CMND_MODE
 }
 
 //*****************************************************************************
@@ -584,13 +603,30 @@ ERROR_CODE eSet_radio_to_cmnd_mode(void)
 //*****************************************************************************
 ERROR_CODE eSet_radio_to_data_mode(void)
 {
+#define DEBUG_eSet_radio_to_data_mode
+#ifdef DEBUG_eSet_radio_to_data_mode
+  #define  SND_BUFF_SZ  32
+  #define  vDEBUG_BRD_SET_RDIO_DTA_MODE  vDEBUG
+  char cDbg_snd_buff[SND_BUFF_SZ];
+  uint32_t uiGPIO_rd = 0;
+#else
+  #define vDEBUG_BRD_SET_RDIO_DTA_MODE(a)
+#endif
   ERROR_CODE eEC = ER_FAIL;
 
   MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, 0);
 
+#ifdef DEBUG_eSet_radio_to_data_mode
+  memset(cDbg_snd_buff, 0x00, SND_BUFF_SZ);
+  uiGPIO_rd = MAP_GPIOPinRead(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+  snprintf(cDbg_snd_buff, SND_BUFF_SZ, "Set rdio dta md, %.4x", uiGPIO_rd);
+  vDEBUG_BRD_SET_RDIO_DTA_MODE(cDbg_snd_buff);
+#endif
+
   eEC = ER_OK;
 
   return eEC;
+#undef vDEBUG_BRD_SET_RDIO_DTA_MODE
 }
 
 //*****************************************************************************
@@ -638,6 +674,7 @@ int iRadio_interface_enable(void)
 {
   RadioUARTEnable();
 
+  iRadio_interface_int_enable();
   return 1;
 }
 
@@ -908,6 +945,83 @@ int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 }
 
 //*****************************************************************************
+// name: eRadio_clear_rcv_buffer
+// description: performs a non-blocking receive on the radio UART untill there
+//   is no more data to receive. This function has a timeout which is its
+//   primary method of determining if there is any more data to receive.
+// param description:
+// return value description: returns an error code
+//                           ER_OK     - this is an invalid error code and should not be returned
+//                           ER_NODATA - there was never any data on the UART to receive
+//                           ER_CLEAR  - there was data on the UART and it was cleared
+//
+//*****************************************************************************
+ERROR_CODE  eRadio_clear_rcv_buffer(void)
+{
+#define DEBUG_eRadio_clear_rcv_buffer
+#ifdef DEBUG_eRadio_clear_rcv_buffer
+  #define  vDEBUG_RDIO_RCV_CLR  vDEBUG
+#else
+  #define vDEBUG_RDIO_RCV_CLR(a)
+#endif
+  ERROR_CODE eEC = ER_OK;
+  int32_t iRcv_data;
+  bool bWas_data = false;
+  int i = 0;
+
+  while(eEC == ER_OK)
+  {
+    //get any data on the radio uart
+    iRcv_data = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+
+    //check if data was received
+    if(iRcv_data != -1)
+    {
+      //mark that data was received
+      bWas_data = true;
+    }else{/*do nothing*/}
+
+    //while there is no data perform a delay, and increment a timeout counter
+    while(iRcv_data == -1)
+    {
+      i += iHW_delay(1);
+      //check if the timeout was reached
+      if(i == 100)
+      {
+        //set the no data error code
+        eEC = ER_NODATA;
+        break;
+      }else{/*do nothing*/}
+
+      iRcv_data = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+      //check if data was received
+      if(iRcv_data != -1)
+      {
+        //if data was receive reset the timeout counter
+        i = 0;
+
+        //mark that data was received
+        bWas_data = true;
+      }else{/*do nothing*/}
+    }
+  }
+
+  //check if ANY data was received and set the proper error code
+  if(bWas_data == true)
+  {
+    vDEBUG_RDIO_RCV_CLR("Rdio rcv clr, there was rcv data to clear");
+    eEC = ER_CLEAR;
+  }
+  else
+  {
+    vDEBUG_RDIO_RCV_CLR("Rdio rcv clr, no rcv data to clear");
+  }
+
+  return eEC;
+#undef vDEBUG_RDIO_RCV_CLR
+}
+
+//*****************************************************************************
 // name:
 // description:
 // param description:
@@ -1095,7 +1209,7 @@ int iRadio_interface_int_enable(void)
   uint32_t ui32Status;
 
   // Get the interrrupt status.
-  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
   //clear any asserted interrupts
   MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
 
@@ -1105,8 +1219,8 @@ int iRadio_interface_int_enable(void)
   //
   // Enable the UART interrupt.
   //
-  ROM_IntEnable(INEEDMD_RADIO_UART_INT);
-  ROM_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT);
+  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
+  MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
 
   MAP_IntMasterEnable();
   return 1;
@@ -1146,6 +1260,11 @@ void vRadio_interface_int_service(uint16_t uiInt_id)
 //    iRadio_rcv_string(cRcv_string, 256);
   }
 
+  if(uiInt_id == UART_INT_CTS)
+  {
+    uiCTS_int_status = UART_INT_CTS;
+  }
+
 
 }
 
@@ -1181,10 +1300,13 @@ bool bRadio_is_data(void)
 }
 
 //*****************************************************************************
-// name:
+// name: eGet_Radio_CTS_status
 // description:
 // param description:
-// return value description:
+// return value description: returns an error code
+//                           ER_FAIL    - unknown return value, should not occure
+//                           ER_TRUE    - UART CTS is set
+//                           ER_FALSE   - UART CTS is not set
 //*****************************************************************************
 ERROR_CODE  eGet_Radio_CTS_status(void)
 {
@@ -1199,6 +1321,35 @@ ERROR_CODE  eGet_Radio_CTS_status(void)
   else
   {
     eEC = ER_FALSE;
+  }
+
+  return eEC;
+}
+
+//*****************************************************************************
+// name: eGet_Radio_CTS_INT_status
+// description:
+// param description:
+// return value description: returns an error code
+//                           ER_FAIL    - unknown return value, should not occure
+//                           ER_SET     - CTS Interrupt was set
+//                           ER_NOT_SET - CTS Interrupt was not set
+//*****************************************************************************
+ERROR_CODE  eGet_Radio_CTS_INT_status(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiWas_cts_set = 0;
+
+  uiWas_cts_set = uiCTS_int_status;
+  uiCTS_int_status = 0;
+
+  if((uiWas_cts_set & UART_INT_CTS) == UART_INT_CTS)
+  {
+    eEC = ER_SET;
+  }
+  else
+  {
+    eEC = ER_NOT_SET;
   }
 
   return eEC;

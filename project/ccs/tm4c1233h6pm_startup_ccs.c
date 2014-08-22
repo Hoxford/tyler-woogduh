@@ -359,6 +359,11 @@ vUART1_Rx_and_Tx(void)
     vRadio_interface_int_service_timeout(ui32Status);
 //  }
 
+  if((ui32Status & UART_INT_CTS) == UART_INT_CTS)
+  {
+    vRadio_interface_int_service(UART_INT_CTS);
+  }
+
   //
   // Clear the asserted interrupts.
   //
