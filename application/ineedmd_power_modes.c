@@ -119,12 +119,12 @@ sleep_for_tenths(int number_tenths_seconds){
 
     TimerDisable(TIMER0_BASE, TIMER_A);
     IntDisable(INT_TIMER0A);
-    IntMasterDisable();
     vDEBUG_SLEEP_10THS("waking_up");
             //go to a fast clock
     if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
     {
       vDEBUG_SLEEP_10THS("..CPU half speed");
     }
+	IntMasterEnable();
 #undef vDEBUG_SLEEP_10THS
 }

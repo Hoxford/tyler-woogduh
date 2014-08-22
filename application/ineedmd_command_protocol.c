@@ -24,6 +24,7 @@
 #include "ineedmd_bluetooth_radio.h"
 #include "utils_inc/proj_debug.h"
 #include "ineedmd_led.h"
+#include "app_inc/ineedmd_power_modes.h"
 
 #ifdef DEBUG
   #define printf        vDEBUG
@@ -68,7 +69,7 @@ static char ACK[ACK_FRAME_SIZE]; //this too is a string
 //*****************************************************************************
 // external functions
 //*****************************************************************************
-
+extern void check_for_update(void);
 //*****************************************************************************
 // function declarations
 //*****************************************************************************
@@ -105,7 +106,7 @@ int ineedmd_send_ack()
   ineedmd_radio_send_frame(ACK_, 4);
   printf("ACK\n");
   //needed for android
-  ineedmd_radio_send_string("\r\n", strlen("\r\n"));
+  //ineedmd_radio_send_string("\r", strlen("\r"));
   return 1;
 }
 
@@ -116,7 +117,7 @@ int ineedmd_send_nack()
   ineedmd_radio_send_frame(NACK_, 4);
   printf("NACK\n");
   //needed for android
-  ineedmd_radio_send_string("\r\n", strlen("\r\n"));
+  //ineedmd_radio_send_string("\r", strlen("\r"));
   return 1;
 }
 //todo: define this
@@ -160,7 +161,6 @@ void writeDataToPort(char * cOut_buff)
 
   return;
 }
-
 
 //*****************************************************************************
 // name:
@@ -855,8 +855,8 @@ void ParseFrame(void *pt)
               ineedmd_led_pattern(ERASE_DONE);
               break;
             case DFU_MODE:
-              ineedmd_send_ack();
               printf("DFU_MODE");
+              ineedmd_send_ack();
               ineedmd_led_pattern(DFU_MODE);
               break;
             case MV_CAL:
@@ -877,6 +877,7 @@ void ParseFrame(void *pt)
             case HIBERNATE:
               printf("HIBERNATE");
               ineedmd_send_ack();
+              //TODO: add battery state check
               ineedmd_led_pattern(HIBERNATE);
               break;
             case LEADS_ON:
@@ -924,15 +925,19 @@ void ParseFrame(void *pt)
         else if(Frame[4] == REQ_FOR_DFU)
         {
           printf("Performing DFU...");
+          ineedmd_send_ack();
+          check_for_update();
           ineedmd_watchdog_doorbell();
           //TODO: add dfu entry
         }
         else if(Frame[4] == REQ_FOR_RESET)
         {
           printf("Performing RESET..");
+          ineedmd_send_ack();
           //TODO: add reset
-          __asm("    .global _c_int00\n"
-                   "    b.w     _c_int00");
+          ineedmd_watchdog_doorbell();
+          //__asm("    .global _c_int00\n"
+          //         "    b.w     _c_int00");
         }
         //the output expected is TEST DATA PATTERN 1
 //        printf("\nReceived \"test\" request...");
@@ -945,7 +950,7 @@ void ParseFrame(void *pt)
         {
           break;
         }
-      printf("Test Done");
+      printf("Done");
       }
     }
   }

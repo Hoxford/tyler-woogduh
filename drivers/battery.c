@@ -82,12 +82,12 @@ check_battery(void)
   if(measure_battery()>BATTERY_LOW_ADC_VALUE )
   {
     bIs_batt_low = true;
-    ineedmd_led_pattern(POWER_ON_BATGOOD);
+    ineedmd_led_pattern(POWER_ON_BATT_GOOD);
   }
   if(measure_battery()<BATTERY_CRITICAL_ADC_VALUE )
   {
     bIs_batt_low = true;
-    ineedmd_led_pattern(POWER_ON_BATLOW);
+    ineedmd_led_pattern(POWER_ON_BATT_LOW);
   }
 
   if(bIs_batt_low == true)

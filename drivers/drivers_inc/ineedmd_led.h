@@ -66,28 +66,7 @@
 #define CPU_CLOCK_TEST                  0x1A
 #define FLASH_TEST                      0x1B
 #define TEST_PASS                       0x1C
-/*
-#define LED_OFF                         0x00
-#define PATIENT_ALERT                   0x01
-#define ACQUIRE_UPLOAD_DATA             0x02
-#define LEAD_LOOSE                      0x03
-#define STORAGE_WARNING                 0x04
-#define POWER_ON_BATGOOD                0x05
-#define POWER_ON_BATLOW                 0x06
-#define BAT_CHARGING                    0x07
-#define BT_CONNECTED                    0x08
-#define BT_ATTEMPTING                   0x09
-#define BT_FAILED                       0x0A
-#define USB_CONNECTED                   0x0B
-#define USB_FAILED                      0x0C
-#define DATA_TRANSFER                   0x0D
-#define TRANSFER_DONE                   0x0F
-#define LED_CHIRP_RED                   0x11
-#define LED_CHIRP_ORANGE                0x12
-#define LED_CHIRP_GREEN                 0x13
-#define DFU_MODE                        0x14
-#define DFU_MODE2                       0x15
-*/
+
 extern void ineedmd_led_pattern(unsigned int);
 extern void led_test(void);  //runs the gamut of LED patters
 

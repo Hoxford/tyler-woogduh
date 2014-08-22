@@ -347,7 +347,7 @@ vUART1_Rx_and_Tx(void)
   //
   // Get the interrrupt status.
   //
-  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
+  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
 
   if((ui32Status & UART_INT_RX) == UART_INT_RX)
   {
@@ -358,6 +358,11 @@ vUART1_Rx_and_Tx(void)
 //  {
     vRadio_interface_int_service_timeout(ui32Status);
 //  }
+
+  if((ui32Status & UART_INT_CTS) == UART_INT_CTS)
+  {
+    vRadio_interface_int_service(UART_INT_CTS);
+  }
 
   //
   // Clear the asserted interrupts.
