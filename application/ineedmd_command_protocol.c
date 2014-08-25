@@ -926,7 +926,9 @@ void ParseFrame(void *pt)
         {
           printf("Performing DFU...");
           ineedmd_send_ack();
+          ineedmd_led_pattern(DFU_MODE);
           check_for_update();
+          ineedmd_led_pattern(REBOOT);
           ineedmd_watchdog_doorbell();
           //TODO: add dfu entry
         }
@@ -934,6 +936,7 @@ void ParseFrame(void *pt)
         {
           printf("Performing RESET..");
           ineedmd_send_ack();
+          ineedmd_led_pattern(REBOOT);
           //TODO: add reset
           ineedmd_watchdog_doorbell();
           //__asm("    .global _c_int00\n"
