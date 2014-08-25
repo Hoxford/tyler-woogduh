@@ -279,9 +279,7 @@ main(void)
   //set up the module radio
   iIneedMD_radio_setup();
 
-  vDEBUG("Waiting For Connection");
-
-  vDEBUG("Connection Found Starting super loop");
+  vDEBUG("Starting super loop");
   while(1)
   {
     ineedmd_watchdog_pat();

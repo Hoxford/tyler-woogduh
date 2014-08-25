@@ -374,7 +374,7 @@ BatMeasureADCRead(void)
 //*****************************************************************************
 bool bIs_battery_low(void)
 {
-#define DEBUG_bIs_battery_low
+//#define DEBUG_bIs_battery_low
 #ifdef DEBUG_bIs_battery_low
   #define  vDEBUG_IS_BATT_LOW  vDEBUG
 #else
@@ -563,7 +563,7 @@ iRadio_Power_Off(void)
 //*****************************************************************************
 ERROR_CODE eSet_radio_to_cmnd_mode(void)
 {
-#define DEBUG_eSet_radio_to_cmnd_mode
+//#define DEBUG_eSet_radio_to_cmnd_mode
 #ifdef DEBUG_eSet_radio_to_cmnd_mode
   #define  SND_BUFF_SZ  32
   #define  vDEBUG_BRD_SET_RDIO_CMND_MODE  vDEBUG
@@ -603,7 +603,7 @@ ERROR_CODE eSet_radio_to_cmnd_mode(void)
 //*****************************************************************************
 ERROR_CODE eSet_radio_to_data_mode(void)
 {
-#define DEBUG_eSet_radio_to_data_mode
+//#define DEBUG_eSet_radio_to_data_mode
 #ifdef DEBUG_eSet_radio_to_data_mode
   #define  SND_BUFF_SZ  32
   #define  vDEBUG_BRD_SET_RDIO_DTA_MODE  vDEBUG
@@ -754,7 +754,7 @@ int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
 //*****************************************************************************
 ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
 {
-#define DEBUG_eRadio_DMA_send_string
+//#define DEBUG_eRadio_DMA_send_string
 #ifdef DEBUG_eRadio_DMA_send_string
   #define  vDEBUG_RDIO_DMA_SNDSTR  vDEBUG
 #else
@@ -958,7 +958,7 @@ int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 //*****************************************************************************
 ERROR_CODE  eRadio_clear_rcv_buffer(void)
 {
-#define DEBUG_eRadio_clear_rcv_buffer
+//#define DEBUG_eRadio_clear_rcv_buffer
 #ifdef DEBUG_eRadio_clear_rcv_buffer
   #define  vDEBUG_RDIO_RCV_CLR  vDEBUG
 #else
@@ -1029,7 +1029,7 @@ ERROR_CODE  eRadio_clear_rcv_buffer(void)
 //*****************************************************************************
 ERROR_CODE eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
 {
-#define DEBUG_eRcv_dma_radio_cmnd_frame
+//#define DEBUG_eRcv_dma_radio_cmnd_frame
 #ifdef DEBUG_eRcv_dma_radio_cmnd_frame
   #define  vDEBUG_RDIO_DMARCV_CMNDFRAME  vDEBUG
 #else
