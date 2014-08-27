@@ -28,6 +28,8 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/adc.h"
 
+
+
 #include "board.h"
 #include "ineedmd_adc.h"
 #include "battery.h"
@@ -48,10 +50,13 @@
 #define WD_TIMEOUT  5  //Watch dog time out value in secons
 
 #define iIneedmd_connection_process  iIneedMD_radio_process
+#define LEAD_SHORT                   0x82FF
+#define LEAD_SHORT_RESET             0xA0FF
+
 //*****************************************************************************
 // variables
 //*****************************************************************************
-
+unsigned char ledState = 0;
 //*****************************************************************************
 // external variables
 //*****************************************************************************
@@ -73,6 +78,7 @@ sFileSys sFile_Sys;
 //*****************************************************************************
 void switch_on_adc_for_lead_detection(void);
 void check_for_update(void);
+
 
 //*****************************************************************************
 // functions
@@ -108,6 +114,59 @@ void switch_on_adc_for_lead_detection(void)
   //start conversions
   ineedmd_adc_Start_Internal_Reference();
   ineedmd_adc_Start_High();
+}
+
+
+void hold_until_short_removed(void){
+
+  while(ineedmd_adc_Check_Lead_Off() != LEAD_SHORT)
+  {
+      //disable the spi port
+    EKGSPIDisable();
+    //power down the ADC
+    ineedmd_adc_Power_Off();
+
+    //
+    // Set the Timer0B load value to 10s.
+    //
+      ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+      ROM_IntMasterEnable();
+      ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+      TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
+
+    //
+    // Enable processor interrupts.
+    //
+    IntMasterEnable();
+    //
+    // Configure the Timer0 interrupt for timer timeout.
+    //
+    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    //
+    // Enable the Timer0A interrupt on the processor (NVIC).
+    //
+    IntEnable(INT_TIMER0A);
+    //
+    // clocks down the processor to REALLY slow ( 500khz) and
+    //
+    set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
+    //
+    // Enable Timer0(A)
+    //
+    TimerEnable(TIMER0_BASE, TIMER_A);
+
+    MAP_SysCtlSleep();
+    //SysCtlSleep();
+
+    //comming out we turn the processor all the way up
+    set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
+
+    TimerDisable(TIMER0_BASE, TIMER_A);
+    IntDisable(INT_TIMER0A);
+    IntMasterDisable();
+
+    switch_on_adc_for_lead_detection();
+  }
 }
 
 //*****************************************************************************
@@ -169,7 +228,6 @@ void check_for_update(void)
   iHW_delay(1000);
 
   uiLead_status = ineedmd_adc_Check_Lead_Off();
-#define LEAD_SHORT 0x82FF
   if(uiLead_status == LEAD_SHORT)
   {
     vDEBUG("Update short in place!");
@@ -202,12 +260,11 @@ void check_for_update(void)
       // 3. Enable USB D+ D- pins
       // 4. Activate USB DFU
 //      MAP_SysCtlDelay(ui32SysClock / 3);
-
       // Re-enable interrupts at NVIC level
       MAP_IntMasterEnable();
 
       //set the led's to DFU mode
-      ineedmd_led_pattern(DFU_MODE);
+      ineedmd_led_pattern(ACTUAL_DFU);
 
       set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
       //begin the DFU usb update procedure
@@ -225,7 +282,6 @@ void check_for_update(void)
 void check_for_reset(void)
 {
   //uint32_t uiLead_status = ineedmd_adc_Check_Lead_Off();
-#define LEAD_SHORT_RESET 0xA0FF
   if(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT_RESET)
   {
     vDEBUG("Reset short in place!");
@@ -247,14 +303,15 @@ int
 main(void)
 {
   iBoard_init();
-
   //init the debug interface
   vDEBUG_init();
   vDEBUG("Hello World!");
 
   set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
-
   ineedmd_led_pattern(LED_OFF);
+  //set up the watchdog
+  switch_on_adc_for_lead_detection();
+  hold_until_short_removed();
 
   //set up the watchdog
   ineedmd_watchdog_setup();
@@ -278,17 +335,16 @@ main(void)
 
   //set up the module radio
   iIneedMD_radio_setup();
+  ineedmd_led_pattern(POWER_UP_GOOD);
 
-  vDEBUG("Waiting For Connection");
-
-  vDEBUG("Connection Found Starting super loop");
+  vDEBUG("Starting super loop");
   while(1)
   {
     ineedmd_watchdog_pat();
     iIneedMD_radio_process();
     iIneedmd_command_process();
     iIneedmd_waveform_process();
-
+    ineedmd_led_pattern(ledState);
 //    led_test();
 //    check_battery();
 //    check_for_update();

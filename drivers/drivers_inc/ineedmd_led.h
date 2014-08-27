@@ -67,6 +67,9 @@
 #define FLASH_TEST                      0x1B
 #define TEST_PASS                       0x1C
 
+#define POWER_UP_GOOD                   0xFF
+#define ACTUAL_DFU                      0xFE
+
 extern void ineedmd_led_pattern(unsigned int);
 extern void led_test(void);  //runs the gamut of LED patters
 

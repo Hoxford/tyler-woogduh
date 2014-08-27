@@ -57,7 +57,7 @@ static char ACK[ACK_FRAME_SIZE]; //this too is a string
 //*****************************************************************************
 // external variables
 //*****************************************************************************
-
+extern unsigned char ledState;
 //*****************************************************************************
 // enums
 //*****************************************************************************
@@ -767,112 +767,134 @@ void ParseFrame(void *pt)
             case LED_OFF:
               printf("LED_OFF");
               ineedmd_send_ack();
-              ineedmd_led_pattern(LED_OFF);
+              ledState = LED_OFF;
+              //ineedmd_led_pattern(LED_OFF);
               break;
             case POWER_ON_BATT_LOW:
               printf("POWER_ON_BATT_LOW");
               ineedmd_send_ack();
-              ineedmd_led_pattern(POWER_ON_BATT_LOW);
+              ledState = POWER_ON_BATT_LOW;
+              //ineedmd_led_pattern(POWER_ON_BATT_LOW);
               break;
             case POWER_ON_BATT_GOOD:
               printf("POWER_ON_BATT_GOOD");
               ineedmd_send_ack();
-              ineedmd_led_pattern(POWER_ON_BATT_GOOD);
+              ledState = POWER_ON_BATT_GOOD;
+              //ineedmd_led_pattern(POWER_ON_BATT_GOOD);
               break;
             case BATT_CHARGING:
               printf("BATT_CHARGING");
               ineedmd_send_ack();
-              ineedmd_led_pattern(BATT_CHARGING);
+              ledState = BATT_CHARGING;
+              //ineedmd_led_pattern(BATT_CHARGING);
               break;
             case BATT_CHARGING_LOW:
               printf("BATT_CHARGING_LOW");
               ineedmd_send_ack();
-              ineedmd_led_pattern(BATT_CHARGING_LOW);
+              ledState = BATT_CHARGING_LOW;
+              //ineedmd_led_pattern(BATT_CHARGING_LOW);
               break;
             case LEAD_LOOSE:
               printf("LEAD_LOOSE");
               ineedmd_send_ack();
-              ineedmd_led_pattern(LEAD_LOOSE);
+              ledState = LEAD_LOOSE;
+              //ineedmd_led_pattern(LEAD_LOOSE);
               break;
             case LEAD_GOOD_UPLOADING:
               printf("LEAD_GOOD_UPLOADING");
               ineedmd_send_ack();
-              ineedmd_led_pattern(LEAD_GOOD_UPLOADING);
+              ledState = LEAD_GOOD_UPLOADING;
+              //ineedmd_led_pattern(LEAD_GOOD_UPLOADING);
               break;
             case DIG_FLATLINE:
               printf("DIG_FLATLINE");
               ineedmd_send_ack();
-              ineedmd_led_pattern(DIG_FLATLINE);
+              ledState = DIG_FLATLINE;
+              //ineedmd_led_pattern(DIG_FLATLINE);
               break;
             case BT_CONNECTED:
               printf("BT_CONNECTED");
               ineedmd_send_ack();
-              ineedmd_led_pattern(BT_CONNECTED);
+              //ineedmd_led_pattern(BT_CONNECTED);
+              ledState = BT_CONNECTED;
               break;
             case BT_ATTEMPTING:
               printf("BT_ATTEMPTING");
               ineedmd_send_ack();
-              ineedmd_led_pattern(BT_ATTEMPTING);
+              ledState = BT_ATTEMPTING;
+              //ineedmd_led_pattern(BT_ATTEMPTING);
               break;
             case BT_FAILED:
               printf("BT_FAILED");
               ineedmd_send_ack();
-              ineedmd_led_pattern(BT_FAILED);
+              ledState = BT_FAILED;
+              //ineedmd_led_pattern(BT_FAILED);
               break;
             case USB_CONNECTED:
               printf("USB_CONNECTED");
               ineedmd_send_ack();
-              ineedmd_led_pattern(USB_CONNECTED);
+              ledState = USB_CONNECTED;
+              //ineedmd_led_pattern(USB_CONNECTED);
               break;
             case USB_FAILED:
               printf("USB_FAILED");
               ineedmd_send_ack();
-              ineedmd_led_pattern(USB_FAILED);
+              ledState = USB_FAILED;
+              //ineedmd_led_pattern(USB_FAILED);
               break;
             case DATA_TRANSFER:
               printf("DATA_TRANSFER");
               ineedmd_send_ack();
-              ineedmd_led_pattern(DATA_TRANSFER);
+              ledState = DATA_TRANSFER;
+              //ineedmd_led_pattern(DATA_TRANSFER);
               break;
             case TRANSFER_DONE:
               printf("TRANSFER_DONE");
               ineedmd_send_ack();
-              ineedmd_led_pattern(TRANSFER_DONE);
+              ledState = TRANSFER_DONE;
+              //ineedmd_led_pattern(TRANSFER_DONE);
               break;
             case STORAGE_WARNING:
               printf("STORAGE_WARNING");
               ineedmd_send_ack();
-              ineedmd_led_pattern(STORAGE_WARNING);
+              ledState = STORAGE_WARNING;
+              //ineedmd_led_pattern(STORAGE_WARNING);
               break;
             case ERASING:
               printf("ERASING");
               ineedmd_send_ack();
-              ineedmd_led_pattern(ERASING);
+              ledState = ERASING;
+              //ineedmd_led_pattern(ERASING);
               break;
             case ERASE_DONE:
               printf("ERASE_DONE");
               ineedmd_send_ack();
-              ineedmd_led_pattern(ERASE_DONE);
+              ledState = ERASE_DONE;
+              //ineedmd_led_pattern(ERASE_DONE);
               break;
             case DFU_MODE:
               printf("DFU_MODE");
               ineedmd_send_ack();
-              ineedmd_led_pattern(DFU_MODE);
+              ledState = DFU_MODE;
+              //ineedmd_led_pattern(DFU_MODE);
               break;
             case MV_CAL:
               printf("MV_CAL");
               ineedmd_send_ack();
-              ineedmd_led_pattern(MV_CAL);
+              ledState = MV_CAL;
+              //ineedmd_led_pattern(MV_CAL);
               break;
             case TRI_WVFRM:
               printf("TRI_WVFRM");
               ineedmd_send_ack();
-              ineedmd_led_pattern(TRI_WVFRM);
+              ledState = TRI_WVFRM;
+              //ineedmd_led_pattern(TRI_WVFRM);
               break;
             case REBOOT:
               printf("REBOOT");
               ineedmd_send_ack();
-              ineedmd_led_pattern(REBOOT);
+              ledState = REBOOT;
+              //ineedmd_led_pattern(REBOOT);
               break;
             case HIBERNATE:
               printf("HIBERNATE");
@@ -883,37 +905,44 @@ void ParseFrame(void *pt)
             case LEADS_ON:
               printf("LEADS_ON");
               ineedmd_send_ack();
-              ineedmd_led_pattern(LEADS_ON);
+              ledState = LEADS_ON;
+              //ineedmd_led_pattern(LEADS_ON);
               break;
             case MEMORY_TEST:
               printf("MEMORY_TEST");
               ineedmd_send_ack();
-              ineedmd_led_pattern(MEMORY_TEST);
+              ledState = MEMORY_TEST;
+              //ineedmd_led_pattern(MEMORY_TEST);
               break;
             case COM_BUS_TEST:
               printf("COM_BUS_TEST");
               ineedmd_send_ack();
-              ineedmd_led_pattern(COM_BUS_TEST);
+              ledState = COM_BUS_TEST;
+              //ineedmd_led_pattern(COM_BUS_TEST);
               break;
             case CPU_CLOCK_TEST:
               printf("CPU_CLOCK_TEST");
               ineedmd_send_ack();
-              ineedmd_led_pattern(CPU_CLOCK_TEST);
+              ledState = CPU_CLOCK_TEST;
+              //ineedmd_led_pattern(CPU_CLOCK_TEST);
               break;
             case FLASH_TEST:
               printf("FLASH_TEST");
               ineedmd_send_ack();
-              ineedmd_led_pattern(FLASH_TEST);
+              ledState = FLASH_TEST;
+              //ineedmd_led_pattern(FLASH_TEST);
               break;
             case TEST_PASS:
               printf("TEST_PASS");
               ineedmd_send_ack();
-              ineedmd_led_pattern(TEST_PASS);
+              ledState = TEST_PASS;
+              //ineedmd_led_pattern(TEST_PASS);
               break;
             default:
               printf("Unrecongnized Sequence - No Soup For You");
               ineedmd_send_nack();
-              ineedmd_led_pattern(LED_OFF);
+              ledState = LED_OFF;
+              //ineedmd_led_pattern(LED_OFF);
               break;
           }
         }
@@ -927,8 +956,10 @@ void ParseFrame(void *pt)
           printf("Performing DFU...");
           ineedmd_send_ack();
           ineedmd_led_pattern(DFU_MODE);
+          sleep_for_tenths(50);
           check_for_update();
           ineedmd_led_pattern(REBOOT);
+          sleep_for_tenths(50);
           ineedmd_watchdog_doorbell();
           //TODO: add dfu entry
         }
@@ -937,6 +968,7 @@ void ParseFrame(void *pt)
           printf("Performing RESET..");
           ineedmd_send_ack();
           ineedmd_led_pattern(REBOOT);
+          sleep_for_tenths(50);
           //TODO: add reset
           ineedmd_watchdog_doorbell();
           //__asm("    .global _c_int00\n"
