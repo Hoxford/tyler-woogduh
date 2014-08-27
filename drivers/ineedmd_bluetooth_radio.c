@@ -457,7 +457,7 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
 ******************************************************************************/
 ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 {
-//#define DEBUG_iIneedmd_radio_rcv_boot_msg
+#define DEBUG_iIneedmd_radio_rcv_boot_msg
 #ifdef DEBUG_iIneedmd_radio_rcv_boot_msg
   #define  vDEBUG_RDIO_RCV_BOOTMSG  vDEBUG
 #else
@@ -533,7 +533,7 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
  */
 ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
 {
-//#define DEBUG_iIneedmd_radio_rcv_settings
+#define DEBUG_iIneedmd_radio_rcv_settings
 #ifdef DEBUG_iIneedmd_radio_rcv_settings
   #define  vDEBUG_RDIO_RCV_SET  vDEBUG
 #else
