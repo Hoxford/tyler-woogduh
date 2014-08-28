@@ -33,6 +33,7 @@
 #include "battery.h"
 #include "ineedmd_bluetooth_radio.h"
 #include "ineedmd_led.h"
+#include "app_inc/ineedmd_power_modes.h"
 #include "app_inc/ineedmd_command_protocol.h"
 #include "utils_inc/error_codes.h"
 #include "app_inc/ineedmd_watchdog.h"
@@ -50,7 +51,7 @@
 #define iIneedmd_connection_process  iIneedMD_radio_process
 #define LEAD_SHORT                   0x82FF
 #define LEAD_SHORT_RESET             0xA0FF
-
+#define LEAD_SHORT_SLEEP             0xA2FF
 //*****************************************************************************
 // variables
 //*****************************************************************************
@@ -116,53 +117,33 @@ void switch_on_adc_for_lead_detection(void)
 
 void hold_until_short_removed(void){
 
-  while(ineedmd_adc_Check_Lead_Off() != LEAD_SHORT)
+  uint32_t battery_level = 0;
+
+  while(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT_SLEEP | ineedmd_adc_Get_ID() != ADS1198_ID)
   {
-      //disable the spi port
-    EKGSPIDisable();
-    //power down the ADC
-    ineedmd_adc_Power_Off();
 
-    //
-    // Set the Timer0B load value to 10s.
-    //
-      ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-      ROM_IntMasterEnable();
-      ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-      TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
+    ineedmd_watchdog_feed();
 
-    //
-    // Enable processor interrupts.
-    //
-    IntMasterEnable();
-    //
-    // Configure the Timer0 interrupt for timer timeout.
-    //
-    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-    //
-    // Enable the Timer0A interrupt on the processor (NVIC).
-    //
-    IntEnable(INT_TIMER0A);
-    //
-    // clocks down the processor to REALLY slow ( 500khz) and
-    //
-    set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
-    //
-    // Enable Timer0(A)
-    //
-    TimerEnable(TIMER0_BASE, TIMER_A);
+    shut_it_all_down();
+    sleep_for_tenths(290);
 
-    MAP_SysCtlSleep();
-    //SysCtlSleep();
-
-    //comming out we turn the processor all the way up
-    set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
-
-    TimerDisable(TIMER0_BASE, TIMER_A);
-    IntDisable(INT_TIMER0A);
-    IntMasterDisable();
+    LEDI2CEnable();
+    battery_level = measure_battery();
+    if (battery_level > 2250)
+      {
+        ineedmd_led_pattern(LED_CHIRP_GREEN);
+      }
+    else if (battery_level > 2050)
+      {
+        ineedmd_led_pattern(LED_CHIRP_ORANGE);
+      }
+    else
+      {
+        ineedmd_led_pattern(LED_CHIRP_RED);
+      }
 
     switch_on_adc_for_lead_detection();
+
   }
 }
 
@@ -307,15 +288,13 @@ main(void)
   set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
   ineedmd_led_pattern(LED_OFF);
   //set up the watchdog
+  ineedmd_watchdog_setup();
+  vDEBUG("Watchdog setup");
+  ineedmd_watchdog_feed();
   switch_on_adc_for_lead_detection();
   hold_until_short_removed();
 
-  //set up the watchdog
-  ineedmd_watchdog_setup();
-  vDEBUG("Watchdog setup");
-
   //give the watch dog a long timer to allow inital setup to take place
-  ineedmd_watchdog_feed();
 
   switch_on_adc_for_lead_detection();
 

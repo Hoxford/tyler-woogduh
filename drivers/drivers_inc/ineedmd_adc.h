@@ -208,7 +208,7 @@
 #define WCTC0				0x01
 
 //Part ID
-//#define ADS1198_ID              0xB6
+#define ADS1198_ID              0xB6
 
 
 

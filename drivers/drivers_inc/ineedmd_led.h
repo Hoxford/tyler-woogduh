@@ -67,6 +67,10 @@
 #define FLASH_TEST                      0x1B
 #define TEST_PASS                       0x1C
 
+#define LED_CHIRP_RED                   0xFB
+#define LED_CHIRP_ORANGE                0xFC
+#define LED_CHIRP_GREEN                 0xFD
+
 #define POWER_UP_GOOD                   0xFF
 #define ACTUAL_DFU                      0xFE
 

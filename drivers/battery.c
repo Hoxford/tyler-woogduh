@@ -122,10 +122,6 @@ measure_battery()
   uint32_t pui32ADCValue;
   uint32_t average_pui32ADCValue;
 
-  if (MAP_SysCtlClockGet()>20000000)
-  {
-    return 1;
-  }
   average_pui32ADCValue = 0;
   for ( i = 0; i <16; i++)
   {
