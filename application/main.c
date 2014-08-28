@@ -28,8 +28,6 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/adc.h"
 
-
-
 #include "board.h"
 #include "ineedmd_adc.h"
 #include "battery.h"
@@ -78,7 +76,6 @@ sFileSys sFile_Sys;
 //*****************************************************************************
 void switch_on_adc_for_lead_detection(void);
 void check_for_update(void);
-
 
 //*****************************************************************************
 // functions

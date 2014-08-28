@@ -42,7 +42,7 @@
 // variables
 //*****************************************************************************
 static uint8_t uiINMD_Protocol_frame[INMD_FRAME_BUFF_SIZE];
-static uint16_t uiINMD_Protocol_frame_len = 0;
+//static uint16_t uiINMD_Protocol_frame_len = 0;
 
 static bool bIs_protocol_frame = false;
 
@@ -239,251 +239,6 @@ int ValidatePacketType(const unsigned char dataPacketType)
 }
 
 //*****************************************************************************
-// name: parseCommand
-// description: The function is called if the data packet received is of a command.
-// param description:
-// return value description:
-//*****************************************************************************
-void parseCommand(unsigned char szCommand[],int cntCommand)
-{
-#ifdef USE_ME
-  /* INPUT:
-      The string that contains the command. This command string will be containing the command, the relevant data (if any).
-     OUTPUT:
-      This function sends back the ACK/NACK or the data (if applicable to any command)
-     COMMANDS:
-          refer arrCommand[][]
-  */
-  int dataFlag = 0;
-  int dataCnt = 0;
-
-  int indexCmd;
-  int i; // just used for parsing the szCommand[]
-  char data[6];
-  char szRecCommand_data = data[3];
-  char tempACKNACK[100];
-  int retFlag = 0;
-  static int fAsyncWrite;
-
-  i = 0;//initialize all integers to begin
-  //check the first "start byte of the arrived frame...
-  while ((szCommand[i] != '\0')||(i<cntCommand)) // both the conditions will be true simultaneously
-  {
-    switch (szCommand[i]) //the main task of this switch is to validate the read data.
-    {
-    case 0x9C:
-      if (0==i)
-        printf("\nStart Frame OK!");
-      else
-      {
-        if (i >= 4 && i < 9)
-        {
-          data[dataCnt++] = szCommand[i];
-          dataFlag--;
-        }
-      }
-      break;
-    case 0x01: //represents that the incoming datagram represents a command.
-      if (1 == i)
-      {
-        printf("\nIntermediary [0] OK!");
-      }
-      else
-      {
-        if (i >= 4 && i < 9)
-        {
-          data[dataCnt++] = szCommand[i];
-          dataFlag--;
-        }
-      }
-      break;
-    case 0x0A:
-      if (2 == i)
-      {
-        printf("\nIntermediary [1] OK!");
-      }
-      else
-      {
-        if (i >= 4 && i < 9)
-        {
-          data[dataCnt++] = szCommand[i];
-          dataFlag--;
-        }
-      }
-      break;
-    case 0x11:
-    case 0x12:
-    case 0x13:
-    case 0x14:
-    case 0x15:
-    case 0x16:
-    case 0x17:
-      if (3 == i)
-      {
-        indexCmd = SearchArrCmd(szCommand[i], szRecCommand_data);
-        if (-1 == indexCmd)
-        {
-          printf("Error: %s -- Invalid Command!");
-          printf(" Sending NACK...");
-          fAsyncWrite = 1;
-        }
-        else
-        {
-          printf("\nCommand -- %02X OK!", szCommand[i]);
-          if (dataApplicable[indexCmd])
-          {
-            printf(" Data = YES");
-            dataFlag = 5;// now, the next 5 bytes will be data. Enter default case, for every data encountered decrement dataFlag and store read char in data[]
-          }
-          else
-            printf(" Data = NO");
-        }
-      }
-      else
-      {
-        if (i >= 4 && i < 9)
-        {
-          data[dataCnt++] = szCommand[i];
-          dataFlag--;
-        }
-      }
-      break;
-    case 0xC9:
-      if (('\0' == szCommand[i + 1]) && (!dataFlag) && (9==i))
-        printf("\nEnd Frame OK!");
-      else
-      {
-        if ('\0' != szCommand[i + 1])
-        {
-          data[dataCnt++] = szCommand[i]; //the data byte is same as the finish byte
-          dataFlag--;
-        }
-        else
-        {
-          //there are less number of data packets that should have been
-          //send negative acknowledgement
-          sprintf(tempACKNACK, "NACK -- %X", NACK);
-          writeDataToPort(tempACKNACK);
-          return;
-        }
-      }
-      break;
-    default:
-      if (i < 4)
-      {
-        sprintf(tempACKNACK, "NACK -- %X", NACK);
-        writeDataToPort(tempACKNACK);
-        return;
-      }
-      if (dataFlag)
-      {
-        if (0x00!=szCommand[i])
-          data[dataCnt++] = szCommand[i];
-        dataFlag--;
-      }
-      break;
-    }
-    //increment all the integers necessary...
-    i++;
-  }
-  data[dataCnt] = '\0';
-  printf("\nCommand = %X\tData = %s\t",szCommand[3], data);
-  //the following commands send out only ACK/NACK, 0x12,0x16
-  switch (indexCmd)
-  {
-  case 1://0x12
-    switch (szCommand[8])
-    {
-    case STATUS_HIBERNATE:
-      sprintf(tempACKNACK, "ACK -- %s", ACK);
-      writeDataToPort(tempACKNACK);
-      break;
-    case STATUS_SLEEP:
-      sprintf(tempACKNACK, "ACK -- %s", ACK);
-      writeDataToPort(tempACKNACK);
-      break;
-    case STATUS_ON:
-      sprintf(tempACKNACK, "ACK -- %s", ACK);
-      writeDataToPort(tempACKNACK);
-      break;
-    case STATUS_POWER:
-      sprintf(tempACKNACK, "ACK -- %s", ACK);
-      writeDataToPort(tempACKNACK);
-      sprintf(tempACKNACK, "STATUS POWER -- %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X",
-        status0X11[0], status0X11[1], status0X11[2], status0X11[3],
-        status0X11[4], status0X11[5], status0X11[6], status0X11[7],
-        status0X11[8], status0X11[9], status0X11[10], status0X11[11],
-        status0X11[12], status0X11[13], status0X11[14], status0X11[15],
-        status0X11[16]);
-      writeDataToPort(tempACKNACK);
-      break;
-
-    }
-    break;
-  case 5://0x16
-    sprintf(tempACKNACK, "ACK -- %s", ACK);
-    writeDataToPort(tempACKNACK);
-    break;
-  case 0://0x11 .. starting command
-    sprintf(tempACKNACK, "STATUS RECORD -- %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X",
-      status0X11[0], status0X11[1], status0X11[2], status0X11[3],
-      status0X11[4], status0X11[5], status0X11[6], status0X11[7],
-      status0X11[8], status0X11[9], status0X11[10], status0X11[11],
-      status0X11[12], status0X11[13],status0X11[14], status0X11[15],
-      status0X11[16]);
-    writeDataToPort(tempACKNACK);
-    break;
-  case 2: //0x13
-    sprintf(tempACKNACK, "STORED INFO BLOCK -- %X %X %X %X %X %X ",
-      status0x13[0],status0x13[1],status0x13[2],
-      status0x13[3], status0x13[4], status0x13[5]);
-    writeDataToPort(tempACKNACK);
-    break;
-  case 3://0x14
-    if (0 == strlen((char*)data))
-    {
-      sprintf(tempACKNACK, "NACK -- %s", NACK);
-      writeDataToPort(tempACKNACK);
-      return;
-    }
-    sprintf(tempACKNACK, "REPLY FOR 0x14 -- %X %X %X %X %X %X ",
-      status0x14[0], status0x14[1], status0x14[2],
-      status0x14[3], status0x14[4], status0x14[5]);
-    writeDataToPort(tempACKNACK);
-    break;
-  case 4: //0x15
-    if (0 == strlen((char*)data))
-    {
-      sprintf(tempACKNACK, "NACK -- %s", NACK);
-      writeDataToPort(tempACKNACK);
-      return;
-    }
-    sprintf(tempACKNACK, "REPLY FOR 0x15 -- %X %X %X %X %X %X %X %X %X %X %X %X %X %X",
-      status0x15[0], status0x15[1], status0x15[2], status0x15[3],
-      status0x15[4], status0x15[5], status0x15[6], status0x15[7],
-      status0x15[8], status0x15[9], status0x15[10], status0x15[11],
-      status0x15[12], status0x15[13]);
-    writeDataToPort(tempACKNACK);
-    break;
-  case 6://0x17
-    if (0 == strlen((char*)data))
-    {
-      sprintf(tempACKNACK, "NACK -- %s", NACK);
-      writeDataToPort(tempACKNACK);
-      return;
-    }
-    sprintf(tempACKNACK, "REPLY FOR 0x17 -- %X %X %X %X %X %X %X %X %X %X %X %X %X %X",
-      status0x15[0], status0x15[1], status0x15[2], status0x15[3],
-      status0x15[4], status0x15[5], status0x15[6], status0x15[7],
-      status0x15[8], status0x15[9], status0x15[10], status0x15[11],
-      status0x15[12], status0x15[13]);
-    writeDataToPort(tempACKNACK);
-    break;
-  }
-#endif //0
-}
-
-//*****************************************************************************
 // name:
 // description:
 // param description:
@@ -513,7 +268,7 @@ void ParseFrame(void *pt)
 
   unsigned char * ucRaw_Frame = pt;
   unsigned char Frame[300];
-  int frameCnt;
+//  int frameCnt;
   unsigned char lengthPacket;// = Frame[2]; //which is also frameCnt, probably.
   unsigned char actCommand;// = Frame[3];
   unsigned char dataPacketType;// = Frame[1];
@@ -525,8 +280,8 @@ void ParseFrame(void *pt)
 //  int i; //just for the for loop
   //total data bytes = lengthPacket - (1start + 1packetType + 1Length + 1actCommand + 1 stopbyte)
   unsigned char cntDataBytes;// = lengthPacket - 5;
-  static int isRealStream;
-  int counter;//temporary for 0x17 case
+//  static int isRealStream;
+//  int counter;//temporary for 0x17 case
 //  DWORD dwBytesWritten;
 
   initACKNACK();
@@ -700,56 +455,59 @@ void ParseFrame(void *pt)
         writeDataToPort(replyToSend);
         break;
       case 0x17:
-        switch (Frame[frameCnt - 1])
-        {
-        case 0xFF: //true
-          isRealStream = 1;
-          counter = 0;
-          printf("\nBegin real-time streaming -- TRUE... ");
-          //writeDataToPort(ACK);
-          printf("\nReceived request for Real time DataSet Transfer... ");
-          PrintCommand(status0x17, 24);
-          sprintf(replyToSend, "%X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X ",
-            status0x17[0], status0x17[1], status0x17[2], status0x17[3],
-            status0x17[4], status0x17[5], status0x17[6], status0x17[7],
-            status0x17[8], status0x17[9], status0x17[10], status0x17[11],
-            status0x17[12], status0x17[13], status0x17[14], status0x17[15], status0x17[16], status0x17[17],
-            status0x17[18], status0x17[19], status0x17[20], status0x17[21],
-            status0x17[22], status0x17[23]);
-          counter = 0;
-          while (isRealStream)
-          {
-
-            writeDataToPort(replyToSend);
-            /*if (WriteFile(hSerial, replyToSend, 24, &dwBytesWritten, NULL))
-            {
-              printf("\n Sending Real time data (%d) to COM port... ", ++counter);
-              printf("\nTotal Bytes Written (Live Streaming): %d", dwBytesWritten);
-              continue;
-            }
-            else
-            {
-              printf("\nWriteFile failed: %d", GetLastError());
-            }*/
-
-            //Sleep(1500); //this thread will sleep and continue it's work.
-          }
-          break;
-        case 0x00: //false
-            isRealStream = 0;
-            printf("\nStop real-time streaming....");
-          //writeDataToPort(ACK);
-            break;
-          /*default:
-          printf("\nMissing argument to indicate beginning of streaming real time! Sending NACK!");
-          writeDataToPort(NACK);*/
-            break;
-        default:
-            printf("\nMissing argument 'TRUE/FALSE'!");
-            printf("\nSending NACK!");
-            writeDataToPort(NACK);
-            break;
-        }
+//todo: frameCnt was not set properly, this code to be implemented later
+//        switch (Frame[frameCnt - 1])
+//        {
+//        case 0xFF: //true
+//          isRealStream = 1;
+//          counter = 0;
+//          printf("\nBegin real-time streaming -- TRUE... ");
+//          //writeDataToPort(ACK);
+//          printf("\nReceived request for Real time DataSet Transfer... ");
+//          PrintCommand(status0x17, 24);
+//          sprintf(replyToSend, "%X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X ",
+//            status0x17[0], status0x17[1], status0x17[2], status0x17[3],
+//            status0x17[4], status0x17[5], status0x17[6], status0x17[7],
+//            status0x17[8], status0x17[9], status0x17[10], status0x17[11],
+//            status0x17[12], status0x17[13], status0x17[14], status0x17[15], status0x17[16], status0x17[17],
+//            status0x17[18], status0x17[19], status0x17[20], status0x17[21],
+//            status0x17[22], status0x17[23]);
+//          counter = 0;
+//          while (isRealStream)
+//          {
+//
+//            writeDataToPort(replyToSend);
+//            /*if (WriteFile(hSerial, replyToSend, 24, &dwBytesWritten, NULL))
+//            {
+//              printf("\n Sending Real time data (%d) to COM port... ", ++counter);
+//              printf("\nTotal Bytes Written (Live Streaming): %d", dwBytesWritten);
+//              continue;
+//            }
+//            else
+//            {
+//              printf("\nWriteFile failed: %d", GetLastError());
+//            }*/
+//
+//            //Sleep(1500); //this thread will sleep and continue it's work.
+//          }
+//          break;
+//        case 0x00: //false
+//            isRealStream = 0;
+//            printf("\nStop real-time streaming....");
+//          //writeDataToPort(ACK);
+//            break;
+//          /*default:
+//          printf("\nMissing argument to indicate beginning of streaming real time! Sending NACK!");
+//          writeDataToPort(NACK);*/
+//            break;
+//        default:
+//            printf("\nMissing argument 'TRUE/FALSE'!");
+//            printf("\nSending NACK!");
+//            writeDataToPort(NACK);
+//            break;
+//        }
+        printf("Parse cmnd SYS HALT, ACT command 0x17 not implemented yet");
+        while(1){};
         break;
 
       case REQUEST_TO_TEST://request to send test signal.
@@ -768,133 +526,111 @@ void ParseFrame(void *pt)
               printf("LED_OFF");
               ineedmd_send_ack();
               ledState = LED_OFF;
-              //ineedmd_led_pattern(LED_OFF);
               break;
             case POWER_ON_BATT_LOW:
               printf("POWER_ON_BATT_LOW");
               ineedmd_send_ack();
               ledState = POWER_ON_BATT_LOW;
-              //ineedmd_led_pattern(POWER_ON_BATT_LOW);
               break;
             case POWER_ON_BATT_GOOD:
               printf("POWER_ON_BATT_GOOD");
               ineedmd_send_ack();
               ledState = POWER_ON_BATT_GOOD;
-              //ineedmd_led_pattern(POWER_ON_BATT_GOOD);
               break;
             case BATT_CHARGING:
               printf("BATT_CHARGING");
               ineedmd_send_ack();
               ledState = BATT_CHARGING;
-              //ineedmd_led_pattern(BATT_CHARGING);
               break;
             case BATT_CHARGING_LOW:
               printf("BATT_CHARGING_LOW");
               ineedmd_send_ack();
               ledState = BATT_CHARGING_LOW;
-              //ineedmd_led_pattern(BATT_CHARGING_LOW);
               break;
             case LEAD_LOOSE:
               printf("LEAD_LOOSE");
               ineedmd_send_ack();
               ledState = LEAD_LOOSE;
-              //ineedmd_led_pattern(LEAD_LOOSE);
               break;
             case LEAD_GOOD_UPLOADING:
               printf("LEAD_GOOD_UPLOADING");
               ineedmd_send_ack();
               ledState = LEAD_GOOD_UPLOADING;
-              //ineedmd_led_pattern(LEAD_GOOD_UPLOADING);
               break;
             case DIG_FLATLINE:
               printf("DIG_FLATLINE");
               ineedmd_send_ack();
               ledState = DIG_FLATLINE;
-              //ineedmd_led_pattern(DIG_FLATLINE);
               break;
             case BT_CONNECTED:
               printf("BT_CONNECTED");
               ineedmd_send_ack();
-              //ineedmd_led_pattern(BT_CONNECTED);
               ledState = BT_CONNECTED;
               break;
             case BT_ATTEMPTING:
               printf("BT_ATTEMPTING");
               ineedmd_send_ack();
               ledState = BT_ATTEMPTING;
-              //ineedmd_led_pattern(BT_ATTEMPTING);
               break;
             case BT_FAILED:
               printf("BT_FAILED");
               ineedmd_send_ack();
               ledState = BT_FAILED;
-              //ineedmd_led_pattern(BT_FAILED);
               break;
             case USB_CONNECTED:
               printf("USB_CONNECTED");
               ineedmd_send_ack();
               ledState = USB_CONNECTED;
-              //ineedmd_led_pattern(USB_CONNECTED);
               break;
             case USB_FAILED:
               printf("USB_FAILED");
               ineedmd_send_ack();
               ledState = USB_FAILED;
-              //ineedmd_led_pattern(USB_FAILED);
               break;
             case DATA_TRANSFER:
               printf("DATA_TRANSFER");
               ineedmd_send_ack();
               ledState = DATA_TRANSFER;
-              //ineedmd_led_pattern(DATA_TRANSFER);
               break;
             case TRANSFER_DONE:
               printf("TRANSFER_DONE");
               ineedmd_send_ack();
               ledState = TRANSFER_DONE;
-              //ineedmd_led_pattern(TRANSFER_DONE);
               break;
             case STORAGE_WARNING:
               printf("STORAGE_WARNING");
               ineedmd_send_ack();
               ledState = STORAGE_WARNING;
-              //ineedmd_led_pattern(STORAGE_WARNING);
               break;
             case ERASING:
               printf("ERASING");
               ineedmd_send_ack();
               ledState = ERASING;
-              //ineedmd_led_pattern(ERASING);
               break;
             case ERASE_DONE:
               printf("ERASE_DONE");
               ineedmd_send_ack();
               ledState = ERASE_DONE;
-              //ineedmd_led_pattern(ERASE_DONE);
               break;
             case DFU_MODE:
               printf("DFU_MODE");
               ineedmd_send_ack();
               ledState = DFU_MODE;
-              //ineedmd_led_pattern(DFU_MODE);
               break;
             case MV_CAL:
               printf("MV_CAL");
               ineedmd_send_ack();
               ledState = MV_CAL;
-              //ineedmd_led_pattern(MV_CAL);
               break;
             case TRI_WVFRM:
               printf("TRI_WVFRM");
               ineedmd_send_ack();
               ledState = TRI_WVFRM;
-              //ineedmd_led_pattern(TRI_WVFRM);
               break;
             case REBOOT:
               printf("REBOOT");
               ineedmd_send_ack();
               ledState = REBOOT;
-              //ineedmd_led_pattern(REBOOT);
               break;
             case HIBERNATE:
               printf("HIBERNATE");
@@ -906,43 +642,36 @@ void ParseFrame(void *pt)
               printf("LEADS_ON");
               ineedmd_send_ack();
               ledState = LEADS_ON;
-              //ineedmd_led_pattern(LEADS_ON);
               break;
             case MEMORY_TEST:
               printf("MEMORY_TEST");
               ineedmd_send_ack();
               ledState = MEMORY_TEST;
-              //ineedmd_led_pattern(MEMORY_TEST);
               break;
             case COM_BUS_TEST:
               printf("COM_BUS_TEST");
               ineedmd_send_ack();
               ledState = COM_BUS_TEST;
-              //ineedmd_led_pattern(COM_BUS_TEST);
               break;
             case CPU_CLOCK_TEST:
               printf("CPU_CLOCK_TEST");
               ineedmd_send_ack();
               ledState = CPU_CLOCK_TEST;
-              //ineedmd_led_pattern(CPU_CLOCK_TEST);
               break;
             case FLASH_TEST:
               printf("FLASH_TEST");
               ineedmd_send_ack();
               ledState = FLASH_TEST;
-              //ineedmd_led_pattern(FLASH_TEST);
               break;
             case TEST_PASS:
               printf("TEST_PASS");
               ineedmd_send_ack();
               ledState = TEST_PASS;
-              //ineedmd_led_pattern(TEST_PASS);
               break;
             default:
               printf("Unrecongnized Sequence - No Soup For You");
               ineedmd_send_nack();
               ledState = LED_OFF;
-              //ineedmd_led_pattern(LED_OFF);
               break;
           }
         }
@@ -1019,7 +748,7 @@ int iIneedmd_Rcv_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len)
     if(vDid_copy != NULL)
     {
       bIs_protocol_frame = true;
-      uiINMD_Protocol_frame_len = uiCmnd_Frame_len;
+//      uiINMD_Protocol_frame_len = uiCmnd_Frame_len;
     }
     else
     {

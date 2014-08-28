@@ -69,7 +69,7 @@
 #define INEEDMD_RADIO_UART                     UART1_BASE
 #define INEEDMD_RADIO_UART_INT                 INT_UART1
 
-#define INEEDMD_PORTD_XTAL_ENABLE 0x20
+#define INEEDMD_PORTD_XTAL_ENABLE GPIO_PIN_5
 
 
 //port mappings to make easier to read names...

@@ -136,7 +136,7 @@
 #define SET_BT_PAIRCOUNT  "SET BT PAIRCOUNT %d\r\n"
   #define SET_BT_PAIRCOUNT_MAX_PAIRINGS  16
 #define SET_BT_BDADDR        "SET BT BDADDR\r\n"  //gets the BT address, yes gets it even though it says SET
-#define SET_BT_BDADDR_PARSE  "%s %s %s %x %c %x %c %x %c %x %c %x %c %x"
+#define SET_BT_BDADDR_PARSE  "%s %s %s %hhx %c %hhx %c %hhx %c %hhx %c %hhx %c %hhx"
 #define SET_BT_SSP      "SET BT SSP %d %d\r\n"
   #define SET_BT_SSP_CPBLTES_DISP_ONLY    0  //Display only
   #define SET_BT_SSP_CPBLTES_DISP_AND_YN  1  //Display + yes/no button
@@ -172,7 +172,7 @@
     #define SET_CONTROL_BIND_DIRECTION  SET_CONTROL_BIND_DIRECTION_RISE
     #define SET_CONTROL_COMMAND  "CLOSE 0"
 #define SET_CONTROL_CONFIG_GET   "SET CONTROL CONFIG\r\n"
-#define SET_CONTROL_CONFIG_PARSE "%s %s %s %x %x %x %x"
+#define SET_CONTROL_CONFIG_PARSE "%s %s %s %hx %hx %hx %hx"
 #define SET_CONTROL_CONFIG       "SET CONTROL CONFIG %.4x %.4x %.4x %.4x\r\n"
   #define SET_CONTROL_CONFIG_OPT_BITNULL  0x0000
   #define SET_CONTROL_CONFIG_OPT_BIT00    0x0001
@@ -229,7 +229,7 @@
 #define SET_CONTROL_MUX_HEX_DISABLE
 #define SSP_CONFIRM  "\r\nSSP CONFIRM %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY  "\r\nSSP PASSKEY %x:%x:%x:%x:%x:%x OK\r\n"
-#define SSP_PASSKEY_PARSE  "%s %s %x %c %x %c %x %c %x %c %x %c %x %d"
+#define SSP_PASSKEY_PARSE  "%s %s %hhx %c %hhx %c %hhx %c %hhx %c %hhx %c %hhx %d"
 #define SSP_PASSKEY_PARSE_NUM_ELEMENTS  15
 #define SET_RESET         "SET RESET\r\n"  //sets and returns the factory settings of the module.
 #define READY             "READY.\r\n"
@@ -457,7 +457,7 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
 ******************************************************************************/
 ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
 {
-#define DEBUG_iIneedmd_radio_rcv_boot_msg
+//#define DEBUG_iIneedmd_radio_rcv_boot_msg
 #ifdef DEBUG_iIneedmd_radio_rcv_boot_msg
   #define  vDEBUG_RDIO_RCV_BOOTMSG  vDEBUG
 #else
@@ -533,7 +533,7 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
  */
 ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
 {
-#define DEBUG_iIneedmd_radio_rcv_settings
+//#define DEBUG_iIneedmd_radio_rcv_settings
 #ifdef DEBUG_iIneedmd_radio_rcv_settings
   #define  vDEBUG_RDIO_RCV_SET  vDEBUG
 #else
@@ -542,8 +542,8 @@ ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
   int i = 0;
   ERROR_CODE eEC = ER_OK;
   eEC = eUsing_radio_uart_dma();
-  char * cSettings_msg = NULL;
-  bool bWas_any_data_rcvd = false;
+//  char * cSettings_msg = NULL;
+//  bool bWas_any_data_rcvd = false;
 
   eEC = eUsing_radio_uart_dma();
   if(eEC == ER_TRUE)
