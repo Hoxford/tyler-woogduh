@@ -48,7 +48,6 @@ static void vUART1_Rx_and_Tx  (void);
 //static void Reset_me(void);
 static void Timer0AIntHandler(void);
 static void USB0Int(void);
-static void uDMAIntHandle(void);
 static void uDMAErrorHandler(void);
 
 //*****************************************************************************
@@ -348,9 +347,7 @@ vUART1_Rx_and_Tx(void)
 {
   uint32_t ui32Status;
   uint32_t ui32DMA_int_status = 0;
-  uint32_t ui32Mode;
-  uint32_t i = 0;
-  bool     bIsUART_TX_DMA_Enabled = false;
+//  bool     bIsUART_TX_DMA_Enabled = false;
 
   ui32DMA_int_status = MAP_uDMAIntStatus();
   if(ui32DMA_int_status > 0)
@@ -465,16 +462,6 @@ static void USB0Int(void)
   MAP_USBIntStatusControl(INEEDMD_USB);
   MAP_USBIntStatusEndpoint(USB0_BASE);
 
-  return;
-}
-
-//*****************************************************************************
-//
-// DMA interrupt handler
-//
-//*****************************************************************************
-static void uDMAIntHandle(void)
-{
   return;
 }
 

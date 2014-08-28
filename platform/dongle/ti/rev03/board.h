@@ -63,15 +63,15 @@
 #define INEEDMD_RADIO_PORT                     GPIO_PORTE_BASE
 #define INEEDMD_RADIO_SERIAL_PORT              GPIO_PORTF_BASE
 #define INEEDMD_RADIO_RESET_PIN                GPIO_PIN_0
-#define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1
+#define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1  //todo no longer will be on pin 1
 #define INEEDMD_RADIO_ENABLE_PIN               GPIO_PIN_2
-#define INEEDMD_RADIO_CMND_PIN                 GPIO_PIN_3
+#define INEEDMD_RADIO_CMND_PIN                 GPIO_PIN_1
 #define INEEDMD_RADIO_UART                     UART1_BASE
 #define INEEDMD_RADIO_UART_INT                 INT_UART1
 #define UDMA_CHANNEL_RADIO_RX                  UDMA_CHANNEL_UART1RX
 #define UDMA_CHANNEL_RADIO_TX                  UDMA_CHANNEL_UART1TX
 
-#define INEEDMD_PORTD_XTAL_ENABLE 0x20
+#define INEEDMD_PORTD_XTAL_ENABLE GPIO_PIN_5
 
 
 //port mappings to make easier to read names...
@@ -118,10 +118,9 @@ int         RadioUARTEnable(void);
 int         RadioUARTDisable(void);
 int         iRadio_Power_On(void);
 int         iRadio_Power_Off(void);
-ERROR_CODE  eSet_radio_to_cmnd_mode(void);
+ERROR_CODE  eSet_radio_to_cmnd_mode(void);  //sets the uP radio command mode pin
 ERROR_CODE  eIs_radio_in_cmnd_mode(void);
-ERROR_CODE  eSet_radio_to_data_mode(void);
-ERROR_CODE  eIs_radio_in_data_mode(void);
+ERROR_CODE  eSet_radio_to_data_mode(void);  //clears the uP radio command mode pin
 ERROR_CODE  eUsing_radio_uart_dma(void);
 int         iRadio_interface_enable(void);
 int         iRadio_gpio_set(uint16_t uiMask);
@@ -135,6 +134,7 @@ int         iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
 int         iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
 ERROR_CODE  iRadio_rcv_char(char *cRcv_char);
 int         iRadio_rcv_byte(uint8_t *uiRcv_byte);
+ERROR_CODE  eRadio_clear_rcv_buffer(void);
 ERROR_CODE  eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size);
 ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size);
 ERROR_CODE  eIs_UART_using_DMA(void);
@@ -144,7 +144,8 @@ void vRadio_interface_int_service(uint16_t uiInt_id);
 void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status);
 void vRadio_interface_int_service_timeout(uint16_t uiInt_id);
 bool bRadio_is_data(void);
-bool bGet_CTS_Status(void);
+ERROR_CODE  eGet_Radio_CTS_status(void);  //returns the radio UART cts status
+ERROR_CODE  eGet_Radio_CTS_INT_status(void);  //returns the radio UART CTS interrupt status
 void LEDI2CEnable(void);
 void XTALControlPin(void);
 void USBPortEnable(void);
