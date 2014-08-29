@@ -74,7 +74,7 @@
 // defines
 //*****************************************************************************
 //radio uart DMA defines
-#define USE_RADIO_UART_DMA      true
+#define USE_RADIO_UART_DMA      false
 #define DMA_RDIO_RCV_BUFFSZ     1024
 #define NUM_DMA_RDIO_RCV_BUFFS  3
 
@@ -99,6 +99,7 @@ volatile int  iNum_cmnd_buffs = 0;
 volatile int  iNum_cts_procs = 0;
 volatile bool bIs_DMA_transmit_in_process = false;
 uint32_t uiSys_clock_rate_ms = 0;
+uint16_t uiCurrent_sys_speed = 0;
 
 //*****************************************************************************
 // The control table used by the uDMA controller. This table must be aligned to a 1024 byte boundary.
@@ -131,6 +132,8 @@ typedef enum
 //*****************************************************************************
 // structures
 //*****************************************************************************
+
+//DMA RX struct
 typedef struct
 {
   bool bBuff_free;
@@ -139,11 +142,13 @@ typedef struct
   uint16_t uiRcv_data_len;
 }tDMA_RX_struct;  //dma transmit data struct
 
+//DMA TX struct
 typedef struct
 {
   bool bBuff_free;
   uint8_t uiTx_Buff[DMA_RDIO_TX_BUFFSZ];
   uint16_t uiTx_data_len;
+  bool bTx_done;
 }tDMA_TX_struct;  //dma transmit data struct
 
 #if USE_RADIO_UART_DMA == true
@@ -196,6 +201,7 @@ ERROR_CODE Radio_UART_DMA_Config(void)
   {
     tDMA_TX_struct_array[i].bBuff_free     = true;
     tDMA_TX_struct_array[i].uiTx_data_len  = 0;
+    tDMA_TX_struct_array[i].bTx_done  = true;
     memset(&tDMA_TX_struct_array[i].uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
   }
 
@@ -588,8 +594,15 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
 //*****************************************************************************
 int set_system_speed (unsigned int how_fast)
 {
+//#define DEBUG_set_system_speed
+#ifdef DEBUG_set_system_speed
+  #define  vDEBUG_SET_SYS_SPEED  vDEBUG
+#else
+  #define vDEBUG_SET_SYS_SPEED(a)
+#endif
 
-  switch (how_fast) {
+  switch (how_fast)
+  {
     case INEEDMD_CPU_SPEED_FULL_EXTERNAL:
       //WARNING - do not use on first board rev!!!!
       //turn on the external oscillator
@@ -598,7 +611,8 @@ int set_system_speed (unsigned int how_fast)
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
       SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
-      //reset up the i2c bus
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_EXTERNAL");
 
       break;
     case INEEDMD_CPU_SPEED_HALF_EXTERNAL:
@@ -609,7 +623,8 @@ int set_system_speed (unsigned int how_fast)
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
       SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
-      //reset up the i2c bus
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_EXTERNAL");
 
       break;
 
@@ -621,7 +636,8 @@ int set_system_speed (unsigned int how_fast)
       MAP_SysCtlDelay(1000);
       //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
       SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
-      //reset up the i2c bus
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_QUARTER_EXTERNAL");
 
       break;
 
@@ -630,6 +646,9 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_INTERNAL");
+
       break;
 
     case INEEDMD_CPU_SPEED_HALF_INTERNAL:
@@ -637,6 +656,9 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_INTERNAL");
+
       break;
 
     case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
@@ -644,6 +666,9 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_SLOW_INTERNAL");
+
       break;
 
     case INEEDMD_CPU_SPEED_REALLY_SLOW:
@@ -652,6 +677,9 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_OSC_INT30 | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_REALLY_SLOW");
+
       break;
 
     default:
@@ -659,12 +687,34 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+
+      vDEBUG_SET_SYS_SPEED("Sys speed, default");
+
       break;
   }
 
+  //preserve the system speed
+  uiCurrent_sys_speed = how_fast;
+
   return how_fast;
 
+#undef vDEBUG_SET_SYS_SPEED
+}
 
+ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed)
+{
+  ERROR_CODE eEC = ER_OK;
+
+  if(uiCurrent_sys_speed == INEEDMD_CPU_SPEED_NOT_SET)
+  {
+    eEC = ER_NOT_SET;
+  }
+  else
+  {
+    *uiSys_speed = uiCurrent_sys_speed;
+  }
+
+  return eEC;
 }
 
 void
@@ -1310,6 +1360,7 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
       ptDMA_TX_Send = &tDMA_TX_struct_array[i];
 
       tDMA_TX_struct_array[i].bBuff_free = false;
+      tDMA_TX_struct_array[i].bTx_done = false;
 
       eEC = ER_OK;
       break;
@@ -1344,8 +1395,6 @@ ERROR_CODE eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size)
                                ptDMA_TX_Send->uiTx_data_len);
 
     MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_TX);
-
-
 
     bIs_DMA_transmit_in_process = true;
   }
@@ -1484,7 +1533,7 @@ int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 //*****************************************************************************
 ERROR_CODE  eRadio_clear_rcv_buffer(void)
 {
-//#define DEBUG_eRadio_clear_rcv_buffer
+#define DEBUG_eRadio_clear_rcv_buffer
 #ifdef DEBUG_eRadio_clear_rcv_buffer
   #define  vDEBUG_RDIO_RCV_CLR  vDEBUG
 #else
@@ -1736,15 +1785,9 @@ ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
   bool bIs_DMA_chan_en = false;
   uint32_t uiModem_status_get = 0;
 
-  while(bIs_DMA_transmit_in_process == true)
-  {
-    //we wait
-  }
-  while(MAP_UARTBusy(INEEDMD_RADIO_UART) == true)
-  {
-    //we wait
-  }
+  while(bIs_DMA_transmit_in_process == true){/*we wait*/}
 
+  //wait for the CTS to be set
   uiModem_status_get = MAP_UARTModemStatusGet(INEEDMD_RADIO_UART);
   while((uiModem_status_get & UART_INPUT_CTS) != UART_INPUT_CTS)
   {
@@ -1892,7 +1935,15 @@ int iRadio_interface_int_enable(void)
   // Enable the UART interrupt.
   //
   MAP_IntEnable(INEEDMD_RADIO_UART_INT);
-  MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+  if(USE_RADIO_UART_DMA == true)
+  {
+    MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS | UART_INT_DMATX);
+    MAP_UARTTxIntModeSet(INEEDMD_RADIO_UART, UART_TXINT_MODE_EOT);
+  }
+  else
+  {
+    MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+  }
 
   eMaster_int_enable();
   return 1;
@@ -1910,7 +1961,13 @@ int iRadio_interface_int_disable(void)
   // Disable the radio uart interrupt.
   //
   ROM_IntDisable(INEEDMD_RADIO_UART_INT);
-  ROM_UARTIntDisable(INEEDMD_RADIO_UART, UART_INT_TX | UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+
+  ROM_UARTIntDisable(INEEDMD_RADIO_UART,  UART_INT_DMATX |  UART_INT_DMARX | UART_INT_9BIT |\
+                                          UART_INT_OE    |  UART_INT_BE    | UART_INT_PE   |\
+                                          UART_INT_FE    |  UART_INT_RT    | UART_INT_TX   |\
+                                          UART_INT_RX    |  UART_INT_DSR   | UART_INT_DCD  |\
+                                          UART_INT_CTS   |  UART_INT_RI);
+
   return 1;
 }
 
@@ -1920,7 +1977,7 @@ int iRadio_interface_int_disable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void vRadio_interface_int_service(uint16_t uiInt_id)
+void vRadio_interface_int_service(uint32_t uiInt_id)
 {
 //  char cRcv_string[256];
 //  memset(cRcv_string, 0x00, 256);
@@ -1950,6 +2007,18 @@ void vRadio_interface_int_service(uint16_t uiInt_id)
 }
 
 //*****************************************************************************
+// name: vRadio_UARTTx_int_service
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+void vRadio_UARTTx_int_service(uint32_t ui32Status)
+{
+  bIs_DMA_transmit_in_process = false;
+  return;
+}
+
+//*****************************************************************************
 // name:
 // description:
 // param description:
@@ -1966,7 +2035,7 @@ void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status)
     bIsUART_TX_DMA_Enabled = ROM_uDMAChannelIsEnabled(UDMA_CHANNEL_UART1TX);  //todo set to a MAP_ fcn and re-define UDMA_CHANNEL_UART1TX
     if(bIsUART_TX_DMA_Enabled == false)
     {
-      bIs_DMA_transmit_in_process = false;
+//      bIs_DMA_transmit_in_process = false;
       //    MAP_UARTModemControlClear(INEEDMD_RADIO_UART, UART_OUTPUT_RTS);
       //    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_TX);
       //    vRadio_interface_DMA_tx_service();
@@ -2636,16 +2705,16 @@ iBoard_init(void)
 
   uint32_t uiSys_clock_rate;
 
+  // switch on the GPIO
+  GPIOEnable();
+
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
-  SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
 
   uiSys_clock_rate_ms = MAP_SysCtlClockGet() /3000;
 
   // set the brown out interupt and power down voltage
   PowerInitFunction();
-
-  // switch on the GPIO
-  GPIOEnable();
 
   //start the SPI bus to the capture ADC
   EKGSPIEnable();
@@ -2662,9 +2731,10 @@ iBoard_init(void)
   //start the pin that allows us to shut down the external oscillator... savng some power
   XTALControlPin();
 
-  //setup the USB port.  This can't be used in this clock mode.
+  //setup the USB port.
   USBPortEnable();
 
+  //todo: this messes up usb DFU for some reason, disable it before doing DFU
   MAP_SysTickEnable();
   uiSys_clock_rate = MAP_SysCtlClockGet();
 

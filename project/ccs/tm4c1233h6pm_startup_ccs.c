@@ -345,23 +345,35 @@ static void vSysTickIntHandler(void)
 static void
 vUART1_Rx_and_Tx(void)
 {
+  ERROR_CODE eEC = ER_OK;
   uint32_t ui32Status;
   uint32_t ui32DMA_int_status = 0;
 //  bool     bIsUART_TX_DMA_Enabled = false;
 
-  ui32DMA_int_status = MAP_uDMAIntStatus();
-  if(ui32DMA_int_status > 0)
+  eEC = eUsing_radio_uart_dma();
+  if(eEC == ER_TRUE)
   {
-    vRadio_interface_DMA_int_service(ui32DMA_int_status);
-    iUart_DMA_ints_serviced++;
-  }
-  MAP_uDMAIntClear(ui32DMA_int_status);
+    ui32DMA_int_status = MAP_uDMAIntStatus();
+    if(ui32DMA_int_status > 0)
+    {
+      vRadio_interface_DMA_int_service(ui32DMA_int_status);
+      iUart_DMA_ints_serviced++;
+    }
+    MAP_uDMAIntClear(ui32DMA_int_status);
+
+    ui32Status = MAP_UARTTxIntModeGet(INEEDMD_RADIO_UART);
+
+    if(ui32Status > 0)
+    {
+      vRadio_UARTTx_int_service(ui32Status);
+    }
+  }else{/*nothing*/}
 
   // Get the interrrupt status.
 //  while((ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false)) == 0){i++;};
   ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
   MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
-  ui32Status = ui32Status & (UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+//  ui32Status = ui32Status & (UART_INT_RX | UART_INT_RT | UART_INT_CTS);
 ////  while(ui32Status == 0)
 ////  {
 ////    ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, true);
@@ -391,33 +403,12 @@ vUART1_Rx_and_Tx(void)
     {
       vRadio_interface_int_service(UART_INT_CTS);
     }
+
+    if((ui32Status & UART_INT_DMATX) == UART_INT_DMATX)
+    {
+      vRadio_interface_int_service(UART_INT_DMATX);
+    }
   }
-  //Get the DMA mode for the UART1 receive transfer
-//  ui32Mode = ROM_uDMAChannelModeGet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT);
-//
-//  // Check the DMA control table to see if the UART1 RX is complete.
-//  if(ui32Mode == UDMA_MODE_STOP)
-//  {
-//    vRadio_interface_DMA_rcv_service();
-//  }
-//
-//  // If the UART1 DMA TX channel is disabled, that means the TX DMA transfer is done.
-//
-//  bIsUART_TX_DMA_Enabled = ROM_uDMAChannelIsEnabled(UDMA_CHANNEL_UART1TX);  //todo set to a MAP_ fcn and re-define UDMA_CHANNEL_UART1TX
-//  if(bIsUART_TX_DMA_Enabled == false)
-//  {
-//
-//    //uart dma TX interrupt servie () check if another send needs to be setup
-//
-//    // Start another DMA transfer to UART1 TX.
-////    ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1TX | UDMA_PRI_SELECT,
-////                               UDMA_MODE_BASIC, g_ui8TxBuf,
-////                               (void *)(UART1_BASE + UART_O_DR),
-////                               sizeof(g_ui8TxBuf));
-//
-//    // The uDMA TX channel must be re-enabled.
-////    ROM_uDMAChannelEnable(UDMA_CHANNEL_UART1TX);
-//  }
 
   return;
 }

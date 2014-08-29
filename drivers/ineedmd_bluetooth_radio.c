@@ -473,7 +473,7 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
   if(eEC == ER_TRUE)
   {
     //dma is to fast and causes problems when the device re-boots. A hard delay of 1 second is used to properly compensate for this
-    MAP_SysCtlDelay(ui32SysClock);
+//    MAP_SysCtlDelay(ui32SysClock);
     for(i = 0; i < 5; i++)  //Check all available buffers to review buffers  //todo: magic number alert
     {
       eEC = eRcv_dma_radio_boot_frame(cRcv_string, uiBuff_size);
@@ -618,6 +618,11 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
      (eEC != ER_BUFF_SIZE))
   {
     vDEBUG_RDIO_RCV_BOOTMSG("Radio rcv boot msg SYS HALT, invalid error code to return");
+    while(1){};
+  }
+  else if(eEC == ER_TIMEOUT)
+  {
+    vDEBUG_RDIO_RCV_BOOTMSG("Radio rcv boot msg SYS HALT, rx timed out");
     while(1){};
   }else{/*do nothing*/}
 #endif
@@ -828,14 +833,19 @@ void ineedmd_radio_power(bool power_up)
  */
 void ineedmd_radio_reset(void)
 {
+  uint32_t uiSysClk = 0;
+
+  uiSysClk = MAP_SysCtlClockGet();
+
+  uiSysClk = uiSysClk/10;
+
   //exerts the processor rest pin
   GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_RESET_PIN,  INEEDMD_RADIO_RESET_PIN );
-
 
 	//as we dont know the state of the processor or the timers we will do the delay in cpu clock cycles
 	//about a 10th of a second
 	//it would be nicer to have this as a proces sleep..
-	MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
+	MAP_SysCtlDelay( uiSysClk );
 
 	//de-exert,sets it low, reset pin
 	GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_RESET_PIN, 0x00);
@@ -1116,6 +1126,8 @@ int  iIneedMD_radio_setup(void)
   char cRcv_buff[BG_SIZE];
   uint32_t ui32SysClock = MAP_SysCtlClockGet();
 
+  char cEsc_char = '+';
+
   if(uiIneedmd_radio_type == INEEDMD_BT_RADIO_PLATFORM)
   {
     memset(uiBT_addr,0x00, BT_MACADDR_NUM_BYTES);
@@ -1149,9 +1161,23 @@ int  iIneedMD_radio_setup(void)
       }
     }
 
+    //SET CONTROL MUX disable in hex format incase radio was in mux mode
+//    ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 23);
+
+    MAP_SysCtlDelay(ui32SysClock);
+    iRadio_send_char(&cEsc_char);
+    MAP_SysCtlDelay(ui32SysClock/10);
+    iRadio_send_char(&cEsc_char);
+    MAP_SysCtlDelay(ui32SysClock/10);
+    iRadio_send_char(&cEsc_char);
+    MAP_SysCtlDelay(ui32SysClock);
+
+    eRadio_clear_rcv_buffer();
+
     //SET RESET, reset to factory defaults
     //
     eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
+//    while(1){};
     if(eEC == ER_OK)
     {
       vDEBUG_RDIO_SETUP("Rdio setup, SET RESET, RFD");

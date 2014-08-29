@@ -90,7 +90,8 @@
 #define INEED_USB      0x05
 
 //subsystem block number - just used to make some coding functions easer.
-#define INEEDMD_CPU_SPEED_FULL_EXTERNAL     0x00
+#define INEEDMD_CPU_SPEED_NOT_SET           0x00
+#define INEEDMD_CPU_SPEED_FULL_EXTERNAL     0x07
 #define INEEDMD_CPU_SPEED_HALF_EXTERNAL     0x05
 #define INEEDMD_CPU_SPEED_QUARTER_EXTERNAL  0x06
 #define INEEDMD_CPU_SPEED_FULL_INTERNAL     0x01
@@ -110,6 +111,7 @@ void ConfigureDeepSleep(void);
 void wait_time (unsigned int);
 void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
 int set_system_speed (unsigned int);
+ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed);
 
 void        GPIOEnable(void);
 int         BatMeasureADCEnable(void);
@@ -140,7 +142,8 @@ ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
 ERROR_CODE  eIs_UART_using_DMA(void);
 int iRadio_interface_int_enable(void);
 int iRadio_interface_int_disable(void);
-void vRadio_interface_int_service(uint16_t uiInt_id);
+void vRadio_interface_int_service(uint32_t uiInt_id);
+void vRadio_UARTTx_int_service(uint32_t ui32Status);
 void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status);
 void vRadio_interface_int_service_timeout(uint16_t uiInt_id);
 bool bRadio_is_data(void);

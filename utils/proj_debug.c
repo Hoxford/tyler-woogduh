@@ -30,6 +30,7 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
+#define  DEBUG_SYSCTL_PERIPH_GPIO  SYSCTL_PERIPH_GPIOE
 #define  DEBUG_SYSCTL_PERIPH_UART  SYSCTL_PERIPH_UART5
 #define  DEBUG_UART                UART5_BASE
 #define  DEBUG_UART_PIN_PORT       GPIO_PORTE_BASE
@@ -116,48 +117,38 @@ void vDEBUG(char * cMsg, ...)
 //*****************************************************************************
 void vDEBUG_init(void)
 {
+
+  //Enable the peripheral gpio, all must be enabled and in order
+  //
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
   MAP_SysCtlPeripheralEnable(DEBUG_SYSCTL_PERIPH_UART);
 
-  // Enable pin PF0 for UART1 U1RTS
-  // First open the lock and select the bits we want to modify in the GPIO commit register.
-  //
-//  HWREG(INEEDMD_RADIO_SERIAL_PORT + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-//  HWREG(INEEDMD_RADIO_SERIAL_PORT + GPIO_O_CR) = 0x1;
-  //
-  // Now modify the configuration of the pins that we unlocked.
-  //
-//  MAP_GPIOPinConfigure(GPIO_PF0_U1RTS);
-//  MAP_GPIOPinTypeUART(INEEDMD_RADIO_SERIAL_PORT, GPIO_PIN_0);
-  //
-  // Enable pin PF1 for UART1 U1CTS
-  //
-//  MAP_GPIOPinConfigure(GPIO_PF1_U1CTS);
-//  MAP_GPIOPinTypeUART(INEEDMD_RADIO_SERIAL_PORT, GPIO_PIN_1);
-  //
-  // Enable pin PE4 for UART5 U5TX and PE4 for U5RX
+  // Configure the debug port pins
   //
   MAP_GPIOPinConfigure(DEBUG_TX_PIN_MUX_MODE);
   MAP_GPIOPinConfigure(DEBUG_RX_PIN_MUX_MODE);
-  //
-  // Enable pin PE5 for UART5 U5TX
+
+  // Set the pin types
   //
   MAP_GPIOPinTypeUART(DEBUG_UART_PIN_PORT, DEBUG_TX_PIN);
-  //
-  // Enable pin PE4 for UART5 U5RX
-  //
   MAP_GPIOPinTypeUART(DEBUG_UART_PIN_PORT, DEBUG_RX_PIN);
 
+  //Set the clock source for the uart
+  //
   UARTClockSourceSet(DEBUG_UART, UART_CLOCK_PIOSC);
 
-//  uiDbg_SysClock = MAP_SysCtlClockGet();
+  //Configure the uart
   //
-  // Configure the UART for 115,200, 8-N-1 operation.
-  // This function uses SysCtlClockGet() to get the system clock
-  // frequency.
-//  UARTConfigSetExpClk(DEBUG_UART, uiDbg_SysClock, DEBUG_BAUD, DEBUG_UART_CONFIG);
   UARTConfigSetExpClk(DEBUG_UART, 16000000, DEBUG_BAUD, DEBUG_UART_CONFIG);
 
-  //And the Radio UART
+  //Enable the debug UART
+  //
   UARTEnable(DEBUG_UART);
   return;
 }

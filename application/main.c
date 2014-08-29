@@ -50,6 +50,7 @@
 #define iIneedmd_connection_process  iIneedMD_radio_process
 #define LEAD_SHORT                   0x82FF
 #define LEAD_SHORT_RESET             0xA0FF
+#define LEAD_SHORT_SLEEP             0xA2FF
 
 //*****************************************************************************
 // variables
@@ -67,15 +68,17 @@ unsigned char ledState = 0;
 // structures
 //*****************************************************************************
 sFileSys sFile_Sys;
+
+//*****************************************************************************
+// private function declarations
+//*****************************************************************************
+void switch_on_adc_for_lead_detection(void);
+void check_for_update(void);
+
 //*****************************************************************************
 // external functions
 //*****************************************************************************
 //extern void PowerInitFunction(void);
-//*****************************************************************************
-// function declarations
-//*****************************************************************************
-void switch_on_adc_for_lead_detection(void);
-void check_for_update(void);
 
 //*****************************************************************************
 // functions
@@ -114,9 +117,24 @@ void switch_on_adc_for_lead_detection(void)
 }
 
 
-void hold_until_short_removed(void){
+void hold_until_short_removed(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiLead_check = 0;
+  uint16_t uiPrevious_speed = 0;
 
-  while(ineedmd_adc_Check_Lead_Off() != LEAD_SHORT)
+  eEC = eGet_system_speed(&uiPrevious_speed);
+  if(eEC == ER_NOT_SET)
+  {
+    uiPrevious_speed = INEEDMD_CPU_SPEED_FULL_INTERNAL;
+    set_system_speed (uiPrevious_speed);
+  }else{/*nothing*/}
+
+  switch_on_adc_for_lead_detection();
+
+  uiLead_check = ineedmd_adc_Check_Lead_Off();
+
+  while(uiLead_check == LEAD_SHORT_SLEEP)
   {
       //disable the spi port
     EKGSPIDisable();
@@ -126,23 +144,23 @@ void hold_until_short_removed(void){
     //
     // Set the Timer0B load value to 10s.
     //
-      ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-      ROM_IntMasterEnable();
-      ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-      TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    eMaster_int_enable();
+    MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+    MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
 
     //
     // Enable processor interrupts.
-    //
-    IntMasterEnable();
+    //todo: redundant?
+    eMaster_int_enable();
     //
     // Configure the Timer0 interrupt for timer timeout.
     //
-    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
     //
     // Enable the Timer0A interrupt on the processor (NVIC).
     //
-    IntEnable(INT_TIMER0A);
+    MAP_IntEnable(INT_TIMER0A);
     //
     // clocks down the processor to REALLY slow ( 500khz) and
     //
@@ -150,20 +168,27 @@ void hold_until_short_removed(void){
     //
     // Enable Timer0(A)
     //
-    TimerEnable(TIMER0_BASE, TIMER_A);
+    MAP_TimerEnable(TIMER0_BASE, TIMER_A);
 
     MAP_SysCtlSleep();
-    //SysCtlSleep();
 
     //comming out we turn the processor all the way up
     set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
 
-    TimerDisable(TIMER0_BASE, TIMER_A);
-    IntDisable(INT_TIMER0A);
-    IntMasterDisable();
+    MAP_TimerDisable(TIMER0_BASE, TIMER_A);
+    MAP_IntDisable(INT_TIMER0A);
+    eMaster_int_disable();
 
     switch_on_adc_for_lead_detection();
+
+    uiLead_check = ineedmd_adc_Check_Lead_Off();
   }
+
+  //re-enable master interrupts
+  eMaster_int_enable();
+
+  //set the system speed to what it was originally
+  set_system_speed (uiPrevious_speed);
 }
 
 //*****************************************************************************
@@ -221,9 +246,14 @@ void check_for_update(void)
 //  }
   uint32_t uiLead_status;
   bool bUSB_plugged_in = false;
+
+  switch_on_adc_for_lead_detection();
+
+  //turn on the USB port
   USBPortEnable();
   iHW_delay(1000);
 
+  //Check if the firmware update jumper is in place
   uiLead_status = ineedmd_adc_Check_Lead_Off();
   if(uiLead_status == LEAD_SHORT)
   {
@@ -246,7 +276,7 @@ void check_for_update(void)
 //      MAP_SysTickEnable();
 //      eMaster_int_disable();
 //      MAP_SysTickIntDisable();
-//      MAP_SysTickDisable();
+      MAP_SysTickDisable();
       HWREG(NVIC_DIS0) = 0xffffffff;
       HWREG(NVIC_DIS1) = 0xffffffff;
       // 1. Enable USB PLL
@@ -300,45 +330,53 @@ void check_for_reset(void)
 int
 main(void)
 {
-  iBoard_init();
+#define DEBUG_main
+#ifdef DEBUG_main
+  #define  vDEBUG_MAIN  vDEBUG
+#else
+  #define vDEBUG_MAIN(a)
+#endif
 
   //init the debug interface
   vDEBUG_init();
-  vDEBUG("Hello World!");
+  vDEBUG_MAIN("Hello World!");
+
+  //init the board
+  iBoard_init();
 
   set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
 
   ineedmd_led_pattern(LED_OFF);
-  //set up the watchdog
-  switch_on_adc_for_lead_detection();
+
+  //Put the system into low power mode if the shipping jumper is present
   hold_until_short_removed();
 
   //set up the watchdog
+  vDEBUG_MAIN("Watchdog setup");
   ineedmd_watchdog_setup();
-  vDEBUG("Watchdog setup");
-
   //give the watch dog a long timer to allow inital setup to take place
   ineedmd_watchdog_feed();
 
-  switch_on_adc_for_lead_detection();
-
   //if during system reboot and the usb cable is plugged into a data connection the device will go into DFU
-  vDEBUG("checking for update");
-  check_for_update(); //todo: will not update if jumper missing and usb non data
+  vDEBUG_MAIN("checking for update");
+  check_for_update();
 
 //  check_battery();
 
   //mount the file system
 //  iFileSys_mount(&sFile_Sys, 0, 1);
 
-
+  //set up the A to D converter
+  vDEBUG_MAIN("A to D setup");
   iADC_setup();
 
   //set up the module radio
+  vDEBUG_MAIN("Radio setup");
   iIneedMD_radio_setup();
+
   ineedmd_led_pattern(POWER_UP_GOOD);
 
-  vDEBUG("Starting super loop");
+  vDEBUG_MAIN("Starting super loop");
   while(1)
   {
     ineedmd_watchdog_pat();
@@ -354,4 +392,6 @@ main(void)
 
   //todo debug and possible reset
    return 1;
+
+#undef vDEBUG_MAIN
 }
