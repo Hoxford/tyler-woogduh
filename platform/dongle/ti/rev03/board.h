@@ -100,6 +100,15 @@
 #define INEEDMD_CPU_SPEED_REALLY_SLOW       0x04
 
 
+//define the WTC channel A input for the RA electronde as the channel 3 negative input
+#define WTC_A_CHANNEL 0x05
+//define the WTC channel B input for the LA electronde as the channel 3 Positive input
+#define WTC_B_CHANNEL 0x20
+//define the WTC channel C input for the LL electronde as the channel 4 Positive input
+#define WTC_C_CHANNEL 0x06
+
+
+
 
 void Set_Timer0_Sleep();
 void vSystick_int_service(void);

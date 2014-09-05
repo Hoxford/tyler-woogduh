@@ -54,6 +54,7 @@
 //global settings
 #define CONFIG1				0x01
 #define CONFIG2				0x02
+  #define TEST_REGISTER CONFIG2
 #define CONFIG3				0x03
 #define LOFF				0x04
 
@@ -85,8 +86,8 @@
 //***************************************************************
 
 //CONFIG1
-#define DAISY_EN			0x40
-#define CLK_EN				0x20
+#define DAISY_EN		0x40
+#define CLK_EN			0x20
 #define DR2					0x04
 #define DR1					0x02
 #define DR0					0x01
@@ -94,16 +95,16 @@
 //CONFIG2 
 #define INT_TEST			0x10
 #define TEST_AMP			0x04
-#define	TEST_FREQ1			0x02
-#define TEST_FREQ0			0x01
+#define	TEST_FREQ1		0x02
+#define TEST_FREQ0		0x01
 
 //CONFIG3
 #define PD_REFBUF			0x80
 #define VREF_4V				0x20
 #define RLD_MEAS			0x10
-#define RLDREF_INT			0x08
+#define RLDREF_INT		0x08
 #define PD_RLD				0x04
-#define RLD_LOFF_SENS		0x02
+#define RLD_LOFF_SENS	0x02
 #define RLD_STAT			0x01
 
 //LOFF
@@ -125,6 +126,22 @@
 #define MUX1				0x02
 #define MUX0				0x01
 
+#define GAIN_1_X GAIN0
+#define GAIN_2_X GAIN1
+#define GAIN_3_X (GAIN0 | GAIN1)
+#define GAIN_4_X GAIN2
+#define GAIN_6_X 0x00
+#define GAIN_8_X (GAIN2 | GAIN0)
+#define GAIN_12_X (GAIN2 | GAIN1)
+
+#define MUX_TEST (MUX0 | MUX2)
+#define MUX_ELECTRODE 0x00
+#define MUX_SHORT (MUX0)
+#define MUX_TEMPERATURE (MUX0 | MUX2)
+#define MUX_ELECTRODES Ox00
+
+
+
 //RLD_SENSP
 #define RLD8P				0x80
 #define RLD7P				0x40
@@ -134,8 +151,29 @@
 #define RLD3P				0x04
 #define RLD2P				0x02
 #define RLD1P				0x01
+/* 0.3 Board Pin Definition */
+  #define EKG_V6 RLD8P
+  #define EKG_V5 RLD7P
+  #define EKG_V4 RLD6P
+  #define EKG_V3 RLD5P
+  #define EKG_LA RLD4P
+  #define EKG_LL RLD3P
+  #define EKG_V2 RLD2P
+  #define EKG_V1 RLD1P
+/* 0.5 Board Pin Definition
+  #define EKG_V1 RLD8P
+  #define EKG_V2 RLD7P
+  #define EKG_V3 RLD6P
+  #define EKG_V4 RLD5P
+  #define EKG_LL RLD4P
+  #define EKG_LA RLD3P
+  #define EKG_V5 RLD2P
+  #define EKG_V6 RLD1P
+*/
 
 //RLD_SENSN
+#define RLD_NO_LEAD 0x00
+
 #define RLD8N				0x80
 #define RLD7N				0x40
 #define RLD6N				0x20
@@ -144,6 +182,27 @@
 #define RLD3N				0x04
 #define RLD2N				0x02
 #define RLD1N				0x01
+
+/* 0.3 Board Pin Definition */
+  #define EKG_WTC1 RLD8N
+  #define EKG_WTC2 RLD7N
+  #define EKG_WTC3 RLD6N
+  #define EKG_WTC4 RLD5N
+  #define EKG_RA1 RLD4N
+  #define EKG_RA2 RLD3N
+  #define EKG_WTC5 RLD2N
+  #define EKG_WTC6 RLD1N
+/* 0.5 Board Pin Definition
+  #define EKG_WTC1 RLD8N
+  #define EKG_WTC2 RLD7N
+  #define EKG_WTC3 RLD6N
+  #define EKG_WTC4 RLD5N
+  #define EKG_RA1 RLD4N
+  #define EKG_RA2 RLD3N
+  #define EKG_WTC5 RLD2N
+  #define EKG_WTC6 RLD1N
+*/
+
 
 //LOFF_SENSP
 #define LOFF8P				0x80
@@ -206,6 +265,21 @@
 #define WCTC2				0x04
 #define WCTC1				0x02
 #define WCTC0				0x01
+
+#define POWER_UP_WTCA PD_WCTA
+#define POWER_UP_WTCB PD_WCTB
+#define POWER_UP_WTCC PD_WCTC
+#define POWER_DOWN_WTC 0x00
+
+
+//setting up the numbers for the Test mode
+
+#define TEST_MODE_NORMAL_FREQUENCY 0x00
+#define TEST_MODE_FAST_FREQUENCY   0x01
+#define TEST_MODE_NOMINAL_VOLTAGE  0x00
+#define TEST_MODE_HIGH_VOLTAGE     0x04
+#define TEST_MODE_ENABLE           0x30
+#define TEST_MODE_DISABLE          0x20
 
 //Part ID
 //#define ADS1198_ID              0xB6

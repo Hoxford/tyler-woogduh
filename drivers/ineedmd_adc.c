@@ -441,19 +441,182 @@ uint32_t ineedmd_adc_Check_RLD_Lead()
 //********************************************************************************
 int ineedmd_adc_Check_Update()
 {
-	uint32_t leadStat = ineedmd_adc_Check_Lead_Off();
-	if(leadStat == UPDATE_DEVICE_CONDITION)
-	{
-		return 1;
-	}
-	else
-	{
-		return 0;
-	}
+  uint32_t leadStat = ineedmd_adc_Check_Lead_Off();
+  if(leadStat == UPDATE_DEVICE_CONDITION)
+  {
+    return 1;
+  }
+  else
+  {
+    return 0;
+  }
 }
 
+/********************************************************************************
+ * Sets up the test generation mode.
+ *
+ * returns 0 if no update required
+ * returns 1 if update required
+ *
+ * Parameters are -
+ * TEST_MODE_NORMAL_FREQUENCY | TEST_MODE_FAST_FREQUENCY to set up the frequency of the waveform
+ * TEST_MODE_NOMINAL_VOLTAGE | TEST_MODE_HIGH_VOLTAGE to set up the output voltage
+ *
+ * ineedmd_adc_Test_Mode_Disable() cancels the test mode and resets the MUX
+********************************************************************************/
+int ineedmd_adc_Test_Mode_Enable(int test_signal_frequency, int test_signal_voltage)
+{
+  //Set up the test signal to on - at the frequency we want, and at the voltage we want
+  ineedmd_adc_Register_Write(TEST_REGISTER, ( TEST_MODE_ENABLE | test_signal_frequency | test_signal_voltage));
+  //set up the gain to the default so we don't damage the frontend
+  ineedmd_adc_gain_set (GAIN_6_X);
+  //set up the input mux to pass the test signals to the ADC
+  ineedmd_adc_mux_set (MUX_TEST);
+  return 1;
+}
+/* End Test mode enable */
 
-//********************************************************************************
+/********************************************************************************
+ * Configures the pins and functionaloty for the WTC and switches it on
+********************************************************************************/
+int ineedmd_adc_WTC_Enable()
+{
+  //Power up and configure the Wilson current mirror - A
+  ineedmd_adc_Register_Write(WCT1, ( POWER_UP_WTCA | WTC_A_CHANNEL ));
+  //Power up and configure the Wilson current mirror - A and B
+  ineedmd_adc_Register_Write(WCT2, ( POWER_UP_WTCB | WTC_B_CHANNEL | POWER_UP_WTCC | WTC_C_CHANNEL ));
+  return 1;
+}
+/* End ineedmd_adc_WTC_Enable */
+
+/********************************************************************************
+ * Configures the pins and functionaloty for the WTC and switches it on
+********************************************************************************/
+int ineedmd_adc_WTC_Disable()
+{
+  //Power up and configure the Wilson current mirror - A
+  ineedmd_adc_Register_Write(WCT1, POWER_DOWN_WTC );
+  //Power up and configure the Wilson current mirror - A and B
+  ineedmd_adc_Register_Write(WCT2, POWER_DOWN_WTC );
+  return 1;
+}
+/* End ineedmd_adc_WTC_Disable */
+
+int ineedmd_adc_RLA_Enable()
+{
+   uint32_t config3_initial_value;
+
+  //set up the WTC amp feeder
+  ineedmd_adc_Register_Write(WCT1, ( EKG_V6 | EKG_V5 | EKG_V4 | EKG_V3 | EKG_LA | EKG_LL | EKG_V2 | EKG_V1 ));
+  //set up the WTC amp feeder
+  ineedmd_adc_Register_Write(WCT2, (  EKG_RA1 ));
+
+  //read the config register
+  config3_initial_value = ineedmd_adc_Register_Read(CONFIG3);
+  //set the rld buffer to on
+  ineedmd_adc_Register_Write(CONFIG3, ( config3_initial_value ^  PD_RLD ));
+    return 1;
+}
+/* End ineedmd_adc_RLA_Enable */
+
+
+int ineedmd_adc_RLA_Disable()
+{
+  uint32_t config3_initial_value;
+
+  //Disconnect the RLD leads
+  ineedmd_adc_Register_Write(WCT1, ( RLD_NO_LEAD ));
+  //Disconnect the RLD leads
+  ineedmd_adc_Register_Write(WCT2, ( RLD_NO_LEAD ));
+  //read the config register
+  config3_initial_value = ineedmd_adc_Register_Read(CONFIG3);
+  //switch off the drive buffer
+  ineedmd_adc_Register_Write(CONFIG3, (  config3_initial_value | !PD_RLD ));
+  return 1;
+}
+/* End ineedmd_adc_RLA_Disable */
+
+/********************************************************************************
+ * Configures the pins and functionaloty for the WTC and switches it on
+********************************************************************************/
+
+
+
+/********************************************************************************
+ * Sets the Gain position of all the channels to the same position
+ *
+ ******************************************************************************/
+int ineedmd_adc_gain_set(int gain_position)
+{
+   int initial_gain_position;
+
+   //read the initial position of the mux
+   initial_gain_position = ineedmd_adc_Register_Read(CH1SET);
+   ineedmd_adc_Register_Write(CH1SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   initial_gain_position = ineedmd_adc_Register_Read(CH2SET);
+   ineedmd_adc_Register_Write(CH2SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   initial_gain_position = ineedmd_adc_Register_Read(CH3SET);
+   ineedmd_adc_Register_Write(CH3SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   initial_gain_position = ineedmd_adc_Register_Read(CH4SET);
+   ineedmd_adc_Register_Write(CH4SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   initial_gain_position = ineedmd_adc_Register_Read(CH5SET);
+   ineedmd_adc_Register_Write(CH5SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   initial_gain_position = ineedmd_adc_Register_Read(CH6SET);
+   ineedmd_adc_Register_Write(CH6SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   initial_gain_position = ineedmd_adc_Register_Read(CH7SET);
+   ineedmd_adc_Register_Write(CH7SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   initial_gain_position = ineedmd_adc_Register_Read(CH8SET);
+   ineedmd_adc_Register_Write(CH8SET, ( (initial_gain_position & 0x8f) | gain_position));
+
+   return 1;
+}
+/* End ineedmd_adc_mux_set */
+
+/********************************************************************************
+ * Sets the MUX position of all the channels to the same position
+ *
+ ******************************************************************************/
+int ineedmd_adc_mux_set(int mux_position)
+{
+   int initial_mux_position;
+
+   //read the initial position of the mux
+   initial_mux_position = ineedmd_adc_Register_Read(CH1SET);
+   ineedmd_adc_Register_Write(CH1SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   initial_mux_position = ineedmd_adc_Register_Read(CH2SET);
+   ineedmd_adc_Register_Write(CH2SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   initial_mux_position = ineedmd_adc_Register_Read(CH3SET);
+   ineedmd_adc_Register_Write(CH3SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   initial_mux_position = ineedmd_adc_Register_Read(CH4SET);
+   ineedmd_adc_Register_Write(CH4SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   initial_mux_position = ineedmd_adc_Register_Read(CH5SET);
+   ineedmd_adc_Register_Write(CH5SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   initial_mux_position = ineedmd_adc_Register_Read(CH6SET);
+   ineedmd_adc_Register_Write(CH6SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   initial_mux_position = ineedmd_adc_Register_Read(CH7SET);
+   ineedmd_adc_Register_Write(CH7SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   initial_mux_position = ineedmd_adc_Register_Read(CH8SET);
+   ineedmd_adc_Register_Write(CH8SET, ( (initial_mux_position & 0xF8) | mux_position));
+
+   return 1;
+}
+/* End ineedmd_adc_mux_set */
+
+ //********************************************************************************
 //set the adc sampling rate
 //0 = 8kSPS
 //1 = 4k
