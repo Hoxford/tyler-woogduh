@@ -43,9 +43,16 @@
 
 #define INEEDMD_PORTA_ADC_PWRDN_OUT_PIN 0x80
 #define INEEDMD_PORTA_ADC_RESET_OUT_PIN 0X40
-#define INEEDMD_PORTA_ADC_INTERUPT_PIN 0x01
-#define INEEDMD_PORTA_ADC_START_PIN 0x02
-#define INEEDMD_PORTA_ADC_nCS_PIN 0x08
+#define INEEDMD_PORTA_ADC_INTERUPT_PIN  0x01
+#define INEEDMD_PORTA_ADC_START_PIN     0x02
+#define INEEDMD_PORTA_ADC_nCS_PIN       0x08
+
+#define LEAD_SHORT                     0x82FF
+#define LEAD_SHORT_RESET               0xA0FF
+#define LEAD_SHORT_SLEEP               0xA2FF
+#define LEAD_ALL_SHORTED               0x00FF
+
+
 
 //battery port mappings
 #define INEEDMD_BATTERY_PORT                 GPIO_PORTE_BASE
@@ -246,6 +253,8 @@ void USBPortDisable(void);
 ERROR_CODE eMaster_int_enable(void);
 ERROR_CODE eMaster_int_disable(void);
 int iHW_delay(uint32_t uiDelay);
+ERROR_CODE ineedmd_usb_connected(void);
+
 int iBoard_init(void);
 
 #endif //  __BOARD_H__

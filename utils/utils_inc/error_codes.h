@@ -64,7 +64,9 @@ typedef enum
     ER_RECEIVE,
     ER_VALID,
     ER_INVALID,
-    ER_INVALID_RESPONSE
+    ER_INVALID_RESPONSE,
+    ER_CONNECTED,
+    ER_NOT_CONNECTED
 }ERROR_CODE;
 
 //*****************************************************************************

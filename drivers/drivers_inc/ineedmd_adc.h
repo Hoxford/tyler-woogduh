@@ -299,6 +299,9 @@ extern void ineedmd_adc_Start_High();
 extern void ineedmd_adc_Start_Low();
 extern void ineedmd_adc_Request_Data();
 extern void ineedmd_adc_Receive_Data(char* data);
+
+extern int ineedmd_adc_gain_set(int gain_position);
+extern int ineedmd_adc_mux_set(int mux_position);
 extern void ineedmd_adc_Power_Off();
 
 extern uint32_t ineedmd_adc_Get_ID();

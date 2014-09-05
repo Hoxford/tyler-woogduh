@@ -1318,7 +1318,7 @@ int iRadio_Power_On(void)
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
-int iRadio_Power_Off(void)
+int s(void)
 {
   GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN_CLEAR);
   return 1;
@@ -2727,6 +2727,16 @@ bool bIs_usb_physical_data_conn(void)
   eMaster_int_enable();
 
   return bWas_physical_data_conn;
+}
+
+
+/*
+ * check for a USB connection...
+ */
+
+ERROR_CODE ineedmd_usb_connected(void)
+{
+ return ER_CONNECTED;
 }
 
 //*****************************************************************************

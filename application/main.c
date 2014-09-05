@@ -39,7 +39,7 @@
 #include "app_inc/ineedmd_waveform.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
-//#include "utils_inc/error_codes.h"
+#include "utils_inc/error_codes.h"
 #include "ff.h"
 
 //*****************************************************************************
@@ -48,9 +48,11 @@
 #define WD_TIMEOUT  5  //Watch dog time out value in secons
 
 #define iIneedmd_connection_process  iIneedMD_radio_process
+/*
 #define LEAD_SHORT                   0x82FF
 #define LEAD_SHORT_RESET             0xA0FF
 #define LEAD_SHORT_SLEEP             0xA2FF
+*/
 
 //*****************************************************************************
 // variables
@@ -191,6 +193,86 @@ void hold_until_short_removed(void)
   set_system_speed (uiPrevious_speed);
 }
 
+/* ***************************************************
+ * sleeps for 10seconds on low power mode
+ *
+ * this is designed for the led4 sleep with a flash of
+ * the battery state while in sleep
+ *****************************************************/
+void ineedmd_sleep(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiLead_check = 0;
+  uint16_t uiPrevious_speed = 0;
+
+  eEC = eGet_system_speed(&uiPrevious_speed);
+  if(eEC == ER_NOT_SET)
+  {
+    uiPrevious_speed = INEEDMD_CPU_SPEED_FULL_INTERNAL;
+    set_system_speed (uiPrevious_speed);
+  }else
+  {
+    ///nothing
+  }
+  ineedmd_led_pattern(LED_OFF);
+
+    //disable the spi port
+    EKGSPIDisable();
+    //power down the ADC
+    ineedmd_adc_Power_Off();
+    iRadio_Power_Off();
+
+
+    //
+    // Set the Timer0B load value to 10s.
+    //
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    eMaster_int_enable();
+    MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+    MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
+
+    //
+    // Enable processor interrupts.
+    //todo: redundant?
+    eMaster_int_enable();
+    //
+    // Configure the Timer0 interrupt for timer timeout.
+    //
+    MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    //
+    // Enable the Timer0A interrupt on the processor (NVIC).
+    //
+    MAP_IntEnable(INT_TIMER0A);
+    //
+    // clocks down the processor to REALLY slow ( 500khz) and
+    //
+    set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
+    //
+    // Enable Timer0(A)
+    //
+    MAP_TimerEnable(TIMER0_BASE, TIMER_A);
+
+    MAP_SysCtlSleep();
+
+    //comming out we turn the processor all the way up
+    set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
+
+    MAP_TimerDisable(TIMER0_BASE, TIMER_A);
+    MAP_IntDisable(INT_TIMER0A);
+    eMaster_int_disable();
+
+    switch_on_adc_for_lead_detection();
+    iRadio_Power_On();
+    uiLead_check = ineedmd_adc_Check_Lead_Off();
+    check_battery();
+
+
+  //re-enable master interrupts
+  eMaster_int_enable();
+
+  //set the system speed to what it was originally
+  set_system_speed (uiPrevious_speed);
+}
 //*****************************************************************************
 // name:
 // description:
@@ -321,14 +403,32 @@ void check_for_reset(void)
   }
 }
 
+//check for the glove status
+ERROR_CODE ineedmd_ekg_connected(void)
+{
+  //if there is a glove connected we return a connection else we return a not connected
+
+  if(ineedmd_adc_Check_Lead_Off() == LEAD_ALL_SHORTED)
+  {
+    return ER_CONNECTED;
+  }
+  else
+  {
+    return ER_NOT_CONNECTED;
+  }
+
+
+}
+
+
+
 //*****************************************************************************
 // name: main
 // description: main function start point for aerosmith
 // param description: none
 // return value description: int
 //*****************************************************************************
-int
-main(void)
+int main(void)
 {
 #define DEBUG_main
 #ifdef DEBUG_main
@@ -349,7 +449,7 @@ main(void)
   ineedmd_led_pattern(LED_OFF);
 
   //Put the system into low power mode if the shipping jumper is present
-  hold_until_short_removed();
+ // hold_until_short_removed();
 
   //set up the watchdog
   vDEBUG_MAIN("Watchdog setup");
@@ -361,7 +461,7 @@ main(void)
   vDEBUG_MAIN("checking for update");
   check_for_update();
 
-//  check_battery();
+  check_battery();
 
   //mount the file system
 //  iFileSys_mount(&sFile_Sys, 0, 1);
@@ -379,6 +479,10 @@ main(void)
   vDEBUG_MAIN("Starting super loop");
   while(1)
   {
+    while ( ineedmd_usb_connected() == ER_NOT_CONNECTED | ineedmd_ekg_connected() == ER_NOT_CONNECTED)
+    {
+      ineedmd_sleep();
+    }
     ineedmd_watchdog_pat();
     iIneedMD_radio_process();
     iIneedmd_command_process();
@@ -387,7 +491,7 @@ main(void)
 //    led_test();
 //    check_battery();
 //    check_for_update();
-    check_for_reset();
+//    check_for_reset();
   }
 
   //todo debug and possible reset
