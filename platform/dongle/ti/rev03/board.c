@@ -1042,6 +1042,72 @@ ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
 #undef vDEBUG_BSB_UART_BAUD
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
+{
+#define DEBUG_eBSP_Get_radio_uart_baud
+#ifdef DEBUG_eBSP_Get_radio_uart_baud
+  #define  vDEBUG_BSB_GET_BAUD  vDEBUG
+#else
+  #define vDEBUG_BSB_GET_BAUD(a)
+#endif
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiCurrent_Baud_rate = 0;
+  uint32_t uiCurrent_uart_settings = 0;
+
+  MAP_UARTConfigGetExpClk(INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, &uiCurrent_Baud_rate, &uiCurrent_uart_settings);
+
+  if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_57600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_57600u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_57600;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_76800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_76800u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_76800;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_115200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_115200u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_115200;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_230400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_230400u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_230400;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_460800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_460800u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_460800;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_921600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_921600u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_921600;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1382400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1382400u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1382400;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1843200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1843200u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1843200;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_2764800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_2764800u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_2764800;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_3686400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_3686400u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_3686400;
+  }else{/*do nothing*/}
+
+
+  return eEC;
+#undef vDEBUG_BSB_GET_BAUD
+}
+
 //*****************************************************************************
 // name: RadioUARTEnable
 // description: configures and enables the usart for the BT radio
@@ -2869,6 +2935,12 @@ iBoard_init(void)
 
   // switch on the GPIO
   GPIOEnable();
+
+  //set debug gpio to output
+//  MAP_GPIODirModeSet(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, GPIO_DIR_MODE_OUT);
+  MAP_GPIOPinTypeGPIOOutput(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN);
+  MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_SET);
+  MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_CLR);
 
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);

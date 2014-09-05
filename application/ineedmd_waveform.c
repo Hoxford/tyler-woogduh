@@ -61,6 +61,8 @@ static bool bTest_Mode = false;
 ******************************************************************************/
 int iIneedmd_waveform_enable_TestSignal(void)
 {
+
+  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
   bTest_Mode = true;
   return 1;
 }
@@ -73,6 +75,7 @@ int iIneedmd_waveform_enable_TestSignal(void)
 ******************************************************************************/
 int iIneedmd_waveform_disable_TestSignal(void)
 {
+  set_system_speed (INEEDMD_CPU_SPEED_DEFAULT);
   bTest_Mode = false;
   return 1;
 }
