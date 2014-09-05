@@ -86,8 +86,8 @@
 //***************************************************************
 
 //CONFIG1
-#define DAISY_EN		0x40
-#define CLK_EN			0x20
+#define DAISY_EN			0x40
+#define CLK_EN				0x20
 #define DR2					0x04
 #define DR1					0x02
 #define DR0					0x01
@@ -95,16 +95,16 @@
 //CONFIG2 
 #define INT_TEST			0x10
 #define TEST_AMP			0x04
-#define	TEST_FREQ1		0x02
-#define TEST_FREQ0		0x01
+#define	TEST_FREQ1			0x02
+#define TEST_FREQ0			0x01
 
 //CONFIG3
 #define PD_REFBUF			0x80
 #define VREF_4V				0x20
 #define RLD_MEAS			0x10
-#define RLDREF_INT		0x08
+#define RLDREF_INT			0x08
 #define PD_RLD				0x04
-#define RLD_LOFF_SENS	0x02
+#define RLD_LOFF_SENS		0x02
 #define RLD_STAT			0x01
 
 //LOFF

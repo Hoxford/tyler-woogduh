@@ -336,7 +336,7 @@ int iIneedmd_radio_cmnd_mode(bool bMode_Set)
 ERROR_CODE eBT_RDIO_mux_mode_disable(void)
 {
   ERROR_CODE eEC = ER_OK;
-  char cEsc_char = '+';
+//  char cEsc_char = '+';
 
   //SET CONTROL MUX disable in hex format incase radio was in mux mode
 //    ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 23);
@@ -501,6 +501,7 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
   uint32_t i = 0;
   ERROR_CODE eEC = ER_FAIL;
   bool bWas_any_data_rcved = false;
+  uint16_t uiRcv_len = 0;
   char * cBoot_msg = NULL;
   uint32_t ui32SysClock = MAP_SysCtlClockGet();
 
@@ -514,22 +515,27 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
       eEC = eRcv_dma_radio_boot_frame(cRcv_string, uiBuff_size);
       if(eEC == ER_OK)
       {
-          //Check if the boot msg is in the received buff
-          cBoot_msg = strstr(cRcv_string, READY);
-          if(cBoot_msg == NULL)
-          {
-            //This evaluated buffer did not contain the boot message
-            eEC = ER_INVALID_RESPONSE;
-            continue;
-          }
-          else
-          {
-            //boot message is valid
-            eEC = ER_VALID;
-            break;
-          }
-          //set a data received control variable to mark some data was received from radio
+        //set a data received control variable to mark some data was received from radio
+        uiRcv_len = strlen(cRcv_string);
+        if(uiRcv_len > 0)
+        {
           bWas_any_data_rcved = true;
+        }else{/*do nothing*/}
+
+        //Check if the boot msg is in the received buff
+        cBoot_msg = strstr(cRcv_string, READY);
+        if(cBoot_msg == NULL)
+        {
+          //This evaluated buffer did not contain the boot message
+          eEC = ER_INVALID_RESPONSE;
+          continue;
+        }
+        else
+        {
+          //boot message is valid
+          eEC = ER_VALID;
+          break;
+        }
       }
       else if(eEC == ER_NODATA)
       {
@@ -926,6 +932,8 @@ void ineedmd_radio_send_string(char *send_string, uint16_t uiBuff_size)
     while(1){};
   }else{/*do nothing*/}
 #endif //DEBUG
+
+  //todo return i;
 
 #undef vDEBUG_RDIO_SND_STR
 }

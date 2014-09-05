@@ -86,19 +86,35 @@
 /******************************************************************************
 * variables
 ******************************************************************************/
+//UART variables
 volatile bool bIs_usart_data = false;
 volatile bool bIs_uart_done = false;
 volatile uint32_t uiCTS_int_status = 0;
 volatile bool bIs_usart_timeout = false;
 volatile bool bRdio_track_timeout_tick = false;
 volatile uint32_t uiRdio_timeout_tick = 0;
-volatile bool bIs_USB_sof = false;
-volatile bool bWaveform_timer_tick = false;
 static   bool bIs_Radio_UART_using_dma = false;
 volatile int  iNum_cmnd_buffs = 0;
 volatile int  iNum_cts_procs = 0;
 volatile bool bIs_DMA_transmit_in_process = false;
+
+//USB variables
+volatile bool bIs_USB_sof = false;
+
+//Timer variables
+volatile bool bWaveform_timer_tick = false;
+
+//system speed variables
 uint16_t uiCurrent_sys_speed = 0;
+
+//Total time running variables
+volatile uintmax_t uiRunClock_Sys_ms_count = 0;
+volatile uint16_t  uiRunClock_Sys_ms       = 0;
+volatile uint16_t  uiRunClock_Sys_sec      = 0;
+volatile uint16_t  uiRunClock_Sys_min      = 0;
+volatile uint16_t  uiRunClock_Sys_hour     = 0;
+volatile uint16_t  uiRunClock_Sys_days     = 0;
+volatile uint16_t  uiRunClock_Sys_years    = 0;
 
 //*****************************************************************************
 // The control table used by the uDMA controller. This table must be aligned to a 1024 byte boundary.
@@ -166,6 +182,7 @@ ERROR_CODE Radio_UART_DMA_Config(void); //configures the DMA tied to the radio U
 void vRadio_interface_DMA_tx_service(void);
 void vRadio_interface_DMA_rcv_service(void);
 ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff);
+ERROR_CODE eBSP_Set_System_Timers(void);
 
 //*****************************************************************************
 // private functions
@@ -376,8 +393,8 @@ ERROR_CODE Radio_UART_DMA_Config(void)
 //*****************************************************************************
 void vRadio_interface_DMA_tx_service(void)
 {
-  int index;
 #if USE_RADIO_UART_DMA == true
+  int index;
   tDMA_TX_struct * ptDMA_tx_buff = NULL;
 
   //cycle through the buffers and find the one that was transmitted
@@ -409,8 +426,8 @@ void vRadio_interface_DMA_rcv_service(void)
 #else
   #define vDEBUG_DMA_RCV_SRVC(a)
 #endif
-  ERROR_CODE eEC = ER_FAIL;
 #if USE_RADIO_UART_DMA == true
+  ERROR_CODE eEC = ER_FAIL;
   int index;
   tDMA_RX_struct * ptDMA_que_buff = NULL;
 
@@ -555,6 +572,25 @@ ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff)
 #endif
   return eEC;
 }
+
+
+/******************************************************************************
+* name: eBSP_Set_System_Timers
+* description: private function that sets all the timer values. It should be
+*   used during system initalization and when ever the sys speed changes.
+* param description: none
+* return value description:
+******************************************************************************/
+ERROR_CODE eBSP_Set_System_Timers(void)
+{
+  ERROR_CODE eEC = ER_OK;
+
+  eBSP_Systick_Init();
+
+  //todo: add more functions that require the current sys clock value
+
+  return eEC;
+}
 //*****************************************************************************
 
 // external functions
@@ -695,6 +731,9 @@ int set_system_speed (unsigned int how_fast)
   //preserve the system speed
   uiCurrent_sys_speed = how_fast;
 
+  //reset all the functions that require the current sys speed
+  eBSP_Set_System_Timers();
+
   return how_fast;
 
 #undef vDEBUG_SET_SYS_SPEED
@@ -706,11 +745,13 @@ ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed)
 
   if(uiCurrent_sys_speed == INEEDMD_CPU_SPEED_NOT_SET)
   {
+    *uiSys_speed = INEEDMD_CPU_SPEED_NOT_SET;
     eEC = ER_NOT_SET;
   }
   else
   {
     *uiSys_speed = uiCurrent_sys_speed;
+    eEC = ER_OK;
   }
 
   return eEC;
@@ -746,10 +787,80 @@ void vSystick_int_service(void)
     uiRdio_timeout_tick++;
   }
 
+  uiRunClock_Sys_ms_count++;
+
+  uiRunClock_Sys_ms++;
+  if(uiRunClock_Sys_ms >= 1000)
+  {
+    uiRunClock_Sys_ms = 0;
+    uiRunClock_Sys_sec++;
+
+    if(uiRunClock_Sys_sec >= 60)
+    {
+      uiRunClock_Sys_sec = 0;
+      uiRunClock_Sys_min++;
+
+      if(uiRunClock_Sys_min >= 60)
+      {
+        uiRunClock_Sys_min = 0;
+        uiRunClock_Sys_hour++;
+
+        if(uiRunClock_Sys_hour >= 24)
+        {
+          uiRunClock_Sys_hour;
+          uiRunClock_Sys_days++;
+
+          if(uiRunClock_Sys_days >= 365)
+          {
+            uiRunClock_Sys_days = 0;
+            uiRunClock_Sys_years++;
+          }else{/*do nothing*/}
+        }else{/*do nothing*/}
+      }else{/*do nothing*/}
+    }else{/*do nothing*/}
+  }else{/*do nothing*/}
+
   //todo: add other tick variables here
 }
+
 /******************************************************************************
-* name:
+* name: eBSP_Get_Current_ms_count
+* description: returns in the pointer parameter the current run clock system
+*   milisecond count value. This value is the total number of milisecond ticks
+*   the system had since it was first turned on. The value can be between 0 and
+*   1.84467440737E+19 or 0x0 and 0xFFFFFFFFFFFFFFFF. The counter will reset to
+*   0 in approximatly 584,555,012 years, give or take a few millenia.
+* param description: pointer to an unsigned long long variable
+* return value description: ERROR_CODE
+******************************************************************************/
+ERROR_CODE eBSP_Get_Current_ms_count(uintmax_t * uiCurrent_ms_count)
+{
+  ERROR_CODE eEC = ER_OK;
+
+  *uiCurrent_ms_count = uiRunClock_Sys_ms_count;
+
+  return eEC;
+}
+
+/******************************************************************************
+* name: eBSP_Get_Current_ms
+* description: returns in the pointer parameter the current run clock system
+*   milisecond value. The run clock milisecond is a real time clock type
+*   value. This value runs between 0 and 999 ms.
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eBSP_Get_Current_ms(uint16_t * uiCurrent_ms)
+{
+  ERROR_CODE eEC = ER_OK;
+
+  *uiCurrent_ms = uiRunClock_Sys_ms;
+
+  return eEC;
+}
+
+/******************************************************************************
+* name: bWaveform_did_timer_tick
 * description:
 * param description:
 * return value description:
@@ -899,22 +1010,23 @@ bool bIs_battery_low(void)
 #else
   #define vDEBUG_IS_BATT_LOW(a)
 #endif
-  uint8_t uiLow_batt;
-  bool bIs_batt_low = false;
+  #ifdef INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN
+    uint8_t uiLow_batt;
+    bool bIs_batt_low = false;
 
-  vDEBUG_IS_BATT_LOW("Is Batt low SYS HALTED, LOW_BATT_INTERUPT_PIN no longer supported on board 03");
+    uiLow_batt = GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN);
 
-  //INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN no longer supported on board 03
-  while(1){};
+    if(uiLow_batt == INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN)
+    {
+      bIs_batt_low = true;
+    }
 
-  uiLow_batt = GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN);
-
-  if(uiLow_batt == INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN)
-  {
-    bIs_batt_low = true;
-  }
-
-  return bIs_batt_low;
+    return bIs_batt_low;
+  #else
+    //INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN no longer supported on board 03
+    vDEBUG_IS_BATT_LOW("Is Batt low SYS HALTED, LOW_BATT_INTERUPT_PIN no longer supported on board 03");
+    while(1){};
+  #endif //INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN
 #undef vDEBUG_IS_BATT_LOW
 }
 
@@ -2617,6 +2729,46 @@ bool bIs_usb_physical_data_conn(void)
   return bWas_physical_data_conn;
 }
 
+//*****************************************************************************
+// name: eBSP_Systick_Init
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eBSP_Systick_Init(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiSys_clock_rate = 0;
+  uint32_t uiSys_clock_check = 0;
+
+  //Disable the sys tick
+  MAP_SysTickIntDisable();
+  MAP_SysTickDisable();
+
+  //get the current clock rate and set it to a 1ms value
+  uiSys_clock_rate = MAP_SysCtlClockGet();
+  uiSys_clock_rate = uiSys_clock_rate/1000;
+
+  //set the systick period
+  MAP_SysTickPeriodSet(uiSys_clock_rate);
+
+  //enable the sys tick
+  MAP_SysTickEnable();
+  MAP_SysTickIntEnable();
+
+  //verify the sys tick value was set
+  uiSys_clock_check = MAP_SysTickPeriodGet();
+  if(uiSys_clock_check == uiSys_clock_rate)
+  {
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
+  return eEC;
+}
 /*
 * ConfigureSleepleep(void)
 *
@@ -2930,17 +3082,8 @@ iHW_delay(uint32_t uiDelay)
 int
 iBoard_init(void)
 {
-
-  uint32_t uiSys_clock_rate;
-
   // switch on the GPIO
   GPIOEnable();
-
-  //set debug gpio to output
-//  MAP_GPIODirModeSet(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, GPIO_DIR_MODE_OUT);
-  MAP_GPIOPinTypeGPIOOutput(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN);
-  MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_SET);
-  MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_CLR);
 
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
@@ -2966,15 +3109,8 @@ iBoard_init(void)
   //setup the USB port.
   USBPortEnable();
 
-  //todo: this messes up usb DFU for some reason, disable it before doing DFU
-  MAP_SysTickEnable();
-  uiSys_clock_rate = MAP_SysCtlClockGet();
-
-  uiSys_clock_rate = uiSys_clock_rate/40000;
-
-  MAP_SysTickPeriodSet(uiSys_clock_rate);
-
-  MAP_SysTickIntEnable();
+  //config the sys tick timer
+  eBSP_Systick_Init();
 
   eMaster_int_enable();
   return 1;

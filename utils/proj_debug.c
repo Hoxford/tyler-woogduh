@@ -30,6 +30,8 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
+// Debug uart mappings
+//
 #define  DEBUG_SYSCTL_PERIPH_GPIO  SYSCTL_PERIPH_GPIOE
 #define  DEBUG_SYSCTL_PERIPH_UART  SYSCTL_PERIPH_UART5
 #define  DEBUG_UART                UART5_BASE
@@ -41,6 +43,13 @@
 
 #define  DEBUG_BAUD                115200
 #define  DEBUG_UART_CONFIG         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE)
+
+//Debug pin 1 mappings
+//
+#define DEBUG_GPIO_PORT_1  GPIO_PORTD_BASE
+#define DEBUG_GPIO_PIN_1   GPIO_PIN_1
+#define DEBUG_GPIO_PIN_SET_1   GPIO_PIN_1
+#define DEBUG_GPIO_PIN_CLR_1   ~GPIO_PIN_1
 
 //*****************************************************************************
 // variables
@@ -109,12 +118,52 @@ void vDEBUG(char * cMsg, ...)
   return;
 }
 
-//*****************************************************************************
-// name: vDEBUG_init
-// description: initalizes the debug message interface
-// param description: none
-// return value description: none
-//*****************************************************************************
+/******************************************************************************
+* name: vDEBUG_GPIO_SET_1
+* description: sets high DEBUG_GPIO_PIN_1
+* param description:
+* return value description:
+******************************************************************************/
+void vDEBUG_GPIO_SET_1(void)
+{
+  MAP_GPIOPinWrite(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1, DEBUG_GPIO_PIN_SET_1);
+  return;
+}
+
+/******************************************************************************
+* name: vDEBUG_GPIO_CLR_1
+* description: sets low DEBUG_GPIO_PIN_1
+* param description:
+* return value description:
+******************************************************************************/
+void vDEBUG_GPIO_CLR_1(void)
+{
+  MAP_GPIOPinWrite(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1, DEBUG_GPIO_PIN_CLR_1);
+  return;
+}
+
+/******************************************************************************
+* name: vDEBUG_GPIO_TOGGLE_1
+* description: toggles DEBUG_GPIO_PIN_1
+* param description:
+* return value description:
+******************************************************************************/
+void vDEBUG_GPIO_TOGGLE_1(void)
+{
+  if(MAP_GPIOPinRead(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1) == DEBUG_GPIO_PIN_SET_1)
+    vDEBUG_GPIO_CLR_1();
+  else
+    vDEBUG_GPIO_SET_1();
+
+  return;
+}
+
+/******************************************************************************
+* name: vDEBUG_init
+* description: initalizes the debug message interface and the debug gpio pins
+* param description: none
+* return value description: none
+******************************************************************************/
 void vDEBUG_init(void)
 {
 
@@ -127,6 +176,13 @@ void vDEBUG_init(void)
   MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
   MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 
+  //Init debug gpio pin/pins
+  //
+  MAP_GPIOPinTypeGPIOOutput(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1);
+  MAP_GPIOPinWrite(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1, DEBUG_GPIO_PIN_CLR_1);
+
+  //Enable the debug uart
+  //
   MAP_SysCtlPeripheralEnable(DEBUG_SYSCTL_PERIPH_UART);
 
   // Configure the debug port pins

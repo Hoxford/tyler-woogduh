@@ -100,10 +100,14 @@ void ineedmd_measurement_ramp(void)
 {
 #define PACKET_LENGTH 0x18
 
-  uint32_t uiSys_Tick_value = MAP_SysTickValueGet();
-  unsigned char highbyte = uiSys_Tick_value >> 8;
-  unsigned char lowbyte = uiSys_Tick_value;
+  uint16_t uiSys_Tick_value = 0;//MAP_SysTickValueGet();
+  unsigned char highbyte = 0;
+  unsigned char lowbyte = 0;
   char test_packet[PACKET_LENGTH];
+
+  eBSP_Get_Current_ms(&uiSys_Tick_value);
+  highbyte = uiSys_Tick_value >> 8;
+  lowbyte = uiSys_Tick_value;
 
   test_packet[0x00] = 0x9C;
   test_packet[0x01] = 0x04;

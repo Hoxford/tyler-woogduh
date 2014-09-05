@@ -132,18 +132,11 @@
   #define INEEDMD_RADIO_ENABLE_PIN_SET           GPIO_PIN_2
   #define INEEDMD_RADIO_ENABLE_PIN_CLEAR         ~GPIO_PIN_2
 //Radio low batt mappings
-  #define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1  //todo no longer will be on pin 1
+//  #define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1  //todo no longer will be on pin 1
 //Radio interrupt mappings
   #define INEEDMD_RADIO_UART_INT                 INT_UART1
 
 #define INEEDMD_PORTD_XTAL_ENABLE GPIO_PIN_5
-
-//Debug mappings
-//
-#define DEBUG_GPIO_PORT  GPIO_PORTD_BASE
-#define DEBUG_GPIO_PIN   GPIO_PIN_1
-#define DEBUG_GPIO_PIN_SET   GPIO_PIN_1
-#define DEBUG_GPIO_PIN_CLR   ~GPIO_PIN_1
 
 //port mappings to make easier to read names...
 #define INEEDMD_ADC_SPI     SSI0_BASE
@@ -179,19 +172,18 @@
 //define the WTC channel C input for the LL electronde as the channel 4 Positive input
 #define WTC_C_CHANNEL 0x06
 
-
-
-
-void Set_Timer0_Sleep();
-void vSystick_int_service(void);
-bool bWaveform_did_timer_tick(void);
-void PowerInitFunction(void);
-void PortFunctionInit(void);
-void ConfigureSleep(void);
-void ConfigureDeepSleep(void);
-void wait_time (unsigned int);
-void write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
-int set_system_speed (unsigned int);
+void        Set_Timer0_Sleep();
+void        vSystick_int_service(void);
+ERROR_CODE  eBSP_Get_Current_ms_count(uintmax_t * uiCurrent_ms_count);
+ERROR_CODE  eBSP_Get_Current_ms(uint16_t * uiCurrent_ms);
+bool        bWaveform_did_timer_tick(void);
+void        PowerInitFunction(void);
+void        PortFunctionInit(void);
+void        ConfigureSleep(void);
+void        ConfigureDeepSleep(void);
+void        wait_time (unsigned int);
+void        write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
+int         set_system_speed (unsigned int);
 ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed);
 
 void        GPIOEnable(void);
@@ -237,12 +229,13 @@ void        vRadio_interface_int_service_timeout(uint16_t uiInt_id);
 bool        bRadio_is_data(void);
 ERROR_CODE  eGet_Radio_CTS_status(void);  //returns the radio UART cts status
 ERROR_CODE  eGet_Radio_CTS_INT_status(void);  //returns the radio UART CTS interrupt status
-void LEDI2CEnable(void);
-void XTALControlPin(void);
-void USBPortEnable(void);
-void USBPortDisable(void);
-void vUSBServiceInt(uint32_t uiUSB_int_flags);
-bool bIs_usb_physical_data_conn(void);
+void        LEDI2CEnable(void);
+void        XTALControlPin(void);
+void        USBPortEnable(void);
+void        USBPortDisable(void);
+void        vUSBServiceInt(uint32_t uiUSB_int_flags);
+bool        bIs_usb_physical_data_conn(void);
+ERROR_CODE  eBSP_Systick_Init(void);
 void GPIODisable(void);
 int BatMeasureADCDisable(void);
 bool bIs_battery_low(void);

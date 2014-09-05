@@ -1,64 +1,44 @@
 /******************************************************************************
 *
-* file_name.c - 1 sentence file description
+* clock.c - real world clock code that keeps track of the milisecond, second,
+*   minute, hour, day, month and year
 * Copyright (c) notice
 *
 ******************************************************************************/
-#ifndef __FILE_NAME_C__
-#define __FILE_NAME_C__
+#ifndef __CLOCK_C__
+#define __CLOCK_C__
 /******************************************************************************
 * includes
 ******************************************************************************/
-#include "file.h"
+#include "utils_inc/clock.h"
 
 /******************************************************************************
 * defines
 ******************************************************************************/
-#def EXAMPLE_DEF  value  //def description
 
 /******************************************************************************
 * variables
 ******************************************************************************/
-int iExample_var;  //variable description
 
 /******************************************************************************
 * external variables
 ******************************************************************************/
-extern int iExample_extern_var;  //external variable description
 
 /******************************************************************************
 * enums
 ******************************************************************************/
-//eExample_enum description
-enum eExample_enum = 
-{
-    enum_1,
-    enum_2,
-    enum_3....
-}
-
-eExample_enum eMy_enum; //short eMy_enum description
 
 /******************************************************************************
 * structures
 ******************************************************************************/
-//tExample_struct description
-typedef struct
-{
-    int var1;
-    ....
-}tExample_struct;
-
-tExample_struct tMy_struct;  //short tMy_struct description
 
 /******************************************************************************
 * external functions
 ******************************************************************************/
-extern int external_example_function(param); //short external function description
+
 /******************************************************************************
 * private function declarations
 ******************************************************************************/
-int example_function(param_1, param_2); //short function declaration description
 
 /******************************************************************************
 * private functions
@@ -69,9 +49,9 @@ int example_function(param_1, param_2); //short function declaration description
 * param description:
 * return value description:
 ******************************************************************************/
-int example_PrivateFunction(param_1, param_2)
-{
-}
+//int example_PrivateFunction(param_1, param_2)
+//{
+//}
 
 /******************************************************************************
 * public functions
@@ -83,8 +63,8 @@ int example_PrivateFunction(param_1, param_2)
 * param description:
 * return value description:
 ******************************************************************************/
-int example_function(param_1, param_2)
-{
-}
+//int example_function(param_1, param_2)
+//{
+//}
 
-#endif //__FILE_NAME_C__
+#endif //__CLOCK_C__

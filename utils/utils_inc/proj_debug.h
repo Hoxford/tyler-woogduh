@@ -18,6 +18,9 @@
 #define __error__(a, b)
 //#define vDEBUG(a, __VA_ARGS__)
 #define vDEBUG(a, ...)
+#define vDEBUG_GPIO_SET_1()
+#define vDEBUG_GPIO_CLR_1()
+#define vDEBUG_GPIO_TOGGLE_1()
 #define vDEBUG_init()
 //*****************************************************************************
 // variables
@@ -74,6 +77,9 @@
 void __error__(char *pcFilename, uint32_t ui32Line);
 //void vUSB_driverlib_out(char *pcFilename, uint32_t ui32Line); //USB driverlib debug api
 void vDEBUG(char * cMsg,...);
+void vDEBUG_GPIO_SET_1(void);
+void vDEBUG_GPIO_CLR_1(void);
+void vDEBUG_GPIO_TOGGLE_1(void);
 void vDEBUG_init(void);
 
 #endif //__PROJ_DEBUG_H__

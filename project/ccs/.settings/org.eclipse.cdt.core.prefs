@@ -7,6 +7,8 @@ environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Debug.1555847462/MAI
 environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Debug.1555847462/MAIN_SRC_DIR/value=${CWD\\..\\..\\..}
 environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Debug.1555847462/append=true
 environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Debug.1555847462/appendContributed=true
+environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Release.1638483954/append=true
+environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Release.1638483954/appendContributed=true
 org.eclipse.cdt.core.formatter.alignment_for_arguments_in_method_invocation=16
 org.eclipse.cdt.core.formatter.alignment_for_assignment=16
 org.eclipse.cdt.core.formatter.alignment_for_base_clause_in_type_declaration=80

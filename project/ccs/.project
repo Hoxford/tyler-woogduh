@@ -121,6 +121,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>utils/clock.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/utils/clock.c</locationURI>
+		</link>
+		<link>
 			<name>utils/file_system.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/utils/file_system.c</locationURI>

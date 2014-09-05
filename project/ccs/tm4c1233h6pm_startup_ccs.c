@@ -334,10 +334,7 @@ IntDefaultHandler(void)
 //*****************************************************************************
 static void vSysTickIntHandler(void)
 {
-  if(MAP_GPIOPinRead(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN) == DEBUG_GPIO_PIN_SET)
-    MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_CLR);
-  else
-    MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_SET);
+  vDEBUG_GPIO_TOGGLE_1();
 
   vSystick_int_service();
   return;
