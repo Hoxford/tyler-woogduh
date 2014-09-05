@@ -98,7 +98,6 @@ static   bool bIs_Radio_UART_using_dma = false;
 volatile int  iNum_cmnd_buffs = 0;
 volatile int  iNum_cts_procs = 0;
 volatile bool bIs_DMA_transmit_in_process = false;
-uint32_t uiSys_clock_rate_ms = 0;
 uint16_t uiCurrent_sys_speed = 0;
 
 //*****************************************************************************
@@ -981,6 +980,134 @@ EKGSPIDisable(void)
 
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
+{
+#define DEBUG_eBSP_Set_radio_uart_baud
+#ifdef DEBUG_eBSP_Set_radio_uart_baud
+  #define  vDEBUG_BSB_UART_BAUD  vDEBUG
+#else
+  #define vDEBUG_BSB_UART_BAUD(a)
+#endif
+  ERROR_CODE eEC = ER_OK;
+
+  ASSERT((uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_57600)   || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_76800)   || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_115200)  || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_230400)  || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_460800)  || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_921600)  || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_1382400) || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_1843200) || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_2764800) || \
+         (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_3686400));
+
+  MAP_UARTDisable(INEEDMD_RADIO_UART);
+  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, uiBaud_rate_to_set, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+  MAP_UARTEnable(INEEDMD_RADIO_UART);
+
+  iHW_delay(100);
+
+#ifdef DEBUG
+  vDEBUG_BSB_UART_BAUD("BSB uart baud set to:");
+  if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_57600)
+    vDEBUG_BSB_UART_BAUD("57600");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_76800)
+    vDEBUG_BSB_UART_BAUD("76800");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_115200)
+    vDEBUG_BSB_UART_BAUD("115200");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_230400)
+    vDEBUG_BSB_UART_BAUD("230400");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_460800)
+    vDEBUG_BSB_UART_BAUD("460800");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_921600)
+    vDEBUG_BSB_UART_BAUD("921600");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_1382400)
+    vDEBUG_BSB_UART_BAUD("1382400");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_1843200)
+    vDEBUG_BSB_UART_BAUD("1843200");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_2764800)
+    vDEBUG_BSB_UART_BAUD("2764800");
+  else if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_3686400)
+    vDEBUG_BSB_UART_BAUD("3686400");
+  else{/*do nothing*/}
+#endif
+
+  return eEC;
+#undef vDEBUG_BSB_UART_BAUD
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
+{
+#define DEBUG_eBSP_Get_radio_uart_baud
+#ifdef DEBUG_eBSP_Get_radio_uart_baud
+  #define  vDEBUG_BSB_GET_BAUD  vDEBUG
+#else
+  #define vDEBUG_BSB_GET_BAUD(a)
+#endif
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiCurrent_Baud_rate = 0;
+  uint32_t uiCurrent_uart_settings = 0;
+
+  MAP_UARTConfigGetExpClk(INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, &uiCurrent_Baud_rate, &uiCurrent_uart_settings);
+
+  if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_57600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_57600u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_57600;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_76800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_76800u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_76800;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_115200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_115200u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_115200;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_230400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_230400u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_230400;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_460800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_460800u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_460800;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_921600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_921600u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_921600;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1382400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1382400u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1382400;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1843200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1843200u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1843200;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_2764800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_2764800u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_2764800;
+  }
+  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_3686400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_3686400u10))
+  {
+    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_3686400;
+  }else{/*do nothing*/}
+
+
+  return eEC;
+#undef vDEBUG_BSB_GET_BAUD
+}
+
 //*****************************************************************************
 // name: RadioUARTEnable
 // description: configures and enables the usart for the BT radio
@@ -990,72 +1117,87 @@ EKGSPIDisable(void)
 int
 RadioUARTEnable(void)
 {
-  //TODO: abstract all the direct references to the processor I/O
+  //RADIO_CONFIG
   //
-    //RADIO_CONFIG
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
-  //No mjik delay as I am doing the GPIO first.
-    //
-    // Enable pin PE0 for GPIOOutput - this is the reet for the radio.
-    //
-    MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_RESET_PIN);
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
 
-    //
-    // Enable pin PE1 for GPIO Output
-    // Radio command mode control pin
-    MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
-    // Enable pin PE2 for GPIOOutput
-    //
-    MAP_GPIOPinTypeGPIOOutput(INEEDMD_RADIO_PORT, INEEDMD_RADIO_ENABLE_PIN);
+  // Enable pin PE0 for GPIOOutput - this is the reset for the radio.
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN);
 
-    //
-    // Enable pin PF0 for UART1 U1RTS
-    // First open the lock and select the bits we want to modify in the GPIO commit register.
-    //
-    HWREG(INEEDMD_RADIO_SERIAL_PORT + GPIO_O_LOCK) = GPIO_LOCK_KEY;
-    HWREG(INEEDMD_RADIO_SERIAL_PORT + GPIO_O_CR) = 0x1;
-    //
-    // Now modify the configuration of the pins that we unlocked.
-    //
-    MAP_GPIOPinConfigure(GPIO_PF0_U1RTS);
-    MAP_GPIOPinTypeUART(INEEDMD_RADIO_SERIAL_PORT, GPIO_PIN_0);
-    //
-    // Enable pin PF1 for UART1 U1CTS
-    //
-    MAP_GPIOPinConfigure(GPIO_PF1_U1CTS);
-    MAP_GPIOPinTypeUART(INEEDMD_RADIO_SERIAL_PORT, GPIO_PIN_1);
-    //
-    // Enable pin PC5 for UART1 U1TX and PC4 for U1RX
-    //
-    MAP_GPIOPinConfigure(GPIO_PC5_U1TX);
-    MAP_GPIOPinConfigure(GPIO_PC4_U1RX);
-    //
-    // Enable pin PC5 for UART1 U1TX
-    //
-    MAP_GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_5);
-    //
-    // Enable pin PC4 for UART1 U1RX
-    //
-    MAP_GPIOPinTypeUART(GPIO_PORTC_BASE, GPIO_PIN_4);
+  // Radio command mode, set pin to gpio output
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN);
 
-    UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
-  //re set up the UART so it's timings are about correct
-    UARTConfigSetExpClk( INEEDMD_RADIO_UART, 16000000, 115200, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
-    UARTEnable(INEEDMD_RADIO_UART);
-//	while(!SysCtlPeripheralReady(INEEDMD_RADIO_UART));
+  // Radio enable, set pin to gpio output
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_EN_PORT, INEEDMD_RADIO_ENABLE_PIN);
 
-    UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+  //
+  // Enable pin PF0 for UART1 U1RTS
+  // First open the lock and select the bits we want to modify in the GPIO commit register.
+  //
+  HWREG(INEEDMD_RADIO_RTS_PORT + INEEDMD_GPIO_RTS_LOCK) = GPIO_LOCK_KEY;
+  HWREG(INEEDMD_RADIO_RTS_PORT + INEEDMD_GPIO_RTS_CR) = 0x1;  //todo: no magic number!
 
-    // Enables the communication FIFO
-    UARTFIFOEnable(INEEDMD_RADIO_UART);
+  // Configure the alternate function for UART RTS pin
+  //
+  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRTS);
+  MAP_GPIOPinTypeUART(INEEDMD_RADIO_RTS_PORT, INEEDMD_RADIO_RTS_PIN);
 
-    MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX7_8, UART_FIFO_RX1_8);
+  // Configure the alternate function for UART CTS pin
+  //
+  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTCTS);
+  MAP_GPIOPinTypeUART(INEEDMD_RADIO_CTS_PORT, INEEDMD_RADIO_CTS_PIN);
 
-    //Do the final UART enable that enables transmitting and receiving
-    UARTEnable(INEEDMD_RADIO_UART);
+  // Configure the alternate function for UART TX and RX pins
+  //
+  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTTX);
+  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRX);
 
-    return 1;
+  // Set the TX pin type for the radio uart
+  //
+  MAP_GPIOPinTypeUART(INEEDMD_GPIO_TX_PORT, INEEDMD_GPIO_TX_PIN);
+
+  // Set the RX pin type for the radio uart
+  //
+  MAP_GPIOPinTypeUART(INEEDMD_GPIO_RX_PORT, INEEDMD_GPIO_RX_PIN);
+
+  //Set the UART clock source to internal
+  //
+  MAP_UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
+
+  //Config the uart speed, len, stop bits and parity
+  //
+  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+  MAP_UARTEnable(INEEDMD_RADIO_UART); //todo: can this function call be removed since it is called at the end?
+
+  //Config the uart flow control
+  //
+  MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+
+  // Enable the communication FIFO
+  //
+  MAP_UARTFIFOEnable(INEEDMD_RADIO_UART);
+  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX7_8, UART_FIFO_RX1_8);
+
+  //Do the final UART enable to begin transmitting and receiving
+  //
+  MAP_UARTEnable(INEEDMD_RADIO_UART);
+
+  return 1;
+}
+
+//*****************************************************************************
+// name: iRadioPowerOn
+// description: sets the gpio pin to the radio high to turn on the radio
+// param description: none
+// return value description: 1 if success
+//*****************************************************************************
+int iRadio_Power_On(void)
+{
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN);
+  return 1;
 }
 
 //*****************************************************************************
@@ -1064,11 +1206,111 @@ RadioUARTEnable(void)
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
-int
-iRadio_Power_Off(void)
+int iRadio_Power_Off(void)
 {
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
+  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN_CLEAR);
   return 1;
+}
+
+/******************************************************************************
+* name: eBSP_Radio_Power_Cycle
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE  eBSP_Radio_Power_Cycle(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiPin_State = 0;
+
+  //turn the radio power off
+  iRadio_Power_Off();
+
+  //delay for 100ms
+  iHW_delay(100);
+
+  //turn the radio power on
+  iRadio_Power_On();
+
+  //Check to make sure th radio power pin is "on"
+  uiPin_State = MAP_GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN);
+  if(uiPin_State == INEEDMD_RADIO_ENABLE_PIN)
+  {
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE  eBSP_Radio_Enable(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiPin_Read = 0;
+
+  MAP_GPIOPinWrite (INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN, INEEDMD_RADIO_RESET_PIN_CLEAR);
+
+  uiPin_Read = MAP_GPIOPinRead (INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN);
+
+  if((uiPin_Read | INEEDMD_RADIO_RESET_PIN_CLEAR) == INEEDMD_RADIO_RESET_PIN_CLEAR)
+  {
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE  eBSP_Radio_Disable(void)
+{
+  ERROR_CODE eEC = ER_OK;
+
+  MAP_GPIOPinWrite (INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN,  INEEDMD_RADIO_RESET_PIN_SET );
+
+  return eEC;
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE  eBSP_Radio_Reset(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiSysClk = MAP_SysCtlClockGet() / 10;
+
+  //exert the radio rest pin
+  eBSP_Radio_Disable();
+
+  //as we dont know the state of the processor or the timers we will do the delay in cpu clock cycles
+  //about a 10th of a second
+  //it would be nicer to have this as a proces sleep..
+  MAP_SysCtlDelay( uiSysClk );
+
+  //de-exert,sets it low, reset pin
+  eBSP_Radio_Enable();
+
+  return eEC;
 }
 
 //*****************************************************************************
@@ -1096,7 +1338,7 @@ ERROR_CODE eSet_radio_to_cmnd_mode(void)
 //  iRadio_gpio_config(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
 //  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, 0);
   iHW_delay(10);
-  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN);
+  MAP_GPIOPinWrite(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN_SET);
 
 #ifdef DEBUG_eSet_radio_to_cmnd_mode
   memset(cDbg_snd_buff, 0x00, SND_BUFF_SZ);
@@ -1122,7 +1364,7 @@ ERROR_CODE eIs_radio_in_cmnd_mode(void)
   ERROR_CODE eEC = ER_FAIL;
   uint32_t uiPin_Read = 0;
 
-  uiPin_Read = MAP_GPIOPinRead(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+  uiPin_Read = MAP_GPIOPinRead(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN);
 
   if((uiPin_Read & INEEDMD_RADIO_CMND_PIN) == INEEDMD_RADIO_CMND_PIN)
   {
@@ -1155,7 +1397,7 @@ ERROR_CODE eSet_radio_to_data_mode(void)
 #endif
   ERROR_CODE eEC = ER_FAIL;
 
-  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, 0);
+  MAP_GPIOPinWrite(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN_CLEAR);
 
 #ifdef DEBUG_eSet_radio_to_data_mode
   memset(cDbg_snd_buff, 0x00, SND_BUFF_SZ);
@@ -1190,19 +1432,6 @@ ERROR_CODE eUsing_radio_uart_dma(void)
   }
 
   return eEC;
-}
-
-//*****************************************************************************
-// name: iRadioPowerOn
-// description: sets the gpio pin to the radio high to turn on the radio
-// param description: none
-// return value description: 1 if success
-//*****************************************************************************
-int
-iRadio_Power_On(void)
-{
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN);
-  return 1;
 }
 
 //*****************************************************************************
@@ -1471,37 +1700,29 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 {
   ERROR_CODE eEC = ER_OK;
   bool bChar_avail = false;
+  uint16_t uiTimeout = 0;
 
   bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
   if(bChar_avail == false)
   {
-    uiRdio_timeout_tick = 0;
-    bRdio_track_timeout_tick = true;
     while(bChar_avail == false)
     {
+      uiTimeout += iHW_delay(1);
       bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
-      if(uiRdio_timeout_tick == 100) //todo: MAGIC Number!
+      if(uiTimeout >= 100) //todo: MAGIC Number!
       {
         eEC = ER_TIMEOUT;
         break;
       }
     }
-  }
-  else
-  {
-    bRdio_track_timeout_tick = false;
-    uiRdio_timeout_tick = 0;
-  }
+  }else{/*do nothing*/}
 
   if(eEC == ER_OK)
   {
     //get the character
     *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
-  }
-  else
-  {
-    //nothing
-  }
+  }else{/*do nothing */}
+
   return eEC;
 }
 
@@ -2677,9 +2898,16 @@ int
 iHW_delay(uint32_t uiDelay)
 {
   int i;
+  uint32_t uiSys_clock_rate_ms = 0;
+
+  //Get the current sys clock rate
+  uiSys_clock_rate_ms = MAP_SysCtlClockGet();
+
+  //set the rate to a millisecond value
+  uiSys_clock_rate_ms = uiSys_clock_rate_ms / 1000;
+
   for(i = 0; i < uiDelay; i++)
   {
-//    MAP_SysCtlDelay( MAP_SysCtlClockGet() / 30  );
     MAP_SysCtlDelay(uiSys_clock_rate_ms);
   }
   return i;
@@ -2708,10 +2936,14 @@ iBoard_init(void)
   // switch on the GPIO
   GPIOEnable();
 
+  //set debug gpio to output
+//  MAP_GPIODirModeSet(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, GPIO_DIR_MODE_OUT);
+  MAP_GPIOPinTypeGPIOOutput(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN);
+  MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_SET);
+  MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_CLR);
+
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
-
-  uiSys_clock_rate_ms = MAP_SysCtlClockGet() /3000;
 
   // set the brown out interupt and power down voltage
   PowerInitFunction();

@@ -11,9 +11,10 @@ playground/USB-DFU_LED_PATIENT_OFF/.launches/USB-DFU_LED_PATIENT_OFF.launch
 playground/USB-DFU_LED_PATIENT_OFF/Debug__TI/
 playground/helloWorld_TivaTM4C1233H6PM/Debug/*.*
 playground/helloWorld_TivaTM4C1233H6PM/Debug/configPkg/*.*
-project/ccs/*.launches
+playground/RadioUpdater_Firmware/Release/*.*
+playground/RadioUpdater_Firmware/Debug/*.*
+project/ccs/.launches/*.*
 dfu_load-bin.bin
 dfu_load.dat
 jtag_load-bin.bin
 jtag_load.dat
-aerosmith.launch

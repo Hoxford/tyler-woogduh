@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "inc/hw_gpio.h"
+#include "driverlib/gpio.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/timer.h"
@@ -332,6 +334,11 @@ IntDefaultHandler(void)
 //*****************************************************************************
 static void vSysTickIntHandler(void)
 {
+  if(MAP_GPIOPinRead(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN) == DEBUG_GPIO_PIN_SET)
+    MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_CLR);
+  else
+    MAP_GPIOPinWrite(DEBUG_GPIO_PORT, DEBUG_GPIO_PIN, DEBUG_GPIO_PIN_SET);
+
   vSystick_int_service();
   return;
 }
