@@ -21,9 +21,12 @@
 
 #include "ineedmd_led.h"
 #include "ineedmd_adc.h"
+#include "board.h"
 
 #include "battery.h"
-#include "board.h"
+
+#include "utils_inc/error_codes.h"
+
 
 //*****************************************************************************
 // defines
@@ -78,7 +81,7 @@ check_battery(void)
   //          The ADC that measures the battery voltage
 
 
-  bIs_batt_low = bIs_battery_low();
+//  bIs_batt_low = bIs_battery_low();
   if(measure_battery()>BATTERY_LOW_ADC_VALUE )
   {
     bIs_batt_low = true;
@@ -122,6 +125,10 @@ measure_battery()
   uint32_t pui32ADCValue;
   uint32_t average_pui32ADCValue;
 
+  if (BatMeasureADCEnable() != ER_OK)
+  {
+    return 1;
+  }
   if (MAP_SysCtlClockGet()>20000000)
   {
     return 1;
@@ -148,5 +155,58 @@ measure_battery()
   }
   average_pui32ADCValue = average_pui32ADCValue>>4;
 
+  BatMeasureADCDisable();
+
   return average_pui32ADCValue;
+}
+
+char
+ineedmd_get_battery_voltage(void)
+{
+  uint32_t offset_battery_voltage_in_tenths;
+  uint32_t battery_voltage_in_tenths;
+  uint32_t mv_battery;
+
+  //convert the ADC reading to 10uV steps
+  mv_battery = measure_battery() * 161;
+  //scale the 10uv steps to tenths of volts
+  battery_voltage_in_tenths = mv_battery / 10000;
+  //suptract the offset of 2.5V
+  offset_battery_voltage_in_tenths = battery_voltage_in_tenths - 25;
+
+  return (char) (0xff & offset_battery_voltage_in_tenths);
+
+}
+
+uint32_t
+ineedmd_get_unit_tempoerature()
+{
+
+
+  uint32_t TempValueC;
+  uint32_t temp_adc_return_value;
+
+  TemperatureMeasureADCEnable();
+
+  ADCProcessorTrigger(TEMPERATURE_ADC, 3);
+  //
+  // Wait for conversion to be completed.
+  //
+  while(!ADCIntStatus(TEMPERATURE_ADC, 3, false))
+  {
+  }
+  //
+  // Clear the ADC interrupt flag.
+  //
+  ADCIntClear(TEMPERATURE_ADC, 3);
+  //
+  // Read ADC Value.
+  //
+  ADCSequenceDataGet(TEMPERATURE_ADC, 3, &temp_adc_return_value);
+
+  TemperatureMeasureADCDisable();
+  TempValueC = ((1475 * 1023) - (2250 * temp_adc_return_value)) / 10230;
+
+  return TempValueC;
+
 }

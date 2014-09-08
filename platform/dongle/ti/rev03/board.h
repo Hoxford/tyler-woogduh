@@ -64,6 +64,13 @@
 #define BATTERY_CRITICAL_ADC_VALUE           0x00000866
 #define BATTERY_LOW_ADC_VALUE                0x00000900
 
+//temperature monitor mapping
+#define TEMPERATURE_ADC                      ADC1_BASE
+#define TEMPERATURE_ADC_CTL                  ADC_CTL_TS
+#define TEMPERATURE_SYSCTL_PERIPH_ADC        SYSCTL_PERIPH_ADC1
+
+
+
 //#define BATTERY_SYSCTL_PERIPH_GPIO           SYSCTL_PERIPH_GPIOE
 
 //BT Radio mappings
@@ -194,7 +201,7 @@ int         set_system_speed (unsigned int);
 ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed);
 
 void        GPIOEnable(void);
-int         BatMeasureADCEnable(void);
+ERROR_CODE  BatMeasureADCEnable(void);
 ERROR_CODE  eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set);
 ERROR_CODE  eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get);
 int         EKGSPIEnable(void);
@@ -247,6 +254,8 @@ void GPIODisable(void);
 int BatMeasureADCDisable(void);
 bool bIs_battery_low(void);
 int EKGSPIDisable(void);
+ERROR_CODE TemperatureMeasureADCEnable(void);
+ERROR_CODE TemperatureMeasureADCDisable(void);
 
 void LEDI2CDisable(void);
 void USBPortDisable(void);

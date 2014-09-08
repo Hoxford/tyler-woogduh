@@ -15,6 +15,8 @@
 // defines
 //*****************************************************************************
 
+# define ADC_TO_MV 161
+
 //*****************************************************************************
 // variables
 //*****************************************************************************
@@ -40,5 +42,7 @@
 //*****************************************************************************
 void check_battery(void); //battery power check function
 uint32_t measure_battery(void); // run the ADC to measure the battery
+extern char ineedmd_get_battery_voltage(void); //returns the battery voltage in 1/10ths of volts
+extern uint32_t ineedmd_get_unit_tempoerature(void);
 
 #endif //__BATTERY_H__

@@ -65,6 +65,7 @@
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
 #include "driverlib/udma.h"
+#include "utils_inc/error_codes.h"
 
 #include "inc/tm4c1233h6pm.h"
 #include "board.h"
@@ -931,7 +932,7 @@ GPIODisable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-int
+ERROR_CODE
 BatMeasureADCEnable(void)
 {
 
@@ -957,7 +958,7 @@ BatMeasureADCEnable(void)
     //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
 
 
-    return 1;
+    return ER_OK;
 }
 
 //*****************************************************************************
@@ -970,12 +971,47 @@ int
 BatMeasureADCDisable(void)
 {
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
-   //Enable the ADC Clock
+   //Disable the ADC Clock
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
-    //let is stabalise with a majik delay
     return 1;
 }
 
+ERROR_CODE
+TemperatureMeasureADCEnable(void)
+{
+
+    //uint32_t uiData;
+
+    //Enable the ADC Clock
+    MAP_SysCtlPeripheralEnable(TEMPERATURE_SYSCTL_PERIPH_ADC);
+
+    MAP_ADCSequenceDisable(TEMPERATURE_ADC, 3);
+    MAP_ADCSequenceConfigure(TEMPERATURE_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+    MAP_ADCSequenceStepConfigure(TEMPERATURE_ADC, 3, 0, TEMPERATURE_ADC_CTL | ADC_CTL_IE | ADC_CTL_END );
+    MAP_ADCIntClear(TEMPERATURE_ADC, 3);
+
+    MAP_ADCSequenceEnable(TEMPERATURE_ADC, 3);
+
+    //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+
+
+    return ER_OK;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE
+TemperatureMeasureADCDisable(void)
+{
+    while(!SysCtlPeripheralReady(TEMPERATURE_SYSCTL_PERIPH_ADC));
+   //Disable the ADC Clock
+    MAP_SysCtlPeripheralDisable(TEMPERATURE_SYSCTL_PERIPH_ADC);
+    return ER_OK;
+}
 //*****************************************************************************
 // name:
 // description:

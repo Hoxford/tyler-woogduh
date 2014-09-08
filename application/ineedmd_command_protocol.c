@@ -18,6 +18,9 @@
 #include <stdarg.h>
 #include "driverlib/rom.h"
 #include "board.h"
+
+#include "battery.h"
+
 #include "app_inc/ineedmd_command_protocol.h"
 #include "app_inc/ineedmd_waveform.h"
 #include "app_inc/ineedmd_watchdog.h"
@@ -262,11 +265,13 @@ void ParseFrame(void *pt)
   */
   const unsigned char status0x14[] = { 0x9C, 0x05, 0x17, 0x02, 0x00, 0x01, 0xD7, 0x68, 0x56, 0x00, 0x00, 0x00, 0x14, 0x00, 0x02, 0xD7, 0x68, 0xAA, 0x00, 0x00, 0x00, 0x60, 0xC9 }; //reply for high voltage query.
 //  const char status0x13[] = { 0x9C, 0x04, 0x20, 0x21, 0x22, 0xC9 };
-  const unsigned char status0X11[] = { 0x9C, 0x02, 0x11, 0x01, 0x64, 0x50, 0x0B, 0xB8, 0xD7, 0x68, 0x56, 0x00, 0xC0, 0x00, 0x00, 0x00, 0xC9 };
+  //const unsigned char status0X11[] = { 0x9C, 0x02, 0x11, 0x01, 0x64, 0x50, 0x0B, 0xB8, 0xD7, 0x68, 0x56, 0x00, 0xC0, 0x00, 0x00, 0x00, 0xC9 };
   const unsigned char status0x17[] = { 0x9c, 0x03, 0x18, 0x16, 0x01, 0x03, 0x1B, 0x10, 0x00, 0x0A, 0x10, 0x9C, 0x22, 0xC9, 0x3C, 0xC9, 0xA5, 0x0E, 0x0B, 0x2C, 0x8C, 0x9C, 0x77, 0xC9 };
   const unsigned char status0x15_Temp[] = { 0x9c, 0x05, 0x17, 0x02, 0x00, 0x01, 0xd7, 0x68, 0x56, 0x00, 0x00, 0x00, 0x14, 0x00, 0x02, 0xd7, 0x68, 0xAA, 0x00, 0x00, 0x00, 0x60, 0xc9 };
 
   unsigned char * ucRaw_Frame = pt;
+
+  unsigned char OutGoingPacket[0x20];  //maximum length of an outgoing packet is 0x20
   unsigned char Frame[300];
 //  int frameCnt;
   unsigned char lengthPacket;// = Frame[2]; //which is also frameCnt, probably.
@@ -444,13 +449,50 @@ void ParseFrame(void *pt)
       case 0x11://get status.
 //        printf("\nReceived request for status...\nSending status record...");
         printf("Received request for status...");
-        sprintf(replyToSend, "%X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X",
-          status0X11[0], status0X11[1], status0X11[2], status0X11[3],
-          status0X11[4], status0X11[5], status0X11[6], status0X11[7],
-          status0X11[8], status0X11[9], status0X11[10], status0X11[11],
-          status0X11[12], status0X11[13], status0X11[14], status0X11[15],
-          status0X11[16]);
-        PrintCommand(status0X11, 17); //this is just to display on our side, what reply we are sending.
+        printf("Building Status Packet...");
+        OutGoingPacket[0x00] = 0x9c;
+        OutGoingPacket[0x01] = 0x02;
+        OutGoingPacket[0x02] = 0x12;
+        OutGoingPacket[0x03] = 0x04; // hard coding the version number
+        OutGoingPacket[0x04] = ineedmd_get_battery_voltage();
+        OutGoingPacket[0x05] = (char) (0xff & ineedmd_get_unit_tempoerature());
+
+        OutGoingPacket[0x06] = 0x00;  // operating mode  - no information to add yet
+        OutGoingPacket[0x07] = 0x00;  // capture settings 1  - no information to add yet
+        OutGoingPacket[0x08] = 0x00;  // capture settings 2  - no information to add yet
+        OutGoingPacket[0x09] = 0x00;  // Time 4 - no information to add yet
+        OutGoingPacket[0x0a] = 0x00;  // Time 3 - no information to add yet
+        OutGoingPacket[0x0b] = 0x00;  // Time 2 - no information to add yet
+        OutGoingPacket[0x0c] = 0x00;  // Time 1 - no information to add yet
+        OutGoingPacket[0x0d] = 0x00;  // Alarm 4  - no information to add yet
+        OutGoingPacket[0x0e] = 0x00;  // Alarm 3  - no information to add yet
+        OutGoingPacket[0x0f] = 0x00;  // Alarm 2  - no information to add yet
+        OutGoingPacket[0x10] = 0x00;  // Alarm 1  - no information to add yet
+
+        OutGoingPacket[0x11] = 0x9c;
+
+        sprintf(replyToSend, "%X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %x",
+            OutGoingPacket[0x00],
+              OutGoingPacket[0x01],
+              OutGoingPacket[0x02],
+              OutGoingPacket[0x03],
+              OutGoingPacket[0x04],
+              OutGoingPacket[0x05],
+
+              OutGoingPacket[0x06],
+              OutGoingPacket[0x07],
+              OutGoingPacket[0x08],
+              OutGoingPacket[0x09],
+              OutGoingPacket[0x0a],
+              OutGoingPacket[0x0b],
+              OutGoingPacket[0x0c],
+              OutGoingPacket[0x0d],
+              OutGoingPacket[0x0e],
+              OutGoingPacket[0x0f],
+              OutGoingPacket[0x10],
+
+              OutGoingPacket[0x11]);
+        PrintCommand(OutGoingPacket, OutGoingPacket[2]); //this is just to display on our side, what reply we are sending.
         printf("Sending status record...");
         writeDataToPort(replyToSend);
         break;
