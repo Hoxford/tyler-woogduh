@@ -84,6 +84,9 @@
 #define RADIO_TX_UDMA_CHANNEL_BITMASK  0b00000000100000000000000000000000
 #define RADIO_RX_UDMA_CHANNEL_BITMASK  0b00000000010000000000000000000000
 
+//USB defines
+#define USB_THREE_SEC_DATA_CONN_DELAY   3000
+
 /******************************************************************************
 * variables
 ******************************************************************************/
@@ -100,6 +103,7 @@ volatile int  iNum_cts_procs = 0;
 volatile bool bIs_DMA_transmit_in_process = false;
 
 //USB variables
+bool bIs_USB_Enabled = false;
 volatile bool bIs_USB_sof = false;
 
 //Timer variables
@@ -733,7 +737,7 @@ int set_system_speed (unsigned int how_fast)
   uiCurrent_sys_speed = how_fast;
 
   //reset all the functions that require the current sys speed
-  eBSP_Set_System_Timers();
+//  eBSP_Set_System_Timers();
 
   return how_fast;
 
@@ -1354,7 +1358,7 @@ int iRadio_Power_On(void)
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
-int s(void)
+int iRadio_Power_Off(void)
 {
   GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN_CLEAR);
   return 1;
@@ -2580,6 +2584,12 @@ SDCardSPIInit(void)
 
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 void
 SDCardSPIDisable(void)
 {
@@ -2591,6 +2601,12 @@ SDCardSPIDisable(void)
 
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 void
 LEDI2CEnable(void)
 {
@@ -2616,6 +2632,12 @@ LEDI2CEnable(void)
 
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 void
 LEDI2CDisable(void)
 {
@@ -2625,6 +2647,12 @@ LEDI2CDisable(void)
 
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 void
 XTALControlPin(void)
 {
@@ -2640,59 +2668,77 @@ XTALControlPin(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
-USBPortEnable(void)
+void USBPortEnable(void)
 {
-    // USB block need the processor at full speed to complete the initiaisation.
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-    //
-    // Enable pin PD4 for USB0 USB0DM
-    //
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_4);
-    //
-    // Enable pin PD5 for USB0 USB0DP
-    //
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5);
+  bool bUSB_plugged_in = false;
+  uint16_t i = 0;
 
-#define SYSTICKS_PER_SECOND 100
+//  if(bIs_USB_Enabled == false)
+//  {
+    // USB block need the processor at full speed to complete the initialization.
+    set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
+
+    //Enable the USB peripheral
+    //
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+
     ROM_FPULazyStackingEnable();
+
+    // Enable pins for USB0 USB0DP and USB0DM
+    //
     MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
 
-    set_system_speed(INEEDMD_CPU_SPEED_HALF_EXTERNAL);
-
-    uint32_t ui32SysClock = MAP_SysCtlClockGet();
-//    MAP_SysTickPeriodSet(MAP_SysCtlClockGet() / SYSTICKS_PER_SECOND);
-//    MAP_SysTickIntEnable();
-//    MAP_SysTickEnable();
-//    eMaster_int_disable();
-//    MAP_SysTickIntDisable();
-//    MAP_SysTickDisable();
     HWREG(NVIC_DIS0) = 0xffffffff;
     HWREG(NVIC_DIS1) = 0xffffffff;
-    // 1. Enable USB PLL
-    // 2. Enable USB controller
-//    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-//    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+
+    // reset the USB
+    //
     MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+
+    //Enable USB PLL
+    //
     MAP_SysCtlUSBPLLEnable();
-    // 3. Enable USB D+ D- pins
-    // 4. Activate USB DFU
-    MAP_SysCtlDelay(ui32SysClock / 3);
-    eMaster_int_enable(); // Re-enable interrupts at NVIC level
+
+    // Re-enable interrupts at NVIC level
+    eMaster_int_enable();
 
     //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
 
-//    ROM_USBIntEnableControl(USB0_BASE,(USB_INTCTRL_DISCONNECT | USB_INTCTRL_CONNECT));
     MAP_USBIntEnableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
                                        USB_INTCTRL_CONNECT);
-//    MAP_USBIntEnableEndpoint(USB0_BASE, USB_INTEP_ALL);
+  //    MAP_USBIntEnableEndpoint(USB0_BASE, USB_INTEP_ALL);
 
     MAP_USBDevConnect(USB0_BASE);
 
     MAP_IntEnable(INT_USB0);
 
+    //Do a delay to potentially allow an external device that is attached attached
+    //to notify the dongle of a data connection. Exit the delay early if a data
+    //connection is detected within the timeout period otherwise continue.
+    bUSB_plugged_in = bIs_usb_physical_data_conn(false);
+    while(bUSB_plugged_in == false)
+    {
+      i += iHW_delay(1);
+      bUSB_plugged_in = bIs_usb_physical_data_conn(false);
+      if(bUSB_plugged_in == true)
+      {
+        break;
+      }else{/*do nothing*/}
+
+      if(i == USB_THREE_SEC_DATA_CONN_DELAY)
+      {
+        break;
+      }else{/*do nothing*/}
+    }
+
+//    //set control variables
+//    bIs_USB_Enabled = true;
+//  }
+//  else
+//  {
+//    return;
+//  }
 }
 
 //*****************************************************************************
@@ -2701,12 +2747,10 @@ USBPortEnable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void
-USBPortDisable(void)
+void USBPortDisable(void)
 {
-
-    uint32_t ui32SysClock = MAP_SysCtlClockGet();
-
+//  if(bIs_USB_Enabled == true)
+//  {
     //disable all interrupts
     eMaster_int_disable();
 
@@ -2723,9 +2767,6 @@ USBPortDisable(void)
     //turn off the USB PLL
     MAP_SysCtlUSBPLLDisable();
 
-    //do a short delay
-    MAP_SysCtlDelay(ui32SysClock / 3);
-
     // disable the entier USB0 peripheral
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
 
@@ -2733,6 +2774,53 @@ USBPortDisable(void)
 
     //re-enable all interrupts
     eMaster_int_enable();
+
+    //set control variables
+    bIs_USB_Enabled = false;
+//  }
+//  else
+//  {
+//    return;
+//  }
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+void vUSBServiceInt(uint32_t uiUSB_int_flags)
+{
+
+  if((uiUSB_int_flags & USB_INTCTRL_SOF) == USB_INTCTRL_SOF)
+  {
+    bIs_USB_sof = true;
+  }
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+bool bIs_usb_physical_data_conn(bool bClear_Status)
+{
+  bool bWas_physical_data_conn;
+
+  eMaster_int_disable();
+
+  bWas_physical_data_conn = bIs_USB_sof;
+  if(bClear_Status == true)
+  {
+    bIs_USB_sof = false;
+  }else{/*do nothing*/}
+
+  //re-enable interrupts
+  eMaster_int_enable();
+
+  return bWas_physical_data_conn;
 }
 
 //*****************************************************************************
@@ -2741,38 +2829,11 @@ USBPortDisable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-void vUSBServiceInt(uint32_t uiUSB_int_flags)
+ERROR_CODE  ineedmd_usb_connected(void)
 {
+  ERROR_CODE eEC = ER_NOT_CONNECTED;
 
-  if((uiUSB_int_flags & USB_INTCTRL_SOF) == USB_INTCTRL_SOF)
-  {
-      bIs_USB_sof = true;
-  }
-}
-
-bool bIs_usb_physical_data_conn(void)
-{
-  bool bWas_physical_data_conn;
-
-  eMaster_int_disable();
-
-  bWas_physical_data_conn = bIs_USB_sof;
-  bIs_USB_sof = false;
-
-  //re-enable interrupts
-  eMaster_int_enable();
-
-  return bWas_physical_data_conn;
-}
-
-
-/*
- * check for a USB connection...
- */
-
-ERROR_CODE ineedmd_usb_connected(void)
-{
- return ER_CONNECTED;
+  return eEC;
 }
 
 //*****************************************************************************
@@ -2815,13 +2876,13 @@ ERROR_CODE eBSP_Systick_Init(void)
 
   return eEC;
 }
+
 /*
 * ConfigureSleepleep(void)
 *
 *This function sets up the behaviour of the cpu peripherals in sleep mode
 *
 */
-
 void ConfigureSleep(void)
 {
         //
@@ -2940,6 +3001,12 @@ void ConfigureSleep(void)
         //
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 void ConfigureDeepSleep(void)
 {
 	//
@@ -3072,12 +3139,12 @@ ERROR_CODE eMaster_int_enable(void)
   return eEC;
 }
 
-//*****************************************************************************
-// name: eMaster_int_disable
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
+/******************************************************************************
+* name: eMaster_int_disable
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 ERROR_CODE eMaster_int_disable(void)
 {
   ERROR_CODE eEC = ER_OK;
@@ -3108,6 +3175,7 @@ iHW_delay(uint32_t uiDelay)
   {
     MAP_SysCtlDelay(uiSys_clock_rate_ms);
   }
+
   return i;
 }
 

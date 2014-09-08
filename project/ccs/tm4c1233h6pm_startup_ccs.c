@@ -44,13 +44,14 @@
 void ResetISR(void);
 static void NmiSR(void);
 static void FaultISR(void);
-static void IntDefaultHandler(void);
+static void IntDefaultHandler (void);
 static void vSysTickIntHandler(void);
 static void vUART1_Rx_and_Tx  (void);
 //static void Reset_me(void);
-static void Timer0AIntHandler(void);
-static void USB0Int(void);
-static void uDMAErrorHandler(void);
+static void Watchdog_timer    (void);
+static void Timer0AIntHandler (void);
+static void USB0Int           (void);
+static void uDMAErrorHandler  (void);
 
 //*****************************************************************************
 //
@@ -127,7 +128,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // ADC Sequence 1
     IntDefaultHandler,                      // ADC Sequence 2
     IntDefaultHandler,                      // ADC Sequence 3
-    IntDefaultHandler,                      // Watchdog timer
+    Watchdog_timer,                         // Watchdog timer
     Timer0AIntHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
     IntDefaultHandler,                      // Timer 1 subtimer A
@@ -334,8 +335,6 @@ IntDefaultHandler(void)
 //*****************************************************************************
 static void vSysTickIntHandler(void)
 {
-  vDEBUG_GPIO_TOGGLE_1();
-
   vSystick_int_service();
   return;
 }
@@ -415,6 +414,22 @@ vUART1_Rx_and_Tx(void)
   }
 
   return;
+}
+
+/******************************************************************************
+*
+* watchdog timer interrupt
+*
+******************************************************************************/
+static void Watchdog_timer    (void)
+{
+  vDEBUG("Watchdog_timer, watchdog barked! SYS HALT");
+  //
+  // Go into an infinite loop.
+  //
+  while(1)
+  {
+  }
 }
 
 //*****************************************************************************

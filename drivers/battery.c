@@ -72,7 +72,8 @@
 void
 check_battery(void)
 {
-
+  //  todo: bIs_battery_low() not implemented in board rev03 anymore, add back in rev 05
+#ifdef BAT_LOW_NOT_IMPLEMENTED
   bool bIs_batt_low;
 
   //check the state of the low battery pin and if it is low the we park the bus...
@@ -80,8 +81,12 @@ check_battery(void)
   //          the bat_low pin from the radio
   //          The ADC that measures the battery voltage
 
+<<<<<<< HEAD
 
 //  bIs_batt_low = bIs_battery_low();
+=======
+  bIs_batt_low = bIs_battery_low();
+>>>>>>> cc88825822b5b852d324d7ff44cd40865625d7ee
   if(measure_battery()>BATTERY_LOW_ADC_VALUE )
   {
     bIs_batt_low = true;
@@ -114,8 +119,9 @@ check_battery(void)
       bIs_batt_low = bIs_battery_low();
     }
   }
+#endif
 
-
+  return;
 }
 
 uint32_t
