@@ -39,7 +39,6 @@
 #include "app_inc/ineedmd_waveform.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
-#include "utils_inc/error_codes.h"
 #include "ff.h"
 
 //*****************************************************************************
@@ -341,7 +340,7 @@ void check_for_update(void)
   {
     vDEBUG("Update short in place!");
     //check if there is a USB data connection attached
-    bUSB_plugged_in = bIs_usb_physical_data_conn();
+    bUSB_plugged_in = bIs_usb_physical_data_conn(true);
     if(bUSB_plugged_in == true)
     {
       vDEBUG("USB data connection detected!");

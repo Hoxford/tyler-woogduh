@@ -241,7 +241,8 @@ void        XTALControlPin(void);
 void        USBPortEnable(void);
 void        USBPortDisable(void);
 void        vUSBServiceInt(uint32_t uiUSB_int_flags);
-bool        bIs_usb_physical_data_conn(void);
+bool        bIs_usb_physical_data_conn(bool bClear_Status);
+ERROR_CODE  ineedmd_usb_connected(void);
 ERROR_CODE  eBSP_Systick_Init(void);
 void GPIODisable(void);
 int BatMeasureADCDisable(void);
@@ -253,8 +254,6 @@ void USBPortDisable(void);
 ERROR_CODE eMaster_int_enable(void);
 ERROR_CODE eMaster_int_disable(void);
 int iHW_delay(uint32_t uiDelay);
-ERROR_CODE ineedmd_usb_connected(void);
-
 int iBoard_init(void);
 
 #endif //  __BOARD_H__

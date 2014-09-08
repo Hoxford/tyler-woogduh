@@ -1607,6 +1607,9 @@ int  iIneedMD_radio_setup(void)
     //set the connection status to false while waiting for an outside connection
     bIs_connection = false;
 
+    //clear data pending status
+    bRadio_is_data();
+
     //enable the interrupt to the radio
     iRadio_interface_int_enable();
 
