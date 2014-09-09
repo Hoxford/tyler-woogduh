@@ -39,10 +39,8 @@
 #include "app_inc/ineedmd_waveform.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
-<<<<<<< HEAD
+
 //#include "utils_inc/error_codes.h"
-=======
->>>>>>> cc88825822b5b852d324d7ff44cd40865625d7ee
 #include "ff.h"
 
 //*****************************************************************************
