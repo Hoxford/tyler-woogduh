@@ -3455,7 +3455,10 @@ iBoard_init(void)
   GPIOEnable();
 
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
-  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
+  //not using the function because that needs the i2c to be initalised first.
+  SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+  // switch off the external oscillator
+  MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
   // set the brown out interupt and power down voltage
   PowerInitFunction();
