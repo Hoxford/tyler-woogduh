@@ -939,7 +939,7 @@ int set_system_speed (unsigned int how_fast)
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
-      I2CMasterInitExpClk(I2C0_BASE, 80000000, 1);
+      I2CMasterInitExpClk(I2C0_BASE, 16000000, 1);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, default");
 
