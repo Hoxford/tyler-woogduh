@@ -40,12 +40,20 @@ ERROR_CODE ineedmd_watchdog_setup(void)
   MAP_SysCtlPeripheralEnable(WD_PHERF);
   MAP_SysCtlPeripheralReset(WD_PHERF);
 
+  eMaster_int_enable();
+
   //Unlock the watchdog
   //
   if(MAP_WatchdogLockState(WD_BASE) == true)
   {
     MAP_WatchdogUnlock(WD_BASE);
   }
+
+  //Enable the Watchdog timer interrupt
+  //
+  MAP_WatchdogIntEnable(WD_BASE);
+  MAP_IntEnable(INT_WATCHDOG);
+  MAP_WatchdogIntClear(WD_BASE);
 
   //Set the watchdog default timeout
   //
@@ -55,17 +63,11 @@ ERROR_CODE ineedmd_watchdog_setup(void)
   //
   MAP_WatchdogResetEnable(WD_BASE);
 
-  //Enable the Watchdog timer interrupt
-  //
-  MAP_WatchdogIntEnable(WD_BASE);
-  MAP_IntEnable(INT_WATCHDOG);
-  MAP_WatchdogIntClear(WD_BASE);
-
 #ifdef DEBUG
   //For debugging Watchdog counter will stop while stepping through code and reset is disabled
   //
   ineedmd_watchdog_debug_mode();
-  MAP_WatchdogResetDisable(WD_BASE);
+//  MAP_WatchdogResetDisable(WD_BASE);
 #endif
 
   //Finally enable the watchdog

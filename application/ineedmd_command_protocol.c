@@ -739,11 +739,17 @@ void ParseFrame(void *pt)
           printf("Performing RESET..");
           ineedmd_send_ack();
           ineedmd_led_pattern(REBOOT);
+
+          //set the radio to factory defaults
+          eIneedmd_radio_rfd();
           sleep_for_tenths(50);
-          //TODO: add reset
+
+          //Reset the system
           ineedmd_watchdog_doorbell();
-          //__asm("    .global _c_int00\n"
-          //         "    b.w     _c_int00");
+
+          //Should never get there, loop just in case
+          while(1){};
+
         }
         //the output expected is TEST DATA PATTERN 1
 //        printf("\nReceived \"test\" request...");

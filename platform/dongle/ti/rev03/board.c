@@ -65,7 +65,15 @@
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
 #include "driverlib/udma.h"
-#include "utils_inc/error_codes.h"
+
+//USB Lib inc
+#ifdef USE_USBLIB
+  #include "usblib/usblib.h"
+  #include "usblib/usb-ids.h"
+  #include "usblib/device/usbdevice.h"
+  #include "usblib/device/usbdbulk.h"
+#endif //#ifdef USE_USBLIB
+//end USB Lib inc
 
 #include "inc/tm4c1233h6pm.h"
 #include "board.h"
@@ -102,9 +110,198 @@ volatile int  iNum_cmnd_buffs = 0;
 volatile int  iNum_cts_procs = 0;
 volatile bool bIs_DMA_transmit_in_process = false;
 
+///////////////////////////////////////////////////////////////////////////////
 //USB variables
 bool bIs_USB_Enabled = false;
 volatile bool bIs_USB_sof = false;
+#ifdef USE_USBLIB
+//*****************************************************************************
+//
+// The size of the transmit and receive buffers used. 256 is chosen pretty
+// much at random though the buffer should be at least twice the size of
+// a maximum-sized USB packet.
+//
+//*****************************************************************************
+#define BULK_BUFFER_SIZE 256
+
+extern uint32_t RxHandler(void *pvCBData, uint32_t ui32Event,
+                          uint32_t ui32MsgValue, void *pvMsgData);
+extern uint32_t TxHandler(void *pvi32CBData, uint32_t ui32Event,
+                          uint32_t ui32MsgValue, void *pvMsgData);
+
+extern const tUSBBuffer g_sTxBuffer;
+extern const tUSBBuffer g_sRxBuffer;
+extern tUSBDBulkDevice g_sBulkDevice;
+extern uint8_t g_pui8USBTxBuffer[];
+extern uint8_t g_pui8USBRxBuffer[];
+
+//*****************************************************************************
+//
+// The languages supported by this device.
+//
+//*****************************************************************************
+const uint8_t g_pui8LangDescriptor[] =
+{
+    4,
+    USB_DTYPE_STRING,
+    USBShort(USB_LANG_EN_US)
+};
+
+//*****************************************************************************
+//
+// The manufacturer string.
+//
+//*****************************************************************************
+const uint8_t g_pui8ManufacturerString[] =
+{
+    (17 + 1) * 2,
+    USB_DTYPE_STRING,
+    'T', 0, 'e', 0, 'x', 0, 'a', 0, 's', 0, ' ', 0, 'I', 0, 'n', 0, 's', 0,
+    't', 0, 'r', 0, 'u', 0, 'm', 0, 'e', 0, 'n', 0, 't', 0, 's', 0,
+};
+
+//*****************************************************************************
+//
+// The product string.
+//
+//*****************************************************************************
+const uint8_t g_pui8ProductString[] =
+{
+    (19 + 1) * 2,
+    USB_DTYPE_STRING,
+    'G', 0, 'e', 0, 'n', 0, 'e', 0, 'r', 0, 'i', 0, 'c', 0, ' ', 0, 'B', 0,
+    'u', 0, 'l', 0, 'k', 0, ' ', 0, 'D', 0, 'e', 0, 'v', 0, 'i', 0, 'c', 0,
+    'e', 0
+};
+
+//*****************************************************************************
+//
+// The serial number string.
+//
+//*****************************************************************************
+const uint8_t g_pui8SerialNumberString[] =
+{
+    (8 + 1) * 2,
+    USB_DTYPE_STRING,
+    '1', 0, '2', 0, '3', 0, '4', 0, '5', 0, '6', 0, '7', 0, '8', 0
+};
+
+//*****************************************************************************
+//
+// The data interface description string.
+//
+//*****************************************************************************
+const uint8_t g_pui8DataInterfaceString[] =
+{
+    (19 + 1) * 2,
+    USB_DTYPE_STRING,
+    'B', 0, 'u', 0, 'l', 0, 'k', 0, ' ', 0, 'D', 0, 'a', 0, 't', 0,
+    'a', 0, ' ', 0, 'I', 0, 'n', 0, 't', 0, 'e', 0, 'r', 0, 'f', 0,
+    'a', 0, 'c', 0, 'e', 0
+};
+
+//*****************************************************************************
+//
+// The configuration description string.
+//
+//*****************************************************************************
+const uint8_t g_pui8ConfigString[] =
+{
+    (23 + 1) * 2,
+    USB_DTYPE_STRING,
+    'B', 0, 'u', 0, 'l', 0, 'k', 0, ' ', 0, 'D', 0, 'a', 0, 't', 0,
+    'a', 0, ' ', 0, 'C', 0, 'o', 0, 'n', 0, 'f', 0, 'i', 0, 'g', 0,
+    'u', 0, 'r', 0, 'a', 0, 't', 0, 'i', 0, 'o', 0, 'n', 0
+};
+
+//*****************************************************************************
+//
+// The descriptor string table.
+//
+//*****************************************************************************
+const uint8_t * const g_ppui8StringDescriptors[] =
+{
+    g_pui8LangDescriptor,
+    g_pui8ManufacturerString,
+    g_pui8ProductString,
+    g_pui8SerialNumberString,
+    g_pui8DataInterfaceString,
+    g_pui8ConfigString
+};
+
+#define NUM_STRING_DESCRIPTORS (sizeof(g_ppui8StringDescriptors) /                \
+                                sizeof(uint8_t *))
+
+//*****************************************************************************
+//
+// The bulk device initialization and customization structures. In this case,
+// we are using USBBuffers between the bulk device class driver and the
+// application code. The function pointers and callback data values are set
+// to insert a buffer in each of the data channels, transmit and receive.
+//
+// With the buffer in place, the bulk channel callback is set to the relevant
+// channel function and the callback data is set to point to the channel
+// instance data. The buffer, in turn, has its callback set to the application
+// function and the callback data set to our bulk instance structure.
+//
+//*****************************************************************************
+
+tUSBDBulkDevice g_sBulkDevice =
+{
+    USB_VID_TI_1CBE,
+    USB_PID_BULK,
+    500,
+    USB_CONF_ATTR_SELF_PWR,
+    USBBufferEventCallback,
+    (void *)&g_sRxBuffer,
+    USBBufferEventCallback,
+    (void *)&g_sTxBuffer,
+    g_ppui8StringDescriptors,
+    NUM_STRING_DESCRIPTORS
+};
+
+//*****************************************************************************
+//
+// Receive buffer (from the USB perspective).
+//
+//*****************************************************************************
+uint8_t g_pui8USBRxBuffer[BULK_BUFFER_SIZE];
+uint8_t g_pui8RxBufferWorkspace[USB_BUFFER_WORKSPACE_SIZE];
+const tUSBBuffer g_sRxBuffer =
+{
+    false,                           // This is a receive buffer.
+    RxHandler,                       // pfnCallback
+    (void *)&g_sBulkDevice,          // Callback data is our device pointer.
+    USBDBulkPacketRead,              // pfnTransfer
+    USBDBulkRxPacketAvailable,       // pfnAvailable
+    (void *)&g_sBulkDevice,          // pvHandle
+    g_pui8USBRxBuffer,               // pi8Buffer
+    BULK_BUFFER_SIZE,                // ui32BufferSize
+    g_pui8RxBufferWorkspace          // pvWorkspace
+};
+
+//*****************************************************************************
+//
+// Transmit buffer (from the USB perspective).
+//
+//*****************************************************************************
+uint8_t g_pui8USBTxBuffer[BULK_BUFFER_SIZE];
+uint8_t g_pui8TxBufferWorkspace[USB_BUFFER_WORKSPACE_SIZE];
+const tUSBBuffer g_sTxBuffer =
+{
+    true,                            // This is a transmit buffer.
+    TxHandler,                       // pfnCallback
+    (void *)&g_sBulkDevice,          // Callback data is our device pointer.
+    USBDBulkPacketWrite,             // pfnTransfer
+    USBDBulkTxPacketAvailable,       // pfnAvailable
+    (void *)&g_sBulkDevice,          // pvHandle
+    g_pui8USBTxBuffer,               // pi8Buffer
+    BULK_BUFFER_SIZE,                // ui32BufferSize
+    g_pui8TxBufferWorkspace          // pvWorkspace
+};
+#endif //#ifdef USE_USBLIB
+//end USB variables
+///////////////////////////////////////////////////////////////////////////////
 
 //Timer variables
 volatile bool bWaveform_timer_tick = false;
@@ -1255,6 +1452,17 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
     uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_3686400;
   }else{/*do nothing*/}
 
+  if(uiCurrent_Baud_rate == 0)
+  {
+#ifdef DEBUG
+    vDEBUG_BSB_GET_BAUD("Get baud SYS HALT, baud not set");
+    while(1){};
+#endif
+  }
+  else
+  {
+    *uiBaud_rate_to_get = uiCurrent_Baud_rate;
+  }
 
   return eEC;
 #undef vDEBUG_BSB_GET_BAUD
@@ -2670,6 +2878,26 @@ XTALControlPin(void)
 //*****************************************************************************
 void USBPortEnable(void)
 {
+#ifdef USE_USBLIB
+  // Enable lazy stacking for interrupt handlers.
+  //
+  MAP_FPULazyStackingEnable();
+
+  // Enable the GPIO peripheral used for USB, and configure the USB
+  // pins.
+  //
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+  MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+
+  // Initialize the transmit and receive buffers.
+  //
+  USBBufferInit(&g_sTxBuffer);
+  USBBufferInit(&g_sRxBuffer);
+
+  // Set the USB stack mode to Device mode with VBUS monitoring.
+  //
+  USBStackModeSet(0, eUSBModeForceDevice, 0);
+#else //!USE_USBLIB
   bool bUSB_plugged_in = false;
   uint16_t i = 0;
 
@@ -2703,10 +2931,7 @@ void USBPortEnable(void)
     // Re-enable interrupts at NVIC level
     eMaster_int_enable();
 
-    //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_USB0));
-
-    MAP_USBIntEnableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
-                                       USB_INTCTRL_CONNECT);
+    MAP_USBIntEnableControl(USB0_BASE, USB_INTCTRL_ALL);
   //    MAP_USBIntEnableEndpoint(USB0_BASE, USB_INTEP_ALL);
 
     MAP_USBDevConnect(USB0_BASE);
@@ -2739,6 +2964,7 @@ void USBPortEnable(void)
 //  {
 //    return;
 //  }
+#endif //USE_USBLIB
 }
 
 //*****************************************************************************
@@ -2796,6 +3022,11 @@ void vUSBServiceInt(uint32_t uiUSB_int_flags)
   if((uiUSB_int_flags & USB_INTCTRL_SOF) == USB_INTCTRL_SOF)
   {
     bIs_USB_sof = true;
+  }
+
+  if((uiUSB_int_flags & USB_INTCTRL_DISCONNECT) == USB_INTCTRL_DISCONNECT)
+  {
+    bIs_USB_sof = false;
   }
 }
 

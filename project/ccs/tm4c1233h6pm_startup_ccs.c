@@ -50,7 +50,9 @@ static void vUART1_Rx_and_Tx  (void);
 //static void Reset_me(void);
 static void Watchdog_timer    (void);
 static void Timer0AIntHandler (void);
-static void USB0Int           (void);
+#ifndef USE_USB_LIB
+  static void USB0Int           (void);
+#endif
 static void uDMAErrorHandler  (void);
 
 //*****************************************************************************
@@ -58,7 +60,9 @@ static void uDMAErrorHandler  (void);
 // External declarations for the interrupt handlers used by the application.
 //
 //*****************************************************************************
-
+#ifdef USE_USB_LIB
+  extern void USB0DeviceIntHandler(void);
+#endif
 //*****************************************************************************
 //
 // External declaration for the reset handler that is to be called when the
@@ -154,7 +158,11 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     0,                                      // Reserved
     IntDefaultHandler,                      // Hibernate
+#ifdef USE_USBLIB
+    USB0DeviceIntHandler,                   // USB0
+#else
     USB0Int,                                // USB0
+#endif
     IntDefaultHandler,                      // PWM Generator 3
     IntDefaultHandler,                      // uDMA Software Transfer
     uDMAErrorHandler,                       // uDMA Error
@@ -423,6 +431,7 @@ vUART1_Rx_and_Tx(void)
 ******************************************************************************/
 static void Watchdog_timer    (void)
 {
+  MAP_WatchdogIntClear(WATCHDOG0_BASE);
   vDEBUG("Watchdog_timer, watchdog barked! SYS HALT");
   //
   // Go into an infinite loop.
@@ -470,7 +479,7 @@ static void USB0Int(void)
   vUSBServiceInt(ui32Status);
 
   MAP_USBIntStatusControl(INEEDMD_USB);
-  MAP_USBIntStatusEndpoint(USB0_BASE);
+  MAP_USBIntStatusEndpoint(INEEDMD_USB);
 
   return;
 }

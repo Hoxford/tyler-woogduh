@@ -908,6 +908,253 @@ void ineedmd_radio_soft_reset(void)
 	UARTBreakCtl (INEEDMD_RADIO_UART, false);
 }
 
+ERROR_CODE eIneedmd_radio_rfd(void)
+{
+#define DEBUG_eIneedmd_radio_rfd
+#ifdef DEBUG_eIneedmd_radio_rfd
+  #define  vDEBUG_RDIO_RFD  vDEBUG
+#else
+  #define vDEBUG_RDIO_RFD(a)
+#endif
+  ERROR_CODE eEC = ER_FAIL;
+#define RFD_SEND_SZ  64
+  char cRFD_Send_buff[RFD_SEND_SZ];
+#define RFD_RCV_SZ   128
+  char cRFD_Rcv_buff[RFD_RCV_SZ];
+  uint16_t uiBaud_index = 0;
+  uint32_t uiBaud_to_set = 0;
+  uint32_t uiSystem_Baud = 0;
+  uint32_t uiCurrent_Baud = 0;
+  uint32_t i_delay = 0;
+
+  //get the current system baud
+  eBSP_Get_radio_uart_baud(&uiSystem_Baud);
+
+  //set the radio to command mode
+  iIneedmd_radio_cmnd_mode(true);
+
+  //clear any data in the UART
+  eRadio_clear_rcv_buffer();
+
+  ineedmd_radio_reset();
+
+  eEC = eGet_Radio_CTS_status();
+  while(eEC == ER_FALSE)
+  {
+    eEC = eGet_Radio_CTS_status();
+    if(eEC == ER_TRUE)
+    {
+      //clear any data in the UART
+      eRadio_clear_rcv_buffer();
+    }else{/*do nothing*/}
+  }
+
+  //attempt to get the radio out of mux mode if it is in it
+  eBT_RDIO_mux_mode_disable();
+
+  //SET RESET, reset to factory defaults
+  //
+  eEC = eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
+  //Wait for the radio CTS pin to go low signifying reset
+  eEC = eGet_Radio_CTS_status();
+  while(eEC == ER_TRUE)
+  {
+    //delay for 1ms
+    i_delay += iHW_delay(1);
+    //check if the timeout was reached
+    if(i_delay == TIMEOUT_RFD_CTS_HL)
+    {
+      eEC = ER_TIMEOUT;
+      break;
+    }else{/*do nothing*/}
+
+    //get the cts status
+    eEC = eGet_Radio_CTS_status();
+    if(eEC == ER_FALSE)
+    {
+      //cts went from high to low signifying radio went into rfd
+      eEC = ER_OK;
+
+      //check if the current system baud is different then the default radio baud rate
+      eBSP_Get_radio_uart_baud(&uiCurrent_Baud);
+      if(uiCurrent_Baud != INEEDMD_RADIO_UART_DEFAULT_BAUD)
+      {
+        //the current baud is not the same speed as the radio default baud
+        //set the system to the default radio baud
+        eBSP_Set_radio_uart_baud(INEEDMD_RADIO_UART_DEFAULT_BAUD);
+      }
+      break;
+    }else{/*do nothing*/}
+  }
+
+  //check if radio successfully RFD'ed
+  if(eEC == ER_OK)
+  {
+    vDEBUG_RDIO_RFD("Rdio rfd, SET RESET, RFD");
+    vRADIO_ECHO(SET_RESET);
+
+    //wait for radio to come back from RFD by monitoring the CTS pin transition from low to high
+    eEC = eGet_Radio_CTS_status();
+    while(eEC == ER_FALSE)
+    {
+      eEC = eGet_Radio_CTS_status();
+    }
+
+    //check if the radio is back from RFD
+    if(eEC == ER_TRUE)
+    {
+      //radio came back from RFD, preparing to receive the boot message
+      memset(cRFD_Rcv_buff, 0x00, RFD_RCV_SZ);
+      eEC = iIneedmd_radio_rcv_boot_msg(cRFD_Rcv_buff, RFD_RCV_SZ);
+      if(eEC == ER_VALID)
+      {
+        vRADIO_ECHO(cRFD_Rcv_buff);
+
+        //set the baud rate to system required baud speed
+//        memset(cRFD_Send_buff, 0x00, RFD_SEND_SZ);
+//        snprintf(cRFD_Send_buff, RFD_SEND_SZ, SET_CONTROL_BAUD, INEEDMD_RADIO_UART_BAUD, SET_CONTROL_BAUD_PARITY, SET_CONTROL_BAUD_STOP_BITS_1);
+//        eEC = eSend_Radio_CMND(cRFD_Send_buff, strlen(cRFD_Send_buff));
+//        if(eEC == ER_OK)
+//        {
+//          vDEBUG_RDIO_RFD("Rdio rfd, SET CONTROL BAUD, set the baud rate");
+//          vRADIO_ECHO(cRFD_Send_buff);
+//        }else{/*do nothing*/}
+//
+//        //set the baud rate
+//        eBSP_Set_radio_uart_baud(INEEDMD_RADIO_UART_BAUD);
+//        memset(cRFD_Rcv_buff, 0x00, RFD_RCV_SZ);
+//        iIneedmd_radio_rcv_string(cRFD_Rcv_buff, RFD_RCV_SZ);
+//        vRADIO_ECHO(cRFD_Rcv_buff);
+      }else{/*do nothing*/}
+    }else{/*do nothing*/}
+  }
+  else
+  {
+    //The radio did not transition into a RFD via CTS pin signalling. This means the radio did not receive
+    //the request to RFD properly. Attempt to cycle through baud rates to RFD radio.
+    //
+    //init control variables
+    i_delay = 0;
+    uiBaud_index = 0;
+    eEC = ER_FAIL;
+
+    while(eEC != ER_VALID)
+    {
+      //Change baud rate to find the one the radio is using
+      vDEBUG_RDIO_RFD("Rdio rfd, no response to SET RESET, changing baud rate");
+      if(uiBaud_index == 0)
+        uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_57600;
+      else if(uiBaud_index == 1)
+        uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_76800;
+      else if(uiBaud_index == 2)
+        uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_115200;
+      else if(uiBaud_index == 3)
+        uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_230400;
+      else if(uiBaud_index == 4)
+        uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_460800;
+      else if(uiBaud_index == 5)
+        uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_921600;
+      else if(uiBaud_index == 6)
+        uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_1382400;
+      else
+      {
+        vDEBUG_RDIO_RFD("Rdio rfd, Baud selection failure");
+        while(1){};
+      }
+
+      //set the baud rate
+      eBSP_Set_radio_uart_baud(uiBaud_to_set);
+
+      //soft reset the radio
+      ineedmd_radio_reset();
+      eEC = eGet_Radio_CTS_status();
+      while(eEC == ER_FALSE)
+      {
+        eEC = eGet_Radio_CTS_status();
+        if(eEC == ER_TRUE)
+        {
+          vDEBUG_RDIO_RFD("Rdio rfd, radio was soft reset");
+        }else{/*do nothing*/}
+      }
+
+      //clear any potential uart traffic
+      eSend_Radio_CMND(CR_NL, strlen(CR_NL));
+      eRadio_clear_rcv_buffer();
+      i_delay = 0;
+
+      //send the reset command
+      eSend_Radio_CMND(SET_RESET, strlen(SET_RESET));
+
+      //wait for the radio to go into RFD by monitoring CTS pin transition from high to low
+      eEC = eGet_Radio_CTS_status();
+      while(eEC == ER_TRUE)
+      {
+        //delay for 1ms
+        i_delay += iHW_delay(1);
+        eEC = eGet_Radio_CTS_status();
+        //check if the timeout was reached
+        if(i_delay == TIMEOUT_RFD_CTS_HL)
+        {
+          vDEBUG_RDIO_RFD("Rdio rfd, radio RFD CTS HL monitoring timed out");
+          eEC = ER_TIMEOUT;
+          break;
+        }else{/*do nothing*/}
+      }
+
+      //check if the radio did not go into RFD
+      if(eEC == ER_TIMEOUT)
+      {
+        //set control variables
+        uiBaud_index++;
+        continue;
+      }
+      else if(eEC == ER_FALSE)
+      {
+        //the radio did go into RFD by CTS pin transition from high to low
+        eEC = eGet_Radio_CTS_status();
+        while(eEC == ER_FALSE)
+        {
+          eEC = eGet_Radio_CTS_status();
+        }
+        memset(cRFD_Rcv_buff, 0x00, RFD_RCV_SZ);
+        eEC = iIneedmd_radio_rcv_boot_msg(cRFD_Rcv_buff, RFD_RCV_SZ);
+        if(eEC == ER_VALID)
+        {
+          vRADIO_ECHO(cRFD_Rcv_buff);
+
+          //set the baud rate to system required baud speed
+          memset(cRFD_Send_buff, 0x00, RFD_SEND_SZ);
+          snprintf(cRFD_Send_buff, RFD_SEND_SZ, SET_CONTROL_BAUD, INEEDMD_RADIO_UART_BAUD, SET_CONTROL_BAUD_PARITY, SET_CONTROL_BAUD_STOP_BITS_1);
+          eEC = eSend_Radio_CMND(cRFD_Send_buff, strlen(cRFD_Send_buff));
+          if(eEC == ER_OK)
+          {
+            vDEBUG_RDIO_RFD("Rdio rfd, SET CONTROL BAUD, set the baud rate");
+            vRADIO_ECHO(cRFD_Send_buff);
+          }else{/*do nothing*/}
+
+          //set the baud rate
+          eBSP_Set_radio_uart_baud(INEEDMD_RADIO_UART_BAUD);
+          memset(cRFD_Rcv_buff, 0x00, RFD_RCV_SZ);
+          iIneedmd_radio_rcv_string(cRFD_Rcv_buff, RFD_RCV_SZ);
+          vRADIO_ECHO(cRFD_Rcv_buff);
+
+          break;
+        }
+        //check if the rcv boot message timed out
+        else if(eEC == ER_TIMEOUT)
+        {
+          //clear any potential uart traffic
+          eRadio_clear_rcv_buffer();
+          eEC = ER_FAIL;
+        }else{/*do nothing*/}
+      }
+    }
+  }
+
+  return eEC;
+
+#undef vDEBUG_RDIO_RFD
+}
 
 /*
  * send message to the radio

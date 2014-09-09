@@ -53,6 +53,7 @@
 									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\..\utils&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\..\platform\dongle\ti\rev03&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\..\platform\dongle\ti\rev03\inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\..\platform\dongle\ti\rev03\usblib\device&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\..\application&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\..\third_party&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\..\third_party\FatFS_10b\src&quot;"/>
@@ -86,6 +87,7 @@
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.XML_LINK_INFO.1277153024" name="Detailed link information data-base into &lt;file&gt; (--xml_link_info, -xml_link_info)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.XML_LINK_INFO" value="&quot;${ProjName}_linkInfo.xml&quot;" valueType="string"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.LIBRARY.206543368" name="Include library file or command file as input (--library, -l)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.LIBRARY" valueType="libs">
 									<listOptionValue builtIn="false" value="&quot;rtsv7M4_T_le_v4SPD16_xo_eabi.lib&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;$(CWD)\..\..\..\platform\dongle\ti\rev03\usblib\usblib.lib&quot;"/>
 								</option>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD_SRCS.536714509" name="Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD2_SRCS.730501920" name="Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD2_SRCS"/>

@@ -39,8 +39,6 @@
 #include "app_inc/ineedmd_waveform.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
-
-//#include "utils_inc/error_codes.h"
 #include "ff.h"
 
 //*****************************************************************************
@@ -417,11 +415,7 @@ ERROR_CODE ineedmd_ekg_connected(void)
   {
     return ER_NOT_CONNECTED;
   }
-
-
 }
-
-
 
 //*****************************************************************************
 // name: main
@@ -480,7 +474,8 @@ int main(void)
   vDEBUG_MAIN("Starting super loop");
   while(1)
   {
-    while ( ineedmd_usb_connected() == ER_NOT_CONNECTED | ineedmd_ekg_connected() == ER_NOT_CONNECTED)
+    while ((ineedmd_usb_connected() == ER_NOT_CONNECTED) & \
+           (ineedmd_ekg_connected() == ER_NOT_CONNECTED))
     {
       ineedmd_sleep();
     }

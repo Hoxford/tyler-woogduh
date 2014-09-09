@@ -1,4 +1,6 @@
 project/ccs/Debug/
+project/ccs/.launches/aerosmith.launch
+project/ccs/.launches/*.*
 project/ccs/.settings/org.eclipse.core.resources.prefs
 *.out
 *.xml
@@ -13,8 +15,6 @@ playground/helloWorld_TivaTM4C1233H6PM/Debug/*.*
 playground/helloWorld_TivaTM4C1233H6PM/Debug/configPkg/*.*
 playground/RadioUpdater_Firmware/Release/*.*
 playground/RadioUpdater_Firmware/Debug/*.*
-project/ccs/.launches/aerosmith.launch
-project/ccs/.launches/*.*
 dfu_load-bin.bin
 dfu_load.dat
 jtag_load-bin.bin
