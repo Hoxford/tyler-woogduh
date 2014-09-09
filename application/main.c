@@ -181,6 +181,7 @@ void hold_until_short_removed(void)
     eMaster_int_disable();
 
     switch_on_adc_for_lead_detection();
+    iHW_delay(100);
 
     uiLead_check = ineedmd_adc_Check_Lead_Off();
   }
@@ -201,7 +202,7 @@ void hold_until_short_removed(void)
 void ineedmd_sleep(void)
 {
   ERROR_CODE eEC = ER_OK;
-  uint32_t uiLead_check = 0;
+
   uint16_t uiPrevious_speed = 0;
 
   eEC = eGet_system_speed(&uiPrevious_speed);
@@ -215,55 +216,55 @@ void ineedmd_sleep(void)
   }
   ineedmd_led_pattern(LED_OFF);
 
-    //disable the spi port
-    EKGSPIDisable();
-    //power down the ADC
-    ineedmd_adc_Power_Off();
-    iRadio_Power_Off();
+  //disable the spi port
+  EKGSPIDisable();
+  //power down the ADC
+  ineedmd_adc_Power_Off();
+  iRadio_Power_Off();
 
 
-    //
-    // Set the Timer0B load value to 10s.
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    eMaster_int_enable();
-    MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-    MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
+  //
+  // Set the Timer0B load value to 10s.
+  //
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+  eMaster_int_enable();
+  MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+  MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
 
-    //
-    // Enable processor interrupts.
-    //todo: redundant?
-    eMaster_int_enable();
-    //
-    // Configure the Timer0 interrupt for timer timeout.
-    //
-    MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-    //
-    // Enable the Timer0A interrupt on the processor (NVIC).
-    //
-    MAP_IntEnable(INT_TIMER0A);
-    //
-    // clocks down the processor to REALLY slow ( 500khz) and
-    //
-    set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
-    //
-    // Enable Timer0(A)
-    //
-    MAP_TimerEnable(TIMER0_BASE, TIMER_A);
+  //
+  // Enable processor interrupts.
+  //todo: redundant?
+  eMaster_int_enable();
+  //
+  // Configure the Timer0 interrupt for timer timeout.
+  //
+  MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+  //
+  // Enable the Timer0A interrupt on the processor (NVIC).
+  //
+  MAP_IntEnable(INT_TIMER0A);
+  //
+  // clocks down the processor to REALLY slow ( 500khz) and
+  //
+  set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
+  //
+  // Enable Timer0(A)
+  //
+  MAP_TimerEnable(TIMER0_BASE, TIMER_A);
 
-    MAP_SysCtlSleep();
+  MAP_SysCtlSleep();
 
-    //comming out we turn the processor all the way up
-    set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
+  //comming out we turn the processor all the way up
+  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
 
-    MAP_TimerDisable(TIMER0_BASE, TIMER_A);
-    MAP_IntDisable(INT_TIMER0A);
-    eMaster_int_disable();
+  MAP_TimerDisable(TIMER0_BASE, TIMER_A);
+  MAP_IntDisable(INT_TIMER0A);
+  eMaster_int_disable();
 
-    switch_on_adc_for_lead_detection();
-    iRadio_Power_On();
-    uiLead_check = ineedmd_adc_Check_Lead_Off();
-    check_battery();
+  switch_on_adc_for_lead_detection();
+  iRadio_Power_On();
+  iHW_delay(100);
+  check_battery();
 
 
   //re-enable master interrupts
@@ -444,7 +445,7 @@ int main(void)
   ineedmd_led_pattern(LED_OFF);
 
   //Put the system into low power mode if the shipping jumper is present
- // hold_until_short_removed();
+  hold_until_short_removed();
 
   //set up the watchdog
   vDEBUG_MAIN("Watchdog setup");
@@ -477,6 +478,7 @@ int main(void)
     while ((ineedmd_usb_connected() == ER_NOT_CONNECTED) & \
            (ineedmd_ekg_connected() == ER_NOT_CONNECTED))
     {
+      ineedmd_watchdog_pat();
       ineedmd_sleep();
     }
     ineedmd_watchdog_pat();

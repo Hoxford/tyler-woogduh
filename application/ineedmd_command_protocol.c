@@ -450,6 +450,7 @@ void ParseFrame(void *pt)
 //        printf("\nReceived request for status...\nSending status record...");
         printf("Received request for status...");
         printf("Building Status Packet...");
+        memset(OutGoingPacket, 0x00, 0x20); //todo: magic numbers!
         OutGoingPacket[0x00] = 0x9c;
         OutGoingPacket[0x01] = 0x02;
         OutGoingPacket[0x02] = 0x12;
@@ -494,7 +495,7 @@ void ParseFrame(void *pt)
               OutGoingPacket[0x11]);
         PrintCommand(OutGoingPacket, OutGoingPacket[2]); //this is just to display on our side, what reply we are sending.
         printf("Sending status record...");
-        writeDataToPort(replyToSend);
+        writeDataToPort(OutGoingPacket);
         break;
       case 0x17:
 //todo: frameCnt was not set properly, this code to be implemented later

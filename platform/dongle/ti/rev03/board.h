@@ -49,7 +49,7 @@
 
 #define LEAD_SHORT                     0x82FF
 #define LEAD_SHORT_RESET               0xA0FF
-#define LEAD_SHORT_SLEEP               0xA2FF
+#define LEAD_SHORT_SLEEP               0xA2FF  //5 & 6 short
 #define LEAD_ALL_SHORTED               0x00FF
 
 

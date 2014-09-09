@@ -57,7 +57,7 @@ ERROR_CODE ineedmd_watchdog_setup(void)
 
   //Set the watchdog default timeout
   //
-  MAP_WatchdogReloadSet(WD_BASE, WD_SMALL_PAT);
+  MAP_WatchdogReloadSet(WD_BASE, WD_PAT);
 
   //Enable the watchdog to reset the system
   //

@@ -105,10 +105,11 @@ sleep_for_tenths(int number_tenths_seconds){
     // clocks down the processor to REALLY slow ( 500khz) and
     //
     // go to a slow clock
-    if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
-    {
-      vDEBUG_SLEEP_10THS("..CPU slow");
-    }
+//todo: this causes problems with the led patterns and ineedmd protocl implementation making the system unresponsive
+//    if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
+//    {
+//      vDEBUG_SLEEP_10THS("..CPU slow");
+//    }
     //
     // Enable Timer0(A)
     //

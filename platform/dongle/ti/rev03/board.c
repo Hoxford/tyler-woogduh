@@ -95,6 +95,10 @@
 //USB defines
 #define USB_THREE_SEC_DATA_CONN_DELAY   3000
 
+//HW delay defines
+#define HW_DELAY_MSDIV 1000
+//#define HW_DELAY_MSDIV 3000
+
 /******************************************************************************
 * variables
 ******************************************************************************/
@@ -305,6 +309,9 @@ const tUSBBuffer g_sTxBuffer =
 
 //Timer variables
 volatile bool bWaveform_timer_tick = false;
+
+//HW delay variables
+//uint32_t uiSys_clock_rate_ms = 0;
 
 //system speed variables
 uint16_t uiCurrent_sys_speed = 0;
@@ -3398,9 +3405,10 @@ iHW_delay(uint32_t uiDelay)
 
   //Get the current sys clock rate
   uiSys_clock_rate_ms = MAP_SysCtlClockGet();
+//  if()
 
   //set the rate to a millisecond value
-  uiSys_clock_rate_ms = uiSys_clock_rate_ms / 1000;
+  uiSys_clock_rate_ms = uiSys_clock_rate_ms / HW_DELAY_MSDIV;
 
   for(i = 0; i < uiDelay; i++)
   {
