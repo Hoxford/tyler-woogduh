@@ -155,6 +155,8 @@
 //port mappings to make easier to read names...
 #define INEEDMD_ADC_SPI     SSI0_BASE
 #define INEEDMD_FLASH_SPI   SSI1_BASE
+#define INEEDMD_SPI_CLK                 16000000
+
 #define INEEDMD_LED_I2C     I2C0_BASE
 
 #define INEEDMD_USB         USB0_BASE

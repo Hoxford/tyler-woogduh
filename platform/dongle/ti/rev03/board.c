@@ -1322,8 +1322,11 @@ EKGSPIEnable(void)
   //
   MAP_GPIOPinConfigure(GPIO_PA4_SSI0RX);
   MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_4);
+
+  MAP_SSIClockSourceSet(INEEDMD_ADC_SPI, SSI_CLOCK_PIOSC);
+
   //set SSI for 1MHz clock and 8 bit data, master mode
-  SSIConfigSetExpClk(INEEDMD_ADC_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+  SSIConfigSetExpClk(INEEDMD_ADC_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
   SSIEnable(INEEDMD_ADC_SPI);
 //  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
 
@@ -2772,10 +2775,14 @@ SDCardSPIInit(void)
   //
   MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
   MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
+
+
+  MAP_SSIClockSourceSet(INEEDMD_FLASH_SPI, SSI_CLOCK_PIOSC);
+
   SSIEnable(INEEDMD_FLASH_SPI);
-  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
   SSIEnable(INEEDMD_FLASH_SPI);
-  //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+  /*  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
 
   //
   //SPI 1 is used for the FLASH
@@ -2801,11 +2808,11 @@ SDCardSPIInit(void)
   MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
   MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
   SSIEnable(INEEDMD_FLASH_SPI);
-  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, MAP_SysCtlClockGet(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, INEEDMD_RADIO_UART_CLK(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
   SSIEnable(INEEDMD_FLASH_SPI);
   //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
 
-
+*/
 }
 
 /******************************************************************************
