@@ -81,7 +81,7 @@ extern void check_for_update(void);
 //int SearchArrCmd(char cArrCmd);
 void initACKNACK(void);
 int SearchArrCmd(const unsigned char dataPacketType, const unsigned char szRecCommand);
-void writeDataToPort(char * cOut_buff);
+void writeDataToPort(unsigned char * cOut_buff, uint16_t uiLen);
 void CheckAlarmBytes(const unsigned char *Frame, int noPosh, int *ackFlag);
 void CheckTimeBytes(const unsigned char *Frame, int noPosh, int *ackFlag);
 int ValidatePacketType(const unsigned char dataPacketType);
@@ -155,12 +155,10 @@ int SearchArrCmd(const unsigned char dataPacketType, const unsigned char szRecCo
 // param description:
 // return value description:
 //*****************************************************************************
-void writeDataToPort(char * cOut_buff)
+void writeDataToPort(unsigned char * cOut_buff, uint16_t uiLen)
 {
-  uint16_t uiOut_buff_len = 0;
-  uiOut_buff_len = strlen(cOut_buff);
-//  iIneedmd_radio_que_frame((uint8_t *)cOut_buff, uiOut_buff_len);
-  ineedmd_radio_send_frame((uint8_t *)cOut_buff, uiOut_buff_len);
+
+  ineedmd_radio_send_frame((uint8_t *)cOut_buff, uiLen);
 
   return;
 }
@@ -272,6 +270,7 @@ void ParseFrame(void *pt)
   unsigned char * ucRaw_Frame = pt;
 
   unsigned char OutGoingPacket[0x20];  //maximum length of an outgoing packet is 0x20
+  uint16_t OutGoingPacket_len = 0;  //maximum length of an outgoing packet is 0x20
   unsigned char Frame[300];
 //  int frameCnt;
   unsigned char lengthPacket;// = Frame[2]; //which is also frameCnt, probably.
@@ -311,7 +310,7 @@ void ParseFrame(void *pt)
     {
       printf("\nCommand - %X is invalid for DataPacketType - %X!", actCommand, dataPacketType);
       printf("\nSending NACK...");
-      writeDataToPort(NACK);
+      ineedmd_send_nack();
     }
     else
     {
@@ -362,7 +361,7 @@ void ParseFrame(void *pt)
         if (2 == ackFlag) // ackFlag will be hardcoded 2, because both these above functions increment it.
         {
           printf("\nSending Acknowledgement...");
-          writeDataToPort(ACK);
+          ineedmd_send_ack();
           //reset the ackFlag to 0 for further processing...
           ackFlag = 0;
         }
@@ -371,7 +370,7 @@ void ParseFrame(void *pt)
 //        printf("\nCapture dataset... \nSending Acknowledgement...");
         printf("Capture dataset...");
         printf("Sending Acknowledgement...");
-        writeDataToPort(ACK);
+        ineedmd_send_ack();
         //todo: need capture code
         break;
       case 0x13: //get data set info
@@ -387,7 +386,10 @@ void ParseFrame(void *pt)
           status0x14[21], status0x14[22]);
         PrintCommand(status0x14, 23);
         printf("\nSending information about Data Sets...");
-        writeDataToPort(replyToSend);
+        //todo: this needs to send hex not hex converted to ascii
+        //writeDataToPort(replyToSend);
+
+
         break;
       case 0x14://data set transfer command  --  NAK or (ACK + respective data set corresponding to the id sent). For now, ACK.
         //have to remove this hardcoded method in printing though.. later..
@@ -398,7 +400,7 @@ void ParseFrame(void *pt)
         {
           printf("\nData Set to transfer not mentioned!");
           printf("\nSending NACK!");
-          writeDataToPort(NACK);
+          ineedmd_send_nack();
         }
         else
         {
@@ -417,7 +419,9 @@ void ParseFrame(void *pt)
             status0x17[12], status0x17[13], status0x17[14], status0x17[15], status0x17[16], status0x17[17],
             status0x17[18], status0x17[19], status0x17[20], status0x17[21], status0x17[22], status0x17[23]);
 
-          writeDataToPort(replyToSend);
+          //todo: this needs to send hex not hex converted to ascii
+//          writeDataToPort(replyToSend);
+
           printf("\nSending transfer response...");
           PrintCommand(status0x17, 24);
         }
@@ -428,12 +432,12 @@ void ParseFrame(void *pt)
         {
           printf("\nData Set to transfer not mentioned!");
           printf("\nSending NACK!");
-          writeDataToPort(NACK);
+          ineedmd_send_nack();
         }
         else
         {
           printf("\nReceived request for erasing dataset...\nSending Acknowledgement...");
-          writeDataToPort(ACK);
+          ineedmd_send_ack();
           printf("\nErasing data set with ID: %X %X ", Frame[7], Frame[8]);
           printf("\nAfter Deletion, sending...");
           PrintCommand(status0x15_Temp, 23);
@@ -443,7 +447,8 @@ void ParseFrame(void *pt)
             status0x15_Temp[10], status0x15_Temp[11], status0x15_Temp[12], status0x15_Temp[13], status0x15_Temp[14],
             status0x15_Temp[15], status0x15_Temp[16], status0x15_Temp[17], status0x15_Temp[18], status0x15_Temp[19],
             status0x15_Temp[20], status0x15_Temp[21], status0x15_Temp[22]);
-          writeDataToPort(replyToSend);
+          //todo: this needs to send hex not hex converted to ascii
+//          writeDataToPort(replyToSend);
         }
         break;
       case 0x11://get status.
@@ -451,26 +456,27 @@ void ParseFrame(void *pt)
         printf("Received request for status...");
         printf("Building Status Packet...");
         memset(OutGoingPacket, 0x00, 0x20); //todo: magic numbers!
-        OutGoingPacket[0x00] = 0x9c;
-        OutGoingPacket[0x01] = 0x02;
-        OutGoingPacket[0x02] = 0x12;
-        OutGoingPacket[0x03] = 0x04; // hard coding the version number
-        OutGoingPacket[0x04] = ineedmd_get_battery_voltage();
-        OutGoingPacket[0x05] = (char) (0xff & ineedmd_get_unit_tempoerature());
+        OutGoingPacket_len = 0;
+        OutGoingPacket[OutGoingPacket_len++] = 0x9c;
+        OutGoingPacket[OutGoingPacket_len++] = 0x02;
+        OutGoingPacket[OutGoingPacket_len++] = 0x12;
+        OutGoingPacket[OutGoingPacket_len++] = 0x04; // hard coding the version number
+        OutGoingPacket[OutGoingPacket_len++] = ineedmd_get_battery_voltage();
+        OutGoingPacket[OutGoingPacket_len++] = (char) (0xff & ineedmd_get_unit_tempoerature());
 
-        OutGoingPacket[0x06] = 0x00;  // operating mode  - no information to add yet
-        OutGoingPacket[0x07] = 0x00;  // capture settings 1  - no information to add yet
-        OutGoingPacket[0x08] = 0x00;  // capture settings 2  - no information to add yet
-        OutGoingPacket[0x09] = 0x00;  // Time 4 - no information to add yet
-        OutGoingPacket[0x0a] = 0x00;  // Time 3 - no information to add yet
-        OutGoingPacket[0x0b] = 0x00;  // Time 2 - no information to add yet
-        OutGoingPacket[0x0c] = 0x00;  // Time 1 - no information to add yet
-        OutGoingPacket[0x0d] = 0x00;  // Alarm 4  - no information to add yet
-        OutGoingPacket[0x0e] = 0x00;  // Alarm 3  - no information to add yet
-        OutGoingPacket[0x0f] = 0x00;  // Alarm 2  - no information to add yet
-        OutGoingPacket[0x10] = 0x00;  // Alarm 1  - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // operating mode  - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // capture settings 1  - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // capture settings 2  - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 4 - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 3 - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 2 - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 1 - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 4  - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 3  - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 2  - no information to add yet
+        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 1  - no information to add yet
 
-        OutGoingPacket[0x11] = 0x9c;
+        OutGoingPacket[OutGoingPacket_len++] = 0xc9;
 
         sprintf(replyToSend, "%X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %x",
             OutGoingPacket[0x00],
@@ -495,7 +501,13 @@ void ParseFrame(void *pt)
               OutGoingPacket[0x11]);
         PrintCommand(OutGoingPacket, OutGoingPacket[2]); //this is just to display on our side, what reply we are sending.
         printf("Sending status record...");
-        writeDataToPort(OutGoingPacket);
+
+        if(OutGoingPacket_len > 0x20)
+        {
+          printf("Packet len > 0x20! SYS HALT");
+          while(1){};
+        }else{/*do nothing*/}
+        writeDataToPort(OutGoingPacket, OutGoingPacket_len);  //todo magic number!
         break;
       case 0x17:
 //todo: frameCnt was not set properly, this code to be implemented later
@@ -771,7 +783,7 @@ void ParseFrame(void *pt)
   {
     printf("\nInvalid type of packet received!");
     printf("\nSending NACK!");
-    writeDataToPort(NACK);
+    ineedmd_send_nack();
   }
 }
 
