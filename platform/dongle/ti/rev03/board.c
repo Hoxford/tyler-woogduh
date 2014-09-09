@@ -857,8 +857,9 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
 
       vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_EXTERNAL");
-
+      I2CMasterInitExpClk(I2C0_BASE, 80000000, 1);
       break;
+
     case INEEDMD_CPU_SPEED_HALF_EXTERNAL:
       //WARNING - do not use on first board rev!!!!
       //turn on the external oscillator
@@ -869,6 +870,7 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_EXTERNAL");
+      I2CMasterInitExpClk(I2C0_BASE, 40000000, 1);
 
       break;
 
@@ -882,6 +884,7 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_QUARTER_EXTERNAL");
+      I2CMasterInitExpClk(I2C0_BASE, 20000000, 1);
 
       break;
 
@@ -892,6 +895,7 @@ int set_system_speed (unsigned int how_fast)
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_INTERNAL");
+      I2CMasterInitExpClk(I2C0_BASE, 80000000, 1);
 
       break;
 
@@ -902,6 +906,7 @@ int set_system_speed (unsigned int how_fast)
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_INTERNAL");
+      I2CMasterInitExpClk(I2C0_BASE, 40000000, 1);
 
       break;
 
@@ -912,6 +917,7 @@ int set_system_speed (unsigned int how_fast)
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_SLOW_INTERNAL");
+      I2CMasterInitExpClk(I2C0_BASE, 500000, 1);
 
       break;
 
@@ -921,6 +927,7 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_OSC_INT30 | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+      //I2CMasterInitExpClk(I2C0_BASE, 30000, 1);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_REALLY_SLOW");
 
@@ -931,6 +938,8 @@ int set_system_speed (unsigned int how_fast)
       SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
       // switch off the external oscillator
       MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+
+      I2CMasterInitExpClk(I2C0_BASE, 80000000, 1);
 
       vDEBUG_SET_SYS_SPEED("Sys speed, default");
 

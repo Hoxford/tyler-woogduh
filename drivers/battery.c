@@ -135,7 +135,7 @@ measure_battery()
   {
     return 1;
   }
-  if (MAP_SysCtlClockGet()>20000000)
+  if (MAP_SysCtlClockGet()<200000)
   {
     return 1;
   }
@@ -174,11 +174,13 @@ ineedmd_get_battery_voltage(void)
   uint32_t mv_battery;
 
   //convert the ADC reading to 10uV steps
-  mv_battery = measure_battery() * 161;
+  mv_battery = measure_battery() * 162;
   //scale the 10uv steps to tenths of volts
-  battery_voltage_in_tenths = mv_battery / 10000;
+
+  battery_voltage_in_tenths = mv_battery / 1000;
+
   //suptract the offset of 2.5V
-  offset_battery_voltage_in_tenths = battery_voltage_in_tenths - 25;
+  offset_battery_voltage_in_tenths = battery_voltage_in_tenths - 250;
 
   return (char) (0xff & offset_battery_voltage_in_tenths);
 
