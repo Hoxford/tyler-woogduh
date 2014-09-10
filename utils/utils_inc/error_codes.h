@@ -41,6 +41,7 @@ typedef enum
     ER_NOT_SET,
     ER_CLEAR,
     ER_FULL,
+    ER_EVENT,
     ER_TIMEOUT,
     ER_DONE,
     ER_PARAM,
@@ -66,7 +67,8 @@ typedef enum
     ER_INVALID,
     ER_INVALID_RESPONSE,
     ER_CONNECTED,
-    ER_NOT_CONNECTED
+    ER_NOT_CONNECTED,
+    ER_SPEED
 }ERROR_CODE;
 
 //*****************************************************************************

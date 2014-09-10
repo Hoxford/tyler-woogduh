@@ -30,12 +30,12 @@ extern int iExample_extern_var;  //external variable description
 * enums
 ******************************************************************************/
 //eExample_enum description
-enum eExample_enum = 
+typedef enum
 {
     enum_1,
     enum_2,
     enum_3....
-}
+}eExample_enum;
 
 eExample_enum eMy_enum; //short eMy_enum description
 

@@ -487,7 +487,7 @@ int main(void)
     iIneedmd_waveform_process();
     ineedmd_led_pattern(ledState);
 //    led_test();
-//    check_battery();
+    check_battery();
 //    check_for_update();
 //    check_for_reset();
   }

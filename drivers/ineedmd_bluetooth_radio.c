@@ -274,6 +274,20 @@ uint32_t  uiRemote_dev_key = 0;
 uint8_t   uiSet_control_mux_hex_disable[] = {0xBF, 0xFF, 0x00, 0x11, 0x53, 0x45, 0x54, 0x20, 0x43, 0x4f, 0x4e, 0x54, 0x52, 0x4f, 0x4c, 0x20, 0x4d, 0x55, 0x58, 0x20, 0x30, 0x00};
 uint8_t   uiIneedmd_radio_type = INEEDMD_PLATFORM_RADIO_TYPE;
 
+/******************************************************************************
+* enums
+******************************************************************************/
+//eRadio_event radio event tracking
+typedef enum
+{
+    RDIO_NO_EVENT,
+    RDIO_EVENT_BATT_LOW,
+    RDIO_EVENT_BATT_SHUTDOWN,
+    RDIO_EVENT_TBD
+}eRadio_event;
+
+eRadio_event eActive_radio_events = RDIO_NO_EVENT; //eActive_radio_events, used to keep track of current radio events
+
 //*****************************************************************************
 // external functions
 //*****************************************************************************
@@ -289,6 +303,8 @@ int        iIneedmd_parse_addr         (char * cString_buffer, uint8_t * uiAddr)
 ERROR_CODE iIneedmd_radio_rcv_boot_msg (char * cRcv_string,    uint16_t uiBuff_size);
 ERROR_CODE iIneedmd_radio_rcv_settings (char * cRcv_string,    uint16_t uiBuff_size);
 ERROR_CODE eIneedmd_radio_rcv_config   (char * cRcv_string,    uint16_t uiBuff_size, uint16_t * uiSetcfg_Param);
+ERROR_CODE eIneedmd_radio_parse_default_settings (char * cSettings_buff);
+ERROR_CODE eIneedmd_radio_chk_event    (char * cEvent_buff);
 #if defined(DEBUG) && defined(INEEDMD_RADIO_CMND_ECHO)
     void vRADIO_ECHO_FRAME(uint8_t * uiFrame, uint16_t uiFrame_len);
 #else
@@ -336,19 +352,100 @@ int iIneedmd_radio_cmnd_mode(bool bMode_Set)
 ERROR_CODE eBT_RDIO_mux_mode_disable(void)
 {
   ERROR_CODE eEC = ER_OK;
-//  char cEsc_char = '+';
+  char cEsc_char = '+';
+  uint16_t i = 0;
+  char cMux_rcv_buff[READY_STRLEN];
+  memset(cMux_rcv_buff,0x00, READY_STRLEN);
+
+  eBSP_Set_radio_uart_baud(INEEDMD_RADIO_UART_DEFAULT_BAUD);
 
   //SET CONTROL MUX disable in hex format incase radio was in mux mode
-//    ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 23);
+  ineedmd_radio_send_frame(uiSet_control_mux_hex_disable, 23);
 
-//    MAP_SysCtlDelay(ui32SysClock);
-//    iRadio_send_char(&cEsc_char);
-//    MAP_SysCtlDelay(ui32SysClock/10);
-//    iRadio_send_char(&cEsc_char);
-//    MAP_SysCtlDelay(ui32SysClock/10);
-//    iRadio_send_char(&cEsc_char);
-//    MAP_SysCtlDelay(ui32SysClock);
+  while(true)
+  {
+    if(i == READY_STRLEN)
+    {
+      eEC = ER_BUFF_SIZE;
+      break;
+    }else{/*do nothing*/}
 
+    eEC = iRadio_rcv_char(&cMux_rcv_buff[i]);
+
+    if(eEC == ER_TIMEOUT)
+    {
+      break;
+    }else{/*do nothing*/}
+
+    if(i >= (READY_STRLEN - 1))
+    {
+      //check if the most recent char is an end of line
+      if(cMux_rcv_buff[i] == '\n')
+      {
+        //check if the last part of the boot message is the end of the boot message
+        if (strcmp(&cMux_rcv_buff[i - (READY_STRLEN - 1)], READY) == 0)
+        {
+          eEC = ER_VALID;
+          break;
+        }
+        else
+        {
+          eEC = ER_INVALID;
+        }
+      }else{/*do nothing*/}
+    }else{/*do nothing*/}
+
+    ++i;
+  }
+  eRadio_clear_rcv_buffer();
+  memset(cMux_rcv_buff,0x00, READY_STRLEN);
+  i = 0;
+
+  if(eEC != ER_VALID)
+  {
+    //todo magic numbers!
+    iHW_delay(1000);
+    iRadio_send_char(&cEsc_char);
+    iRadio_send_char(&cEsc_char);
+    iRadio_send_char(&cEsc_char);
+    iHW_delay(1000);
+
+    while(true)
+    {
+      if(i == READY_STRLEN)
+      {
+        eEC = ER_BUFF_SIZE;
+        break;
+      }else{/*do nothing*/}
+
+      eEC = iRadio_rcv_char(&cMux_rcv_buff[i]);
+
+      if(eEC == ER_TIMEOUT)
+      {
+        break;
+      }else{/*do nothing*/}
+
+      if(i >= (READY_STRLEN - 1))
+      {
+        //check if the most recent char is an end of line
+        if(cMux_rcv_buff[i] == '\n')
+        {
+          //check if the last part of the boot message is the end of the boot message
+          if (strcmp(&cMux_rcv_buff[i - (READY_STRLEN - 1)], READY) == 0)
+          {
+            eEC = ER_VALID;
+            break;
+          }
+          else
+          {
+            eEC = ER_INVALID;
+          }
+        }else{/*do nothing*/}
+      }else{/*do nothing*/}
+
+      ++i;
+    }
+  }
   eRadio_clear_rcv_buffer();
 
   return eEC;
@@ -791,6 +888,68 @@ ERROR_CODE eIneedmd_radio_rcv_config(char * cRcv_string, uint16_t uiBuff_size, u
 ERROR_CODE eIneedmd_radio_parse_default_settings(char * cSettings_buff)
 {
   ERROR_CODE eEC = ER_FAIL;
+
+  return eEC;
+}
+
+/******************************************************************************
+* name: eIneedmd_radio_chk_event
+* description: checks a frame for potential events from the radio
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eIneedmd_radio_chk_event(char * cEvent_buff)
+{
+#define DEBUG_eIneedmd_radio_chk_event
+#ifdef DEBUG_eIneedmd_radio_chk_event
+  #define  vDEBUG_INMD_CHK_EVNT  vDEBUG
+#else
+  #define vDEBUG_INMD_CHK_EVNT(a)
+#endif
+  ERROR_CODE eEC = ER_OK;
+  uint16_t uiStr_len = 0;
+  bool bIs_radio_msg = false;
+  bool bIs_event_msg = false;
+
+  //radio events are sent in strings so strlen is valid to use here
+  //check if the strlen is longer then 2 which is the minimum frame size for a radio event message
+  //
+  uiStr_len = strlen(cEvent_buff);
+  if(uiStr_len <= 2)
+  {
+    //
+    eEC = ER_INVALID;
+  }
+  else
+  {
+    eEC = ER_VALID;
+  }
+
+  if(eEC == ER_VALID)
+  {
+    if(cEvent_buff[uiStr_len - 1] == '\n')
+    {
+      bIs_radio_msg = strstr((char *)&cEvent_buff[uiStr_len - 2], CR_NL);
+      if(bIs_radio_msg == true)
+      {
+        bIs_event_msg = strstr((char *)cEvent_buff, "BATTERY LOW");
+        if(bIs_event_msg == true)
+        {
+          vDEBUG_INMD_CHK_EVNT("INMD chk evnt, radio batt low");
+          eActive_radio_events = RDIO_EVENT_BATT_LOW;
+          eEC = ER_EVENT;
+        }else{/*do nothing*/}
+
+        bIs_event_msg = strstr((char *)cEvent_buff, "BATTERY SHUTDOWN");
+        if(bIs_event_msg == true)
+        {
+          vDEBUG_INMD_CHK_EVNT("INMD chk evnt, radio batt shutdown");
+          eActive_radio_events = RDIO_EVENT_BATT_SHUTDOWN;
+          eEC = ER_EVENT;
+        }else{/*do nothing*/}
+      }else{/*do nothing*/}
+    }else{/*do nothing*/}
+  }else{/*do nothing*/}
 
   return eEC;
 }
@@ -1302,11 +1461,16 @@ int iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
 /*
  * gets a data frame from the radio that was proc'ed by an interrupt
  */
-int iIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
+ERROR_CODE eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
 {
+#define DEBUG_iIneedmd_radio_int_rcv_frame
+#ifdef DEBUG_iIneedmd_radio_int_rcv_frame
+  #define  vDEBUG_INMD_INT_RCV_FRM  vDEBUG
+#else
+  #define vDEBUG_INMD_INT_RCV_FRM(a)
+#endif
   int i;
-  //bool bIs_data = false;
-
+  ERROR_CODE eEC = ER_FAIL;
   for(i = 0; i < uiBuff_size; i++)
   {
     iRadio_rcv_byte(&uiRcv_frame[i]);
@@ -1316,17 +1480,21 @@ int iIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
     {
       //increment i to compensate for the last byte
       i++;
+      eEC = ER_OK;
       break;
-    }
-//    else
-//    {
-//      //wait for the next byte
-//      while(bRadio_is_data() == false){};
-//      continue;
-//    }
+    }else{/*do nothing*/}
+
+    //check if the recieved frame is a radio event frame
+    eEC = eIneedmd_radio_chk_event((char *)uiRcv_frame);
+    if(eEC == ER_EVENT)
+    {
+      //the recieve frame is an event frame, break from the loop
+      break;
+    }else{/*do nothing*/}
   }
 
-  return i;
+  return eEC;
+#undef vDEBUG_INMD_INT_RCV_FRM
 }
 
 /*
@@ -1457,7 +1625,7 @@ int  iIneedMD_radio_setup(void)
     }
 
     //attempt to get the radio out of mux mode if it is in it
-    eBT_RDIO_mux_mode_disable();
+//    eBT_RDIO_mux_mode_disable();
 
     //SET RESET, reset to factory defaults
     //
@@ -1889,6 +2057,7 @@ int  iIneedMD_radio_check_for_connection(void)
 #endif
 #define rc_chkbuff_size 128
   int iEC = 0;
+  ERROR_CODE eEC = ER_OK;
   uint8_t uiRcv_buff[rc_chkbuff_size];
   bool bIs_radio_data = false;
 
@@ -1905,10 +2074,10 @@ int  iIneedMD_radio_check_for_connection(void)
       memset(uiRcv_buff, 0x00, rc_chkbuff_size);
       //receive the ssp confirm from the remote device
       bIs_radio_data = UARTCharsAvail(INEEDMD_RADIO_UART);
-      iEC = iIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size);
+      eEC = eIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size);
 
       //determine origin of the data frame
-      if(iEC > 0)
+      if(eEC == ER_OK)
       {
         vRADIO_ECHO_FRAME(uiRcv_buff, iEC);
 
@@ -1918,6 +2087,10 @@ int  iIneedMD_radio_check_for_connection(void)
           iIneedmd_Rcv_cmnd_frame(uiRcv_buff, iEC);
         }
       }
+      else if(eEC == ER_EVENT)
+      {
+        vDEBUG_RDIO_CHKCONN("Rdio chk conn, radio event!");
+      }else{/*do nothing*/}
     }
     else
     {
@@ -1937,6 +2110,12 @@ int  iIneedMD_radio_check_for_connection(void)
  */
 int iIneedMD_radio_process(void)
 {
+#define DEBUG_iIneedMD_radio_process
+#ifdef DEBUG_iIneedMD_radio_process
+  #define  vDEBUG_RDIO_PROCSS  vDEBUG
+#else
+  #define vDEBUG_RDIO_PROCSS(a)
+#endif
   bool bIs_connection = false;
   bool bIs_data = false;
   int iRadio_conn_status = 0;
@@ -1961,7 +2140,29 @@ int iIneedMD_radio_process(void)
       iIneedmd_radio_rcv_string(cRcv_buff, 128);
     }
   }
+
+  if(eActive_radio_events != RDIO_NO_EVENT)
+  {
+    if(eActive_radio_events == RDIO_EVENT_BATT_LOW)
+    {
+      eActive_radio_events = RDIO_NO_EVENT;
+    }
+    else if(eActive_radio_events == RDIO_EVENT_BATT_SHUTDOWN)
+    {
+      eActive_radio_events = RDIO_NO_EVENT;
+    }
+    else
+    {
+#ifdef DEBUG
+      vDEBUG_RDIO_PROCSS("Rdio proc SYS HALT, unknown radio event!");
+      while(1){};
+#endif
+    }
+  }else{/*do nothing*/}
+
   return 1;
+
+#undef vDEBUG_RDIO_PROCSS
 }
 /*
  * Get status from the radio

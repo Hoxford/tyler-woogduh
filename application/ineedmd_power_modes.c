@@ -70,8 +70,7 @@ shut_it_all_down(){
 }
 
 
-void
-sleep_for_tenths(int number_tenths_seconds){
+void sleep_for_tenths(int number_tenths_seconds){
 //#define DEBUG_sleep_for_tenths
 #ifdef DEBUG_sleep_for_tenths
   #define  vDEBUG_SLEEP_10THS  debug_printf
@@ -83,16 +82,15 @@ sleep_for_tenths(int number_tenths_seconds){
     //
     // Set the Timer0B load value to 10s.
     //
-
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    ROM_IntMasterEnable();
+    eMaster_int_enable();
     ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
     TimerLoadSet(TIMER0_BASE, TIMER_A, (50000 * number_tenths_seconds) );
 
     //
     // Enable processor interrupts.
     //
-    IntMasterEnable();
+    eMaster_int_enable();
     //
     // Configure the Timer0 interrupt for timer timeout.
     //
@@ -126,6 +124,6 @@ sleep_for_tenths(int number_tenths_seconds){
     {
       vDEBUG_SLEEP_10THS("..CPU half speed");
     }
-	IntMasterEnable();
+    eMaster_int_enable();
 #undef vDEBUG_SLEEP_10THS
 }

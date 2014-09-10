@@ -325,6 +325,9 @@ volatile uint16_t  uiRunClock_Sys_hour     = 0;
 volatile uint16_t  uiRunClock_Sys_days     = 0;
 volatile uint16_t  uiRunClock_Sys_years    = 0;
 
+//Batt measure variables
+bool bIs_Batt_measACD_enabled = false;
+
 //*****************************************************************************
 // The control table used by the uDMA controller. This table must be aligned to a 1024 byte boundary.
 //*****************************************************************************
@@ -1149,21 +1152,19 @@ GPIODisable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-ERROR_CODE
-BatMeasureADCEnable(void)
+ERROR_CODE BatMeasureADCEnable(void)
 {
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiData = 0;
 
-    //uint32_t uiData;
-
+  if(bIs_Batt_measACD_enabled == false)
+  {
     //Enable the ADC Clock
     MAP_SysCtlPeripheralEnable(BATTERY_SYSCTL_PERIPH_ADC);
 
     MAP_GPIOPinTypeADC(INEEDMD_BATTERY_PORT, INEEDMD_BATTERY_MEASUREMENT_IN_PIN);
 
-//    MAP_SysCtlADCSpeedSet(SYSCTL_ADCSPEED_1MSPS); //(p215 ROM-LM guide)
-//    MAP_ADCSequenceDisable(BATTERY_ADC, 3);
 
-//    ROM_ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
 
     MAP_ADCSequenceDisable(BATTERY_ADC, 3);
     MAP_ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
@@ -1172,10 +1173,44 @@ BatMeasureADCEnable(void)
 
     MAP_ADCSequenceEnable(BATTERY_ADC, 3);
 
-    //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+    //measure the ADC to verify it was enabled
+    ADCProcessorTrigger(BATTERY_ADC, 3);
+    //
+    // Wait for conversion to be completed.
+    //
+    while(!ADCIntStatus(BATTERY_ADC, 3, false))
+    {
+      uiData++;
+    }
+    //
+    // Clear the ADC interrupt flag.
+    //
+    ADCIntClear(BATTERY_ADC, 3);
 
+    uiData = 0;
+    MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
 
-    return ER_OK;
+    //check returned data to determine if the batt ADC is enabled and working
+    if(uiData != 0)
+    {
+      //batt ADC working, set control and error variables
+      eEC = ER_OK;
+      bIs_Batt_measACD_enabled = true;
+    }
+    else
+    {
+      //batt ADC not working, set control and error variables
+      eEC = ER_FAIL;
+      bIs_Batt_measACD_enabled = false;
+    }
+  }
+  else
+  {
+    //batt measurement ADC alread enabled, set error code
+    eEC = ER_OK;
+  }
+
+  return eEC;
 }
 
 //*****************************************************************************
@@ -1184,14 +1219,76 @@ BatMeasureADCEnable(void)
 // param description:
 // return value description:
 //*****************************************************************************
-int
-BatMeasureADCDisable(void)
+int BatMeasureADCDisable(void)
 {
+  if(bIs_Batt_measACD_enabled == true)
+  {
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
    //Disable the ADC Clock
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
-    return 1;
+    bIs_Batt_measACD_enabled = false;
+  }
+  else
+  {
+    bIs_Batt_measACD_enabled = false;
+  }
+  return 1;
 }
+
+/******************************************************************************
+* name: eBSP_ADCMeasureBatt
+* description: Performs the measurement of the system battery. The measurement
+*  is interrupt based so they must be enabled before calling this function.
+* param description:  uint32_t * - pointer to the variable to store the measured voltage
+* return value description:
+*   ERROR_CODE - error code return value for error compensation
+*     ER_OK - battery successfully measured
+*     ER_FAIL - battery not successfully measured
+*     ER_NOT_ENABLED - the ADC to measure the battery is not enabled
+******************************************************************************/
+ERROR_CODE eBSP_ADCMeasureBatt(uint32_t * puiBatt_voltage)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiData = 0;
+
+  if(bIs_Batt_measACD_enabled == true)
+  {
+    ADCProcessorTrigger(BATTERY_ADC, 3);
+    //
+    // Wait for conversion to be completed.
+    //
+    while(!ADCIntStatus(BATTERY_ADC, 3, false))
+    {
+    }
+    //
+    // Clear the ADC interrupt flag.
+    //
+    ADCIntClear(BATTERY_ADC, 3);
+    //
+    // Read ADC Value.
+    //
+    ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+
+    if(uiData != 0)
+    {
+      *puiBatt_voltage = uiData;
+      eEC = ER_OK;
+    }
+    else
+    {
+      *puiBatt_voltage = 0;
+      eEC = ER_FAIL;
+    }
+  }
+  else
+  {
+    eEC = ER_NOT_ENABLED;
+    *puiBatt_voltage = 0;
+  }
+
+  return eEC;
+}
+
 
 ERROR_CODE
 TemperatureMeasureADCEnable(void)
@@ -1228,25 +1325,6 @@ TemperatureMeasureADCDisable(void)
    //Disable the ADC Clock
     MAP_SysCtlPeripheralDisable(TEMPERATURE_SYSCTL_PERIPH_ADC);
     return ER_OK;
-}
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void
-BatMeasureADCRead(void)
-{
-    //
-    // Configuring the SPI port and pins to talk to the analog front end
-    // SPI0_BASE is mapped to INEEDMD_ADC_SPI
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
-    //no need for a majik delay as we are configuring the GPIO pins as well... and set the pin low to power down the device
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-    GPIOPinWrite (GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
-
 }
 
 //*****************************************************************************

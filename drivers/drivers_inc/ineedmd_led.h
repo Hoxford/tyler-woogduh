@@ -56,7 +56,7 @@
 #define ERASING                         0x10
 #define ERASE_DONE                      0x11
 #define DFU_MODE                        0x12
-#define MV_CAL                         0x13
+#define MV_CAL                          0x13
 #define TRI_WVFRM                       0x14
 #define REBOOT                          0x15
 #define HIBERNATE                       0x16

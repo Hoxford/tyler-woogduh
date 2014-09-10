@@ -61,7 +61,7 @@
 #define BATTERY_ADC                          ADC0_BASE
 #define BATTERY_ADC_CTL_CH0                  ADC_CTL_CH0
 #define BATTERY_SYSCTL_PERIPH_ADC            SYSCTL_PERIPH_ADC0
-#define BATTERY_CRITICAL_ADC_VALUE           0x00000866
+#define BATTERY_CRITICAL_ADC_VALUE           0x00000800
 #define BATTERY_LOW_ADC_VALUE                0x00000900
 
 //temperature monitor mapping
@@ -188,25 +188,28 @@
 //define the WTC channel C input for the LL electronde as the channel 4 Positive input
 #define WTC_C_CHANNEL 0x06
 
+void        wait_time (unsigned int);
+void        write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
+int         set_system_speed (unsigned int);
+ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed);
 void        Set_Timer0_Sleep();
 void        vSystick_int_service(void);
 ERROR_CODE  eBSP_Get_Current_ms_count(uintmax_t * uiCurrent_ms_count);
 ERROR_CODE  eBSP_Get_Current_ms(uint16_t * uiCurrent_ms);
 bool        bWaveform_did_timer_tick(void);
 void        PowerInitFunction(void);
-void        PortFunctionInit(void);
-void        ConfigureSleep(void);
-void        ConfigureDeepSleep(void);
-void        wait_time (unsigned int);
-void        write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
-int         set_system_speed (unsigned int);
-ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed);
-
 void        GPIOEnable(void);
+void        GPIODisable(void);
 ERROR_CODE  BatMeasureADCEnable(void);
+int         BatMeasureADCDisable(void);
+ERROR_CODE  eBSP_ADCMeasureBatt(uint32_t * puiBatt_voltage);
+ERROR_CODE  TemperatureMeasureADCEnable(void);
+ERROR_CODE  TemperatureMeasureADCDisable(void);
+bool        bIs_battery_low(void);
+int         EKGSPIEnable(void);
+int         EKGSPIDisable(void);
 ERROR_CODE  eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set);
 ERROR_CODE  eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get);
-int         EKGSPIEnable(void);
 int         RadioUARTEnable(void);
 int         RadioUARTDisable(void);
 int         iRadio_Power_On(void);
@@ -253,13 +256,9 @@ void        vUSBServiceInt(uint32_t uiUSB_int_flags);
 bool        bIs_usb_physical_data_conn(bool bClear_Status);
 ERROR_CODE  ineedmd_usb_connected(void);
 ERROR_CODE  eBSP_Systick_Init(void);
-void GPIODisable(void);
-int BatMeasureADCDisable(void);
-bool bIs_battery_low(void);
-int EKGSPIDisable(void);
-ERROR_CODE TemperatureMeasureADCEnable(void);
-ERROR_CODE TemperatureMeasureADCDisable(void);
-
+void        PortFunctionInit(void);
+void        ConfigureSleep(void);
+void        ConfigureDeepSleep(void);
 void LEDI2CDisable(void);
 void USBPortDisable(void);
 ERROR_CODE eMaster_int_enable(void);
