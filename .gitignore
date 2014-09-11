@@ -1,6 +1,6 @@
 project/ccs/Debug/
 project/ccs/.launches/aerosmith.launch
-project/ccs/.launches/*.*
+project/ccs/\.launches/*.*
 project/ccs/.settings/org.eclipse.core.resources.prefs
 *.out
 *.xml
