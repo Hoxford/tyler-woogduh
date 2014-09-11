@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "driverlib/rom.h"
+#include "utils_inc/error_codes.h"
 #include "board.h"
 
 #include "battery.h"

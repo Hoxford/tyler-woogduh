@@ -33,8 +33,9 @@
 #include "driverlib/udma.h"
 #include <inc/tm4c1233h6pm.h>
 #include <inc/hw_memmap.h>
-#include "board.h"
+#include "utils_inc/error_codes.h"
 #include "utils_inc/proj_debug.h"
+#include "board.h"
 
 //*****************************************************************************
 //
@@ -344,7 +345,6 @@ IntDefaultHandler(void)
 static void vSysTickIntHandler(void)
 {
   vSystick_int_service();
-  vDEBUG_GPIO_TOGGLE_1();
   return;
 }
 

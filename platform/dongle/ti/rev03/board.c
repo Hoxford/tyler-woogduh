@@ -45,7 +45,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "utils_inc/proj_debug.h"
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_nvic.h"
@@ -65,7 +64,6 @@
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
 #include "driverlib/udma.h"
-
 //USB Lib inc
 #ifdef USE_USBLIB
   #include "usblib/usblib.h"
@@ -74,6 +72,8 @@
   #include "usblib/device/usbdbulk.h"
 #endif //#ifdef USE_USBLIB
 //end USB Lib inc
+#include "utils_inc/error_codes.h"
+#include "utils_inc/proj_debug.h"
 
 #include "inc/tm4c1233h6pm.h"
 #include "board.h"
@@ -844,7 +844,7 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
 //*****************************************************************************
 int set_system_speed (unsigned int how_fast)
 {
-#define DEBUG_set_system_speed
+//#define DEBUG_set_system_speed
 #ifdef DEBUG_set_system_speed
   #define  vDEBUG_SET_SYS_SPEED  vDEBUG
 #else
@@ -853,6 +853,7 @@ int set_system_speed (unsigned int how_fast)
 
   //check if the system speed needs to be chaged if it is not at what is being requested
   if(uiCurrent_sys_speed != how_fast)
+//  if(1)
   {
     switch (how_fast)
     {
@@ -914,6 +915,16 @@ int set_system_speed (unsigned int how_fast)
 
         break;
 
+      case INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC:
+        //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
+        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        // switch off the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC");
+
+        break;
+
       case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
         //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
         SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
@@ -950,9 +961,9 @@ int set_system_speed (unsigned int how_fast)
     uiCurrent_sys_speed = how_fast;
 
     //reset all the functions that require the current sys speed
-  //  eBSP_Set_System_Timers();
+    eBSP_Set_System_Timers();
     //set the system tic to compensate for the new system speed
-    eBSP_Systick_Init();
+//    eBSP_Systick_Init();
     eBSP_LEDI2C_clock_set();
   }
 
@@ -3134,7 +3145,6 @@ void USBPortDisable(void)
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
 
     set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
-    vDEBUG("STAHP!");while(1){};
 
     //re-enable all interrupts
     eMaster_int_enable();
@@ -3222,7 +3232,14 @@ ERROR_CODE eBSP_Systick_Init(void)
   MAP_SysTickDisable();
 
   //get the current clock rate and set it to a 1ms value
-  uiSys_clock_rate = MAP_SysCtlClockGet();
+//  if(uiCurrent_sys_speed == INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC)
+//  {
+//    uiSys_clock_rate = 16000000;
+//  }
+//  else
+//  {
+    uiSys_clock_rate = MAP_SysCtlClockGet();
+//  }
   uiSys_clock_rate = uiSys_clock_rate/1000;
 
   //set the systick period

@@ -51,6 +51,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>application/ineedmd_UI.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_UI.c</locationURI>
+		</link>
+		<link>
 			<name>application/ineedmd_command_protocol.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_command_protocol.c</locationURI>

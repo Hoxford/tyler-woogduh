@@ -9,9 +9,10 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/rom_map.h"
-
 #include "driverlib/ssi.h"
 #include "driverlib/gpio.h"
+
+#include "utils_inc/error_codes.h"
 #include "ineedmd_adc.h"
 #include "board.h"
 #include "app_inc/ineedmd_power_modes.h"

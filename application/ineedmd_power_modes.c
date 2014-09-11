@@ -30,6 +30,7 @@
 #include "driverlib/timer.h"
 #include "driverlib/interrupt.h"
 
+#include "utils_inc/error_codes.h"
 #include "inc/tm4c1233h6pm.h"
 #include "board.h"
 #include "utils_inc/proj_debug.h"
@@ -78,6 +79,7 @@ void sleep_for_tenths(int number_tenths_seconds)
 #else
   #define vDEBUG_SLEEP_10THS(a)
 #endif
+#ifdef SLEEP_FOR_TENTHS_TO_BE_REMOVED
   uint16_t uiPrev_sys_speed = 0;
   uint16_t uiCurr_sys_speed = 0;
 
@@ -87,10 +89,10 @@ void sleep_for_tenths(int number_tenths_seconds)
   //
   // Set the Timer0B load value to 10s.
   //
-  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-  eMaster_int_enable();
-  ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-  TimerLoadSet(TIMER0_BASE, TIMER_A, (50000 * number_tenths_seconds) );
+//  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+//  eMaster_int_enable();
+//  ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+//  TimerLoadSet(TIMER0_BASE, TIMER_A, (50000 * number_tenths_seconds) );
 
   //
   // Enable processor interrupts.
@@ -99,11 +101,11 @@ void sleep_for_tenths(int number_tenths_seconds)
   //
   // Configure the Timer0 interrupt for timer timeout.
   //
-  TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+//  TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
   //
   // Enable the Timer0A interrupt on the processor (NVIC).
   //
-  IntEnable(INT_TIMER0A);
+//  IntEnable(INT_TIMER0A);
   //
   // clocks down the processor to REALLY slow ( 500khz) and
   //
@@ -116,16 +118,18 @@ void sleep_for_tenths(int number_tenths_seconds)
 //      uiCurr_sys_speed = INEEDMD_CPU_SPEED_SLOW_INTERNAL;
 //    }
 
+  uiCurr_sys_speed = set_system_speed (INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC);
+
   //
   // Enable Timer0(A)
   //
-  TimerEnable(TIMER0_BASE, TIMER_A);
+//  TimerEnable(TIMER0_BASE, TIMER_A);
 
   // and deep sleep.
   ROM_SysCtlDeepSleep();
 
-  TimerDisable(TIMER0_BASE, TIMER_A);
-  IntDisable(INT_TIMER0A);
+//  TimerDisable(TIMER0_BASE, TIMER_A);
+//  IntDisable(INT_TIMER0A);
   vDEBUG_SLEEP_10THS("waking_up");
 
   //restore the systemclock
@@ -135,5 +139,6 @@ void sleep_for_tenths(int number_tenths_seconds)
   }
 
   eMaster_int_enable();
+#endif //#ifdef SLEEP_FOR_TENTHS_TO_BE_REMOVED
 #undef vDEBUG_SLEEP_10THS
 }

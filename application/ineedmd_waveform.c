@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "utils_inc/error_codes.h"
 #include "board.h"
 #include "ineedmd_bluetooth_radio.h"
 #include "driverlib/rom.h"

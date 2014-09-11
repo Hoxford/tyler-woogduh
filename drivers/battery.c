@@ -19,6 +19,7 @@
 #include "driverlib/adc.h"
 #include "driverlib/sysctl.h"
 
+#include "utils_inc/error_codes.h"
 #include "app_inc/ineedmd_watchdog.h"
 #include "ineedmd_led.h"
 #include "ineedmd_adc.h"
@@ -26,7 +27,6 @@
 
 #include "battery.h"
 
-#include "utils_inc/error_codes.h"
 #include "utils_inc/proj_debug.h"
 
 //*****************************************************************************

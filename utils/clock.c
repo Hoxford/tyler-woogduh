@@ -12,6 +12,7 @@
 ******************************************************************************/
 #include <stdint.h>
 #include <stdbool.h>
+#include "utils_inc/error_codes.h"
 #include "utils_inc/clock.h"
 #include "board.h"
 /******************************************************************************

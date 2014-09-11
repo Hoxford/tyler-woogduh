@@ -38,9 +38,13 @@
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
-#include "utils_inc/error_codes.h"
+/******************************************************************************
+* includes
+******************************************************************************/
 
-
+/******************************************************************************
+* defines
+******************************************************************************/
 #define INEEDMD_PORTA_ADC_PWRDN_OUT_PIN 0x80
 #define INEEDMD_PORTA_ADC_RESET_OUT_PIN 0X40
 #define INEEDMD_PORTA_ADC_INTERUPT_PIN  0x01
@@ -176,6 +180,7 @@
 #define INEEDMD_CPU_SPEED_QUARTER_EXTERNAL  0x06
 #define INEEDMD_CPU_SPEED_FULL_INTERNAL     0x01
 #define INEEDMD_CPU_SPEED_HALF_INTERNAL     0x02
+#define INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC 0x08
 #define INEEDMD_CPU_SPEED_SLOW_INTERNAL     0x03
 #define INEEDMD_CPU_SPEED_REALLY_SLOW       0x04
   #define INEEDMD_CPU_SPEED_DEFAULT       INEEDMD_CPU_SPEED_HALF_INTERNAL
@@ -188,6 +193,25 @@
 //define the WTC channel C input for the LL electronde as the channel 4 Positive input
 #define WTC_C_CHANNEL 0x06
 
+/******************************************************************************
+* variables
+******************************************************************************/
+
+/******************************************************************************
+* external variables
+******************************************************************************/
+
+/******************************************************************************
+* enums
+******************************************************************************/
+
+/******************************************************************************
+* structures
+******************************************************************************/
+
+/******************************************************************************
+* public functions
+******************************************************************************/
 void        wait_time (unsigned int);
 void        write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
 int         set_system_speed (unsigned int);

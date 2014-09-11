@@ -28,19 +28,22 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/adc.h"
 
+#include "utils_inc/error_codes.h"
 #include "board.h"
 #include "ineedmd_adc.h"
 #include "battery.h"
 #include "ineedmd_bluetooth_radio.h"
 #include "ineedmd_led.h"
-#include "app_inc/ineedmd_command_protocol.h"
-#include "utils_inc/error_codes.h"
-#include "app_inc/ineedmd_watchdog.h"
-#include "app_inc/ineedmd_waveform.h"
+
 #include "utils_inc/clock.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
 #include "ff.h"
+
+#include "app_inc/ineedmd_command_protocol.h"
+#include "app_inc/ineedmd_UI.h"
+#include "app_inc/ineedmd_watchdog.h"
+#include "app_inc/ineedmd_waveform.h"
 
 //*****************************************************************************
 // defines
@@ -448,8 +451,6 @@ int main(void)
   //init the board
   iBoard_init();
 
-  set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
-
   ineedmd_led_pattern(LED_OFF);
 
   //Put the system into low power mode if the shipping jumper is present
@@ -480,7 +481,7 @@ int main(void)
   iIneedMD_radio_setup();
 
   ineedmd_led_pattern(POWER_UP_GOOD);
-
+//  vDEBUG("STAHP!");while(1){};
   vDEBUG_MAIN("Starting super loop");
   while(1)
   {
@@ -491,10 +492,11 @@ int main(void)
       ineedmd_sleep();
     }
     ineedmd_watchdog_pat();
-//    iIneedMD_radio_process();
-//    iIneedmd_command_process();
-//    iIneedmd_waveform_process();
-//    ineedmd_led_pattern(ledState);
+    iIneedMD_radio_process();
+    iIneedmd_command_process();
+    iIneedmd_waveform_process();
+    ineedmd_led_pattern(ledState);
+    eIneedmd_UI_process();
     check_battery();
     eClock_process();
 //    check_for_update();
@@ -503,7 +505,7 @@ int main(void)
 
     eClock_get_time(&uiIm_alive_timer);
     uiIm_alive_timer &= 0x00000000000FF000;
-    if(uiIm_alive_timer == 0)
+    if(uiIm_alive_timer >= 30)
     {
       if(bDid_im_alive == false)
       {

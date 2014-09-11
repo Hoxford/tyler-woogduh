@@ -7,6 +7,7 @@
 #include "inc/hw_memmap.h"
 
 #include "driverlib/gpio.h"
+#include "utils_inc/error_codes.h"
 #include "ineedmd_led.h"
 #include "board.h"
 #include "app_inc/ineedmd_power_modes.h"
@@ -70,7 +71,7 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
           write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED2_GREEN_ENABLE | INEEDMD_LED2_RED_ENABLE | INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED1_RED_ENABLE));
 
-          sleep_for_tenths(10); //1 second
+//          sleep_for_tenths(10); //1 second
           write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
 
           break;
