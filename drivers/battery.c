@@ -110,20 +110,20 @@ check_battery(void)
       {
         //the battery voltage is greater then the low voltage value, sys ok
         bIs_batt_critical = false;
-        ineedmd_led_pattern(POWER_ON_BATT_GOOD);
+        //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_GOOD);
       }
       else if(uiBatt_voltage > BATTERY_CRITICAL_ADC_VALUE)
       {
         //the battery voltage is greater then the critical voltage value, sys warning ok
         bIs_batt_critical = false;
-        ineedmd_led_pattern(POWER_ON_BATT_LOW);
+        //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_LOW);
       }
       else
       {
         //the battery is at or below the critical voltage value, sys warning critical!
         bIs_batt_critical = true;
         //todo: led pattern needs to be critical voltage value
-        ineedmd_led_pattern(POWER_ON_BATT_LOW);
+        //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_LOW);
       }
 
       if(bIs_batt_critical == true)

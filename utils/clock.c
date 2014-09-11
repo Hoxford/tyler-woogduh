@@ -70,6 +70,151 @@ uintmax_t  uiSanity_check = 0;
 /******************************************************************************
 * public functions
 ******************************************************************************/
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eClock_process_init(void)
+{
+  ERROR_CODE eEC = ER_OK;
+  eBSP_Get_Current_ms_count(&uiSystem_total_ms_count);
+
+  //go through and update the total runtime varialbes
+  if(uiSystem_total_ms_count >= 1000)
+  {
+    uiSys_ms = uiSystem_total_ms_count;
+    uiSys_TotalRuntime_ms = uiSystem_total_ms_count;
+
+    while(uiSys_ms >= 1000)
+    {
+      uiSys_ms = uiSys_ms - 1000;
+      uiSys_sec++;
+    }
+
+    if(uiSys_sec >= 60)
+    {
+      while(uiSys_sec >= 60)
+      {
+        uiSys_sec = uiSys_sec - 60;
+        uiSys_min++;
+      }
+
+      if(uiSys_min >= 60)
+      {
+        while(uiSys_min >= 60)
+        {
+          uiSys_min = uiSys_min - 60;
+          uiSys_hour++;
+        }
+
+        if(uiSys_hour >= 24)
+        {
+          while(uiSys_hour >= 24)
+          {
+            uiSys_hour = uiSys_hour - 24;
+          }
+        }else{/*do nothing*/}
+      }else{/*do nothing*/}
+    }else{/*do nothing*/}
+
+    while(uiSys_TotalRuntime_ms >= 1000)
+    {
+      uiSys_TotalRuntime_ms = uiSys_TotalRuntime_ms - 1000;
+      uiSys_TotalRuntime_sec++;
+    }
+
+    if(uiSys_TotalRuntime_sec >= 60)
+    {
+      while(uiSys_TotalRuntime_sec >= 60)
+      {
+        uiSys_TotalRuntime_sec = uiSys_TotalRuntime_sec - 60;
+        uiSys_TotalRuntime_min++;
+      }
+
+      if(uiSys_TotalRuntime_min >= 60)
+      {
+        while(uiSys_TotalRuntime_min >= 60)
+        {
+          uiSys_TotalRuntime_min = uiSys_TotalRuntime_min - 60;
+          uiSys_TotalRuntime_hour++;
+        }
+      }else{/*do nothing*/}
+    }else{/*do nothing*/}
+  }else{/*do nothing*/}
+
+  if((uiSystem_total_ms_count == 0) &\
+     (uiSys_ms                == 0) &\
+     (uiSys_sec               == 0) &\
+     (uiSys_min               == 0) &\
+     (uiSys_hour              == 0) &\
+     (uiSys_TotalRuntime_ms   == 0) &\
+     (uiSys_TotalRuntime_sec  == 0) &\
+     (uiSys_TotalRuntime_min  == 0) &\
+     (uiSys_TotalRuntime_hour == 0))
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
+  return eEC;
+}
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eClock_get_total_runtime(uintmax_t *uiTotal_time)
+{
+  ERROR_CODE eEC = ER_OK;
+  uintmax_t uiCurrent_time = 0;
+
+  uiCurrent_time = uiSystem_total_ms_count;
+
+  if(uiCurrent_time != 0)
+  {
+    *uiTotal_time = uiCurrent_time;
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+  return eEC;
+
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eClock_get_total_real_runtime(uintmax_t *uiTotal_time)
+{
+  ERROR_CODE eEC = ER_OK;
+  uintmax_t uiCurrent_time = 0;
+
+  uiCurrent_time |= uiSys_ms;
+  uiCurrent_time |= (uiSys_sec  << 12);
+  uiCurrent_time |= (uiSys_min  << 20);
+  uiCurrent_time |= (uiSys_hour << 28);
+
+  if(uiCurrent_time != 0)
+  {
+    *uiTotal_time = uiCurrent_time;
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+  return eEC;
+}
 
 /******************************************************************************
 * name:
@@ -82,10 +227,10 @@ ERROR_CODE eClock_get_time(uintmax_t *uiClock_time)
   ERROR_CODE eEC = ER_OK;
   uintmax_t uiCurrent_time = 0;
 
-  uiCurrent_time |= uiSys_ms;
-  uiCurrent_time |= (uiSys_sec  << 12);
-  uiCurrent_time |= (uiSys_min  << 20);
-  uiCurrent_time |= (uiSys_hour << 28);
+  uiCurrent_time |= uiSys_TotalRuntime_ms;
+  uiCurrent_time |= (uiSys_TotalRuntime_sec  << 12);
+  uiCurrent_time |= (uiSys_TotalRuntime_min  << 20);
+  uiCurrent_time |= (uiSys_TotalRuntime_hour << 28);
 
   if(uiCurrent_time != 0)
   {

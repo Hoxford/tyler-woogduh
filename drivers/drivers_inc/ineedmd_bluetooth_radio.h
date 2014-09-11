@@ -8,6 +8,7 @@
 #ifndef __INEEDMD_BLUETOOTH_RADIO_H__
 #define __INEEDMD_BLUETOOTH_RADIO_H__
 
+ERROR_CODE  eIneedMD_radio_process_init(void);
 void        ineedmd_radio_power(bool);
 void        ineedmd_radio_reset(void);
 //void ineedmd_radio_soft_reset(void);

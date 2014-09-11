@@ -988,6 +988,12 @@ void vRADIO_ECHO_FRAME(uint8_t * uiFrame, uint16_t uiFrame_len)
 // public functions
 //*****************************************************************************
 
+ERROR_CODE eIneedMD_radio_process_init(void)
+{
+  ERROR_CODE eEC = ER_OK;
+
+  return eEC;
+}
 /* ineedmd_radio_power
  * Power up and down the radio
  *

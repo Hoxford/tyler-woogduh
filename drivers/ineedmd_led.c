@@ -2,6 +2,9 @@
 #ifndef __INEEDMD_LED_H__
 #define __INEEDMD_LED_H__
 
+/******************************************************************************
+* includes
+******************************************************************************/
 #include <stdint.h>
 #include <stdbool.h>
 #include "inc/hw_memmap.h"
@@ -12,6 +15,25 @@
 #include "board.h"
 #include "app_inc/ineedmd_power_modes.h"
 
+/******************************************************************************
+* defines
+******************************************************************************/
+
+/******************************************************************************
+* variables
+******************************************************************************/
+bool bAre_LEDs_on = true;  //led on control variabl, start true to ensure they are turned off when LED_OFF is called
+/******************************************************************************
+* external variables
+******************************************************************************/
+
+/******************************************************************************
+* enums
+******************************************************************************/
+
+/******************************************************************************
+* structures
+******************************************************************************/
 
 ///*
 //*do a hardware reset by pulling reset low
@@ -27,13 +49,17 @@
 
 
 
-void ineedmd_led_pattern(unsigned int led_pattern)
+void ineedmd_led_pattern(LED_MODE led_pattern)
 {
     int i;
     switch (led_pattern)
     {
         case LED_OFF:
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+          if(bAre_LEDs_on == true)
+          {
+            write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+            bAre_LEDs_on = false;
+          }else{/*do nothing*/}
           break;
         case POWER_ON_BATT_LOW:
           //power led green
@@ -487,8 +513,42 @@ void ineedmd_led_pattern(unsigned int led_pattern)
 
           break;
 
-        case POWER_UP_GOOD:
+        case POWER_UP_GOOD_BLOCKING:
           //power led green
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED2_GREEN_PWM, 0x20);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED2_RED_ILEVEL , 0x00);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED2_GREEN_ILEVEL , 0x05);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED2_BLUE_ILEVEL , 0x00);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED1_GREEN_PWM, 0x20);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED1_RED_ILEVEL , 0x00);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED1_GREEN_ILEVEL , 0x05);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED1_BLUE_ILEVEL , 0x00);
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED2_GREEN_ENABLE));
+//          sleep_for_tenths(4); //5 second
+          iHW_delay(40);  //40
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+//          sleep_for_tenths(4);
+          iHW_delay(40);  //80
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED2_GREEN_ENABLE));
+//          sleep_for_tenths(4); //5 second
+          iHW_delay(40);  //120
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+//          sleep_for_tenths(4);
+          iHW_delay(40);  //160
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED2_GREEN_ENABLE));
+//          sleep_for_tenths(4); //5 second
+          iHW_delay(40);  //200
+          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+////          sleep_for_tenths(10); //1 second
+//          iHW_delay(1000);
+//          write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+
+          break;
+
+        case POWER_UP_GOOD:
+          //power led green on
           write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED2_GREEN_PWM, 0x20);
           write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED2_RED_ILEVEL , 0x00);
           write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED2_GREEN_ILEVEL , 0x05);
@@ -499,35 +559,33 @@ void ineedmd_led_pattern(unsigned int led_pattern)
           write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED1_GREEN_ILEVEL , 0x05);
           write_2_byte_i2c(INEEDMD_I2C_ADDRESS_LED_DRIVER, INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_LED1_BLUE_ILEVEL , 0x00);
           write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED2_GREEN_ENABLE));
-          sleep_for_tenths(4); //5 second
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-          sleep_for_tenths(4);
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED2_GREEN_ENABLE));
-          sleep_for_tenths(4); //5 second
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-          sleep_for_tenths(4);
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED2_GREEN_ENABLE));
-          sleep_for_tenths(4); //5 second
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-
-
-          sleep_for_tenths(10); //1 second
-          write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
-
+          bAre_LEDs_on = false;
 
           break;
+        case POWER_UP_GOOD_ON:
+          //power led green on
+          if(bAre_LEDs_on == false)
+          {
+            write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED1_GREEN_ENABLE | INEEDMD_LED2_GREEN_ENABLE));
+            bAre_LEDs_on = true;
+          }else{/*do nothing*/}
+          break;
         
+        case POWER_UP_GOOD_OFF:
+          //power led green off
+          if(bAre_LEDs_on == true)
+          {
+            write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
+            bAre_LEDs_on = false;
+          }else{/*do nothing*/}
+          break;
+
         default:
           for(i = 0; i<8; i++ ){
               write_2_byte_i2c (INEEDMD_I2C_ADDRESS_LED_DRIVER, (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL), (INEEDMD_LED_OFF));
           }
           break;
     }
-    
 }
 
 

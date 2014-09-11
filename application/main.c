@@ -33,7 +33,6 @@
 #include "ineedmd_adc.h"
 #include "battery.h"
 #include "ineedmd_bluetooth_radio.h"
-#include "ineedmd_led.h"
 
 #include "utils_inc/clock.h"
 #include "utils_inc/proj_debug.h"
@@ -221,11 +220,10 @@ void ineedmd_sleep(void)
   {
     uiPrevious_speed = INEEDMD_CPU_SPEED_FULL_INTERNAL;
     set_system_speed (uiPrevious_speed);
-  }else
-  {
-    ///nothing
-  }
-  ineedmd_led_pattern(LED_OFF);
+  }else{/* do nothing */}
+
+//  ineedmd_led_pattern(LED_OFF);
+  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, true);
 
   //disable the spi port
   EKGSPIDisable();
@@ -385,7 +383,8 @@ void check_for_update(void)
       eMaster_int_enable();
 
       //set the led's to DFU mode
-      ineedmd_led_pattern(ACTUAL_DFU);
+//      ineedmd_led_pattern(ACTUAL_DFU);
+      eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_ACTUAL_DFU, SPEAKER_SEQ_NONE, true);
 
       set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
       //begin the DFU usb update procedure
@@ -407,7 +406,8 @@ void check_for_reset(void)
   {
     vDEBUG("Reset short in place!");
     vDEBUG("Device going into reset");
-    ineedmd_led_pattern(REBOOT);
+//    ineedmd_led_pattern(REBOOT);
+    eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_REBOOT, SPEAKER_SEQ_NONE, true);
     //should never reach this but if so sys will reboot
     ineedmd_watchdog_doorbell();
     while(1);
@@ -451,7 +451,8 @@ int main(void)
   //init the board
   iBoard_init();
 
-  ineedmd_led_pattern(LED_OFF);
+//  ineedmd_led_pattern(LED_OFF);
+  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, true);
 
   //Put the system into low power mode if the shipping jumper is present
   hold_until_short_removed();
@@ -480,8 +481,14 @@ int main(void)
   vDEBUG_MAIN("Radio setup");
   iIneedMD_radio_setup();
 
-  ineedmd_led_pattern(POWER_UP_GOOD);
-//  vDEBUG("STAHP!");while(1){};
+  //init processes, there should be no hardware init done past this point
+  //
+  eClock_process_init();
+  eIneedmd_UI_process_init();
+  eIneedMD_radio_process_init();
+
+  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_UP_GOOD, SPEAKER_SEQ_NONE, false);
+
   vDEBUG_MAIN("Starting super loop");
   while(1)
   {
@@ -495,23 +502,22 @@ int main(void)
     iIneedMD_radio_process();
     iIneedmd_command_process();
     iIneedmd_waveform_process();
-    ineedmd_led_pattern(ledState);
+//    ineedmd_led_pattern(ledState);
+    eClock_process();
     eIneedmd_UI_process();
     check_battery();
-    eClock_process();
 //    check_for_update();
 //    check_for_reset();
 #ifdef DEBUG
-
     eClock_get_time(&uiIm_alive_timer);
     uiIm_alive_timer &= 0x00000000000FF000;
-    if(uiIm_alive_timer >= 30)
+    if(uiIm_alive_timer >= 0x0001E000)
     {
       if(bDid_im_alive == false)
       {
         vDEBUG_MAIN("I'm alive and running");
         bDid_im_alive = true;
-      }
+      }else{/*do nothing*/}
     }
     else
     {

@@ -79,7 +79,7 @@ void sleep_for_tenths(int number_tenths_seconds)
 #else
   #define vDEBUG_SLEEP_10THS(a)
 #endif
-#ifdef SLEEP_FOR_TENTHS_TO_BE_REMOVED
+//#ifdef SLEEP_FOR_TENTHS_TO_BE_REMOVED
   uint16_t uiPrev_sys_speed = 0;
   uint16_t uiCurr_sys_speed = 0;
 
@@ -139,6 +139,6 @@ void sleep_for_tenths(int number_tenths_seconds)
   }
 
   eMaster_int_enable();
-#endif //#ifdef SLEEP_FOR_TENTHS_TO_BE_REMOVED
+//#endif //#ifdef SLEEP_FOR_TENTHS_TO_BE_REMOVED
 #undef vDEBUG_SLEEP_10THS
 }
