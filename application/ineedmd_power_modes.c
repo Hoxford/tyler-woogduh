@@ -70,60 +70,70 @@ shut_it_all_down(){
 }
 
 
-void sleep_for_tenths(int number_tenths_seconds){
+void sleep_for_tenths(int number_tenths_seconds)
+{
 //#define DEBUG_sleep_for_tenths
 #ifdef DEBUG_sleep_for_tenths
   #define  vDEBUG_SLEEP_10THS  debug_printf
 #else
   #define vDEBUG_SLEEP_10THS(a)
 #endif
+  uint16_t uiPrev_sys_speed = 0;
+  uint16_t uiCurr_sys_speed = 0;
 
-        // start timer
-    //
-    // Set the Timer0B load value to 10s.
-    //
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    eMaster_int_enable();
-    ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-    TimerLoadSet(TIMER0_BASE, TIMER_A, (50000 * number_tenths_seconds) );
+  //Get the current system speed
+  eGet_system_speed(&uiPrev_sys_speed);
+  // start timer
+  //
+  // Set the Timer0B load value to 10s.
+  //
+  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+  eMaster_int_enable();
+  ROM_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+  TimerLoadSet(TIMER0_BASE, TIMER_A, (50000 * number_tenths_seconds) );
 
-    //
-    // Enable processor interrupts.
-    //
-    eMaster_int_enable();
-    //
-    // Configure the Timer0 interrupt for timer timeout.
-    //
-    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-    //
-    // Enable the Timer0A interrupt on the processor (NVIC).
-    //
-    IntEnable(INT_TIMER0A);
-    //
-    // clocks down the processor to REALLY slow ( 500khz) and
-    //
-    // go to a slow clock
+  //
+  // Enable processor interrupts.
+  //
+  eMaster_int_enable();
+  //
+  // Configure the Timer0 interrupt for timer timeout.
+  //
+  TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+  //
+  // Enable the Timer0A interrupt on the processor (NVIC).
+  //
+  IntEnable(INT_TIMER0A);
+  //
+  // clocks down the processor to REALLY slow ( 500khz) and
+  //
+  // go to a slow clock
+  uiCurr_sys_speed = uiPrev_sys_speed;
 //todo: this causes problems with the led patterns and ineedmd protocl implementation making the system unresponsive
 //    if (set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL) == INEEDMD_CPU_SPEED_SLOW_INTERNAL)
 //    {
 //      vDEBUG_SLEEP_10THS("..CPU slow");
+//      uiCurr_sys_speed = INEEDMD_CPU_SPEED_SLOW_INTERNAL;
 //    }
-    //
-    // Enable Timer0(A)
-    //
-    TimerEnable(TIMER0_BASE, TIMER_A);
 
-    // and deep sleep.
-    ROM_SysCtlDeepSleep();
+  //
+  // Enable Timer0(A)
+  //
+  TimerEnable(TIMER0_BASE, TIMER_A);
 
-    TimerDisable(TIMER0_BASE, TIMER_A);
-    IntDisable(INT_TIMER0A);
-    vDEBUG_SLEEP_10THS("waking_up");
-            //go to a fast clock
-    if(set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL) == INEEDMD_CPU_SPEED_HALF_INTERNAL)
-    {
-      vDEBUG_SLEEP_10THS("..CPU half speed");
-    }
-    eMaster_int_enable();
+  // and deep sleep.
+  ROM_SysCtlDeepSleep();
+
+  TimerDisable(TIMER0_BASE, TIMER_A);
+  IntDisable(INT_TIMER0A);
+  vDEBUG_SLEEP_10THS("waking_up");
+
+  //restore the systemclock
+  if(uiCurr_sys_speed != uiPrev_sys_speed)
+  {
+    set_system_speed(uiPrev_sys_speed);
+  }
+
+  eMaster_int_enable();
 #undef vDEBUG_SLEEP_10THS
 }

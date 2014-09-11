@@ -328,6 +328,9 @@ volatile uint16_t  uiRunClock_Sys_years    = 0;
 //Batt measure variables
 bool bIs_Batt_measACD_enabled = false;
 
+//LED and LED I2C variables
+bool bIs_LEDI2D_Enabled = false;
+
 //*****************************************************************************
 // The control table used by the uDMA controller. This table must be aligned to a 1024 byte boundary.
 //*****************************************************************************
@@ -841,119 +844,117 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
 //*****************************************************************************
 int set_system_speed (unsigned int how_fast)
 {
-//#define DEBUG_set_system_speed
+#define DEBUG_set_system_speed
 #ifdef DEBUG_set_system_speed
   #define  vDEBUG_SET_SYS_SPEED  vDEBUG
 #else
   #define vDEBUG_SET_SYS_SPEED(a)
 #endif
 
-  switch (how_fast)
+  //check if the system speed needs to be chaged if it is not at what is being requested
+  if(uiCurrent_sys_speed != how_fast)
   {
-    case INEEDMD_CPU_SPEED_FULL_EXTERNAL:
-      //WARNING - do not use on first board rev!!!!
-      //turn on the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
-      // let it stabalise
-      MAP_SysCtlDelay(1000);
-      //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
+    switch (how_fast)
+    {
+      case INEEDMD_CPU_SPEED_FULL_EXTERNAL:
+        //WARNING - do not use on first board rev!!!!
+        //turn on the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+        // let it stabalise
+        MAP_SysCtlDelay(1000);
+        //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
+        SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_EXTERNAL");
-      I2CMasterInitExpClk(I2C0_BASE, 80000000, 1);
-      break;
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_EXTERNAL");
+        break;
 
-    case INEEDMD_CPU_SPEED_HALF_EXTERNAL:
-      //WARNING - do not use on first board rev!!!!
-      //turn on the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
-      // let it stabalise
-      MAP_SysCtlDelay(1000);
-      //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+      case INEEDMD_CPU_SPEED_HALF_EXTERNAL:
+        //WARNING - do not use on first board rev!!!!
+        //turn on the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+        // let it stabalise
+        MAP_SysCtlDelay(1000);
+        //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
+        SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_EXTERNAL");
-      I2CMasterInitExpClk(I2C0_BASE, 40000000, 1);
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_EXTERNAL");
 
-      break;
+        break;
 
-    case INEEDMD_CPU_SPEED_QUARTER_EXTERNAL:
-      //WARNING - do not use on first board rev!!!!
-      //turn on the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
-      // let it stabalise
-      MAP_SysCtlDelay(1000);
-      //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+      case INEEDMD_CPU_SPEED_QUARTER_EXTERNAL:
+        //WARNING - do not use on first board rev!!!!
+        //turn on the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+        // let it stabalise
+        MAP_SysCtlDelay(1000);
+        //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
+        SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_QUARTER_EXTERNAL");
-      I2CMasterInitExpClk(I2C0_BASE, 20000000, 1);
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_QUARTER_EXTERNAL");
 
-      break;
+        break;
 
-    case INEEDMD_CPU_SPEED_FULL_INTERNAL:
-      //setting to run on the PLL from the internal clock and switch off the external xtal pads and pin this gives us an 80 Mhz clock
-      SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
-      // switch off the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+      case INEEDMD_CPU_SPEED_FULL_INTERNAL:
+        //setting to run on the PLL from the internal clock and switch off the external xtal pads and pin this gives us an 80 Mhz clock
+        SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        // switch off the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_INTERNAL");
-      I2CMasterInitExpClk(I2C0_BASE, 80000000, 1);
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_INTERNAL");
 
-      break;
+        break;
 
-    case INEEDMD_CPU_SPEED_HALF_INTERNAL:
-      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 40Mhz
-      SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
-      // switch off the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+      case INEEDMD_CPU_SPEED_HALF_INTERNAL:
+        //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 40Mhz
+        SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        // switch off the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_INTERNAL");
-      I2CMasterInitExpClk(I2C0_BASE, 40000000, 1);
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_INTERNAL");
 
-      break;
+        break;
 
-    case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
-      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
-      SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
-      // switch off the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+      case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
+        //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
+        SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
+        // switch off the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_SLOW_INTERNAL");
-      I2CMasterInitExpClk(I2C0_BASE, 500000, 1);
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_SLOW_INTERNAL");
 
-      break;
+        break;
 
-    case INEEDMD_CPU_SPEED_REALLY_SLOW:
-      //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 30Khz.
-      //Communication is't possible.. we are in hibernation
-      SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_OSC_INT30 | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
-      // switch off the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
-      //I2CMasterInitExpClk(I2C0_BASE, 30000, 1);
+      case INEEDMD_CPU_SPEED_REALLY_SLOW:
+        //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 30Khz.
+        //Communication is't possible.. we are in hibernation
+        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_OSC_INT30 | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        // switch off the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_REALLY_SLOW");
+        vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_REALLY_SLOW");
 
-      break;
+        break;
 
-    default:
-      //setting the intrnal at full speed as the default.
-      SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
-      // switch off the external oscillator
-      MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+      default:
+        //setting the intrnal at full speed as the default.
+        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        // switch off the external oscillator
+        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
 
-      I2CMasterInitExpClk(I2C0_BASE, 16000000, 1);
+        vDEBUG_SET_SYS_SPEED("Sys speed, default");
 
-      vDEBUG_SET_SYS_SPEED("Sys speed, default");
+        break;
+    }
 
-      break;
+    //preserve the system speed
+    uiCurrent_sys_speed = how_fast;
+
+    //reset all the functions that require the current sys speed
+  //  eBSP_Set_System_Timers();
+    //set the system tic to compensate for the new system speed
+    eBSP_Systick_Init();
+    eBSP_LEDI2C_clock_set();
   }
-
-  //preserve the system speed
-  uiCurrent_sys_speed = how_fast;
-
-  //reset all the functions that require the current sys speed
-//  eBSP_Set_System_Timers();
 
   return how_fast;
 
@@ -1028,7 +1029,7 @@ void vSystick_int_service(void)
 
         if(uiRunClock_Sys_hour >= 24)
         {
-          uiRunClock_Sys_hour;
+          uiRunClock_Sys_hour = 0;
           uiRunClock_Sys_days++;
 
           if(uiRunClock_Sys_days >= 365)
@@ -2919,26 +2920,34 @@ SDCardSPIDisable(void)
 void
 LEDI2CEnable(void)
 {
-  //
-  // Enable pin PB2 for I2C0 I2C0SCL
-  //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-  // majik delay as there are things that need to settle.  Because the I2C is very low speed block this is twice as long as the other delays
-  MAP_SysCtlDelay(200);
-  //
-  // I2C Clk is on portB pin 2
-  //
-  MAP_GPIOPinTypeI2CSCL(GPIO_PORTB_BASE, GPIO_PIN_2);
-  MAP_GPIOPinConfigure(GPIO_PB2_I2C0SCL);
-  //
-  // I2C SDA is on portB pin 3
-  //
-  MAP_GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_3);
-  MAP_GPIOPinConfigure(GPIO_PB3_I2C0SDA);
+  if(bIs_LEDI2D_Enabled == false)
+  {
+    //
+    // Enable pin PB2 for I2C0 I2C0SCL
+    //
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+    // majik delay as there are things that need to settle.  Because the I2C is very low speed block this is twice as long as the other delays
+    MAP_SysCtlDelay(200);
+    //
+    // I2C Clk is on portB pin 2
+    //
+    MAP_GPIOPinTypeI2CSCL(GPIO_PORTB_BASE, GPIO_PIN_2);
+    MAP_GPIOPinConfigure(GPIO_PB2_I2C0SCL);
+    //
+    // I2C SDA is on portB pin 3
+    //
+    MAP_GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_3);
+    MAP_GPIOPinConfigure(GPIO_PB3_I2C0SDA);
     I2CMasterInitExpClk(INEEDMD_LED_I2C, MAP_SysCtlClockGet(), true);
-  I2CMasterEnable(INEEDMD_LED_I2C);
-    //  while(!SysCtlPeripheralReady(INEEDMD_LED_I2C));
+    I2CMasterEnable(INEEDMD_LED_I2C);
+      //  while(!SysCtlPeripheralReady(INEEDMD_LED_I2C));
 
+    bIs_LEDI2D_Enabled = true;
+  }
+  else
+  {
+    bIs_LEDI2D_Enabled = true;
+  }
 }
 
 /******************************************************************************
@@ -2950,10 +2959,37 @@ LEDI2CEnable(void)
 void
 LEDI2CDisable(void)
 {
+  if(bIs_LEDI2D_Enabled == true)
+  {
     //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_I2C0));
     I2CMasterDisable(INEEDMD_LED_I2C);
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_I2C0);
+    bIs_LEDI2D_Enabled = false;
+  }
+  else
+  {
+    bIs_LEDI2D_Enabled = false;
+  }
+}
 
+/******************************************************************************
+* name: eBSP_LEDI2C_clock_set
+* description: sets the LED I2C clock speed to the current system speed
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE eBSP_LEDI2C_clock_set(void)
+{
+  ERROR_CODE eEC = ER_OK;
+
+  if(bIs_LEDI2D_Enabled == true)
+  {
+    I2CMasterDisable(INEEDMD_LED_I2C);
+    I2CMasterInitExpClk(INEEDMD_LED_I2C, MAP_SysCtlClockGet(), true);
+    I2CMasterEnable(INEEDMD_LED_I2C);
+  }else{/*do nothing*/}
+
+  return eEC;
 }
 
 /******************************************************************************
@@ -3079,7 +3115,7 @@ void USBPortDisable(void)
 //  if(bIs_USB_Enabled == true)
 //  {
     //disable all interrupts
-    eMaster_int_disable();
+//    eMaster_int_disable();
 
     //disable the USB0 interrupt
     ROM_IntDisable(INT_USB0);
@@ -3098,6 +3134,7 @@ void USBPortDisable(void)
     MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
 
     set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
+    vDEBUG("STAHP!");while(1){};
 
     //re-enable all interrupts
     eMaster_int_enable();
@@ -3534,9 +3571,10 @@ iBoard_init(void)
 
   //Set up a colock to 40Mhz off the PLL.  This is fat enough to allow for things to set up well, but not too fast that we have big temporal problems.
   //not using the function because that needs the i2c to be initalised first.
-  SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+//  SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
   // switch off the external oscillator
-  MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+//  MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
 
   // set the brown out interupt and power down voltage
   PowerInitFunction();
@@ -3563,6 +3601,7 @@ iBoard_init(void)
   eBSP_Systick_Init();
 
   eMaster_int_enable();
+
   return 1;
 }
 #endif //__BOARD_C__

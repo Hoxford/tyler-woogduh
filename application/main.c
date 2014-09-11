@@ -37,6 +37,7 @@
 #include "utils_inc/error_codes.h"
 #include "app_inc/ineedmd_watchdog.h"
 #include "app_inc/ineedmd_waveform.h"
+#include "utils_inc/clock.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/file_system.h"
 #include "ff.h"
@@ -56,7 +57,14 @@
 //*****************************************************************************
 // variables
 //*****************************************************************************
+
 unsigned char ledState = 0;
+
+#ifdef DEBUG
+uintmax_t  uiIm_alive_timer;
+bool       bDid_im_alive = false;
+#endif
+
 //*****************************************************************************
 // external variables
 //*****************************************************************************
@@ -457,6 +465,7 @@ int main(void)
   vDEBUG_MAIN("checking for update");
   check_for_update();
 
+  vDEBUG_MAIN("initial batt check");
   check_battery();
 
   //mount the file system
@@ -482,14 +491,31 @@ int main(void)
       ineedmd_sleep();
     }
     ineedmd_watchdog_pat();
-    iIneedMD_radio_process();
-    iIneedmd_command_process();
-    iIneedmd_waveform_process();
-    ineedmd_led_pattern(ledState);
-//    led_test();
+//    iIneedMD_radio_process();
+//    iIneedmd_command_process();
+//    iIneedmd_waveform_process();
+//    ineedmd_led_pattern(ledState);
     check_battery();
+    eClock_process();
 //    check_for_update();
 //    check_for_reset();
+#ifdef DEBUG
+
+    eClock_get_time(&uiIm_alive_timer);
+    uiIm_alive_timer &= 0x00000000000FF000;
+    if(uiIm_alive_timer == 0)
+    {
+      if(bDid_im_alive == false)
+      {
+        vDEBUG_MAIN("I'm alive and running");
+        bDid_im_alive = true;
+      }
+    }
+    else
+    {
+      bDid_im_alive = false;
+    }
+#endif
   }
 
   //todo debug and possible reset
