@@ -374,19 +374,19 @@ ERROR_CODE eIneedmd_UI_process(void)
       else if(uiTick_diff >= 4000)
       {
         ineedmd_led_pattern(DATA_TRANSFER_ON);
-      {
+      }
       else if(uiTick_diff >= 3000)
       {
         ineedmd_led_pattern(DATA_TRANSFER_OFF);
-      {
+      }
       else if(uiTick_diff >= 2000)
       {
         ineedmd_led_pattern(DATA_TRANSFER_ON);
-      {
+      }
       else if(uiTick_diff >= 1000)
       {
         ineedmd_led_pattern(DATA_TRANSFER_OFF);
-      {
+      }
       else
       {
         ineedmd_led_pattern(DATA_TRANSFER_ON);
@@ -476,7 +476,7 @@ ERROR_CODE eIneedmd_UI_process(void)
       }
       else
       {
-        ineedmd_led_pattern(TRI_WVFRML_ON);
+        ineedmd_led_pattern(TRI_WVFRM_ON);
       }
       break;
     case LED_SEQ_REBOOT:

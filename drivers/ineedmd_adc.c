@@ -31,10 +31,15 @@ void ineedmd_adc_Hard_Reset()
 	//toggle reset pin
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
 	//keep low for 2 clock cycles
-	sleep_for_tenths(1);
+	//sleep_for_tenths(1);
+  //todo
+  iHW_delay(10);
+
+
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
 	//wait 18 device clock cycles - 9 usec
-	sleep_for_tenths(1);
+  //todo
+  iHW_delay(10);
 }
 
 //********************************************************************************
@@ -51,7 +56,9 @@ void ineedmd_adc_Stop_Continuous_Conv()
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
 	//2us at fullmspeed
 	//MAP_SysCtlDelay(60);
-	sleep_for_tenths(1);
+  //todo
+  iHW_delay(1);
+
 
 	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
 	while(SSIBusy(INEEDMD_ADC_SPI))
@@ -74,7 +81,8 @@ void ineedmd_adc_Start_Continuous_Conv()
 	//set the CS low
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
 	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
+  iHW_delay(1);
+
 
 	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_RDATAC);
 	while(SSIBusy(INEEDMD_ADC_SPI))
@@ -105,7 +113,9 @@ void ineedmd_adc_Power_On()
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
 	//Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
 	//TODO: make delay into task sleep, etc
-	sleep_for_tenths(5);
+  //todo
+  iHW_delay(100);
+
     ineedmd_adc_Hard_Reset();
 }
 
@@ -144,7 +154,7 @@ void ineedmd_adc_Send_Command(uint32_t command)
 	//set the CS low
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
 	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
+  iHW_delay(1);
 
 	SSIDataPut(INEEDMD_ADC_SPI, command);
 	while(SSIBusy(INEEDMD_ADC_SPI))
@@ -277,7 +287,9 @@ void ineedmd_adc_Start_Internal_Reference()
 	ineedmd_adc_Register_Write(CONFIG3, val);
 	//wait for reference to start
 	//TODO: make delay into task sleep, etc
-	sleep_for_tenths(10);
+  //todo
+  iHW_delay(100);
+
 
 	//when done set the CS high
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
@@ -310,7 +322,9 @@ void ineedmd_adc_Start_Low()
 {
 	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, 0x00);
 	//wait for 2 device clocks - 1uSec
-	sleep_for_tenths(1);
+  //todo
+  iHW_delay(1);
+
 }
 
 

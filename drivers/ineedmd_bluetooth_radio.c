@@ -2070,7 +2070,9 @@ int  iIneedMD_radio_check_for_connection(void)
   //check if connection with a remote device has been established
   if(bIs_connection == false)
   {
-//    ineedmd_led_pattern(BT_ATTEMPTING);
+    //ineedmd_led_pattern(BT_ATTEMPTING);
+    //TODO
+    iHW_delay(10);
 
     //begin establishing a connection with a remote device
     bIs_radio_data = bRadio_is_data();

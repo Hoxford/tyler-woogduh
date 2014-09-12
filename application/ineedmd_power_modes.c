@@ -126,7 +126,7 @@ void sleep_for_tenths(int number_tenths_seconds)
 //  TimerEnable(TIMER0_BASE, TIMER_A);
 
   // and deep sleep.
-  ROM_SysCtlDeepSleep();
+  //ROM_SysCtlDeepSleep();
 
 //  TimerDisable(TIMER0_BASE, TIMER_A);
 //  IntDisable(INT_TIMER0A);

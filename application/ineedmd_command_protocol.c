@@ -18,6 +18,8 @@
 #include <stdarg.h>
 #include "driverlib/rom.h"
 #include "utils_inc/error_codes.h"
+#include "driverlib/rom_map.h"
+
 #include "board.h"
 
 #include "battery.h"
@@ -692,7 +694,7 @@ void ParseFrame(void *pt)
               printf("HIBERNATE");
               ineedmd_send_ack();
               //TODO: add battery state check
-              ineedmd_led_pattern(HIBERNATE);
+              //ineedmd_led_pattern(HIBERNATE);
               break;
             case LEADS_ON:
               printf("LEADS_ON");
@@ -740,11 +742,15 @@ void ParseFrame(void *pt)
         {
           printf("Performing DFU...");
           ineedmd_send_ack();
-          ineedmd_led_pattern(DFU_MODE);
-          sleep_for_tenths(50);
+          //ineedmd_led_pattern(DFU_MODE);
+          //todo
+          MAP_SysCtlDelay( MAP_SysCtlClockGet() / 5000  );
+          //sleep_for_tenths(50);
           check_for_update();
-          ineedmd_led_pattern(REBOOT);
-          sleep_for_tenths(50);
+          //ineedmd_led_pattern(REBOOT);
+          //todo
+          MAP_SysCtlDelay( MAP_SysCtlClockGet() / 5000  );
+          //sleep_for_tenths(50);
           ineedmd_watchdog_doorbell();
           //TODO: add dfu entry
         }
@@ -756,7 +762,9 @@ void ParseFrame(void *pt)
 
           //set the radio to factory defaults
           eIneedmd_radio_rfd();
-          sleep_for_tenths(50);
+          //todo
+          MAP_SysCtlDelay( MAP_SysCtlClockGet() / 5000  );
+          //sleep_for_tenths(50);
 
           //Reset the system
           ineedmd_watchdog_doorbell();
@@ -785,6 +793,8 @@ void ParseFrame(void *pt)
     printf("\nInvalid type of packet received!");
     printf("\nSending NACK!");
     ineedmd_send_nack();
+    //ineedmd_send_ack();
+
   }
 }
 
