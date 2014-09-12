@@ -50,7 +50,41 @@
 //*****************************************************************************
 // enums
 //*****************************************************************************
-
+//led commands
+typedef enum
+{
+  INMD_LED_CMND_LED_OFF = 0x00,
+  INMD_LED_CMND_POWER_ON_BATT_LOW = 0x01,
+  INMD_LED_CMND_POWER_ON_BATT_GOOD,
+  INMD_LED_CMND_BATT_CHARGING,
+  INMD_LED_CMND_BATT_CHARGING_LOW,
+  INMD_LED_CMND_LEAD_LOOSE,
+  INMD_LED_CMND_LEAD_GOOD_UPLOADING,
+  INMD_LED_CMND_DIG_FLATLINE,
+  INMD_LED_CMND_BT_CONNECTED,
+  INMD_LED_CMND_BT_ATTEMPTING,
+  INMD_LED_CMND_BT_FAILED,
+  INMD_LED_CMND_USB_CONNECTED,
+  INMD_LED_CMND_USB_FAILED,
+  INMD_LED_CMND_DATA_TRANSFER,
+  INMD_LED_CMND_TRANSFER_DONE,
+  INMD_LED_CMND_STORAGE_WARNING,
+  INMD_LED_CMND_ERASING,
+  INMD_LED_CMND_ERASE_DONE,
+  INMD_LED_CMND_DFU_MODE,
+  INMD_LED_CMND_MV_CAL,
+  INMD_LED_CMND_TRI_WVFRM,
+  INMD_LED_CMND_REBOOT,
+  INMD_LED_CMND_HIBERNATE,
+  INMD_LED_CMND_LEADS_ON,
+  INMD_LED_CMND_MEMORY_TEST,
+  INMD_LED_CMND_COM_BUS_TEST,
+  INMD_LED_CMND_CPU_CLOCK_TEST,
+  INMD_LED_CMND_FLASH_TEST,
+  INMD_LED_CMND_TEST_PASS,
+  INMD_LED_CMND_POWER_UP_GOOD,
+  INMD_LED_CMND_ACTUAL_DFU,
+}INMD_LED_COMMAND;
 //*****************************************************************************
 // structures
 //*****************************************************************************

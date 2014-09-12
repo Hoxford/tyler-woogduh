@@ -310,90 +310,90 @@ ERROR_CODE eIneedmd_UI_request(uint8_t uiUser_Interface, INMD_UI_LED_SEQ eUI_LED
           eClock_get_total_runtime(&uiTimer);
         }
         break;
-//      case LED_SEQ_TRI_WVFRM:
-//        if(bDo_immediatly == true)
-//        {
-//          //ineedmd_led_pattern();
-//        }
-//        else
-//        {
-//          //ineedmd_led_pattern();
-//          //eUI_LED_Seq = LED_SEQ_TRI_WVFRM;
-//          eClock_get_total_runtime(&uiTimer);
-//        }
-//        break;
-//      case LED_SEQ_REBOOT:
-//        if(bDo_immediatly == true)
-//        {
-//          //ineedmd_led_pattern();
-//        }
-//        else
-//        {
-//          //ineedmd_led_pattern();
-//          //eUI_LED_Seq = LED_SEQ_REBOOT;
-//          eClock_get_total_runtime(&uiTimer);
-//        }
-//        break;
-//      case LED_SEQ_HIBERNATE:
-//        if(bDo_immediatly == true)
-//        {
-//          //ineedmd_led_pattern();
-//        }
-//        else
-//        {
-//          //ineedmd_led_pattern();
-//          //eUI_LED_Seq = LED_SEQ_HIBERNATE;
-//          eClock_get_total_runtime(&uiTimer);
-//        }
-//        break;
-//      case LED_SEQ_LEADS_ON:
-//        if(bDo_immediatly == true)
-//        {
-//          //ineedmd_led_pattern();
-//        }
-//        else
-//        {
-//          //ineedmd_led_pattern();
-//          //eUI_LED_Seq = LED_SEQ_LEADS_ON;
-//          eClock_get_total_runtime(&uiTimer);
-//        }
-//        break;
-//      case LED_SEQ_MEMORY_TEST:
-//        if(bDo_immediatly == true)
-//        {
-//          //ineedmd_led_pattern();
-//        }
-//        else
-//        {
-//          //ineedmd_led_pattern();
-//          //eUI_LED_Seq = LED_SEQ_MEMORY_TEST;
-//          eClock_get_total_runtime(&uiTimer);
-//        }
-//        break;
-//      case LED_SEQ_COM_BUS_TEST:
-//        if(bDo_immediatly == true)
-//        {
-//          ineedmd_led_pattern();
-//        }
-//        else
-//        {
-//          //ineedmd_led_pattern();
-//          //eUI_LED_Seq = LED_SEQ_COM_BUS_TEST;
-//          eClock_get_total_runtime(&uiTimer);
-//        }
-//        break;
-//      case LED_SEQ_CPU_CLOCK_TEST:
-//        if(bDo_immediatly == true)
-//        {
-//          ineedmd_led_pattern();
-//        }
-//        else
-//        {
-//          //ineedmd_led_pattern();
-//          //eUI_LED_Seq = LED_SEQ_CPU_CLOCK_TEST;
-//          eClock_get_total_runtime(&uiTimer);
-//        }
-//        break;
+      case LED_SEQ_TRI_WVFRM:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(TRI_WVFRM_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(TRI_WVFRM);
+          eUI_LED_Seq = LED_SEQ_TRI_WVFRM;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_REBOOT:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(REBOOT_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(REBOOT);
+          eUI_LED_Seq = LED_SEQ_REBOOT;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_HIBERNATE:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(HIBERNATE_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(HIBERNATE);
+          eUI_LED_Seq = LED_SEQ_HIBERNATE;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_LEADS_ON:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(LEADS_ON_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(LEADS_ON);
+          eUI_LED_Seq = LED_SEQ_LEADS_ON;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_MEMORY_TEST:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(MEMORY_TEST_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(MEMORY_TEST);
+          eUI_LED_Seq = LED_SEQ_MEMORY_TEST;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_COM_BUS_TEST:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(COM_BUS_TEST_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(COM_BUS_TEST);
+          eUI_LED_Seq = LED_SEQ_COM_BUS_TEST;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_CPU_CLOCK_TEST:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(CPU_CLOCK_TEST_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(CPU_CLOCK_TEST);
+          eUI_LED_Seq = LED_SEQ_CPU_CLOCK_TEST;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
       case LED_SEQ_FLASH_TEST:
         if(bDo_immediatly == true)
         {
