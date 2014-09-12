@@ -994,6 +994,7 @@ ERROR_CODE eIneedMD_radio_process_init(void)
 
   return eEC;
 }
+
 /* ineedmd_radio_power
  * Power up and down the radio
  *
@@ -1467,7 +1468,7 @@ int iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
 /*
  * gets a data frame from the radio that was proc'ed by an interrupt
  */
-ERROR_CODE eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size)
+ERROR_CODE eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size, uint32_t * uiBytes_rcvd)
 {
 #define DEBUG_iIneedmd_radio_int_rcv_frame
 #ifdef DEBUG_iIneedmd_radio_int_rcv_frame
@@ -1486,6 +1487,7 @@ ERROR_CODE eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_si
     {
       //increment i to compensate for the last byte
       i++;
+      *uiBytes_rcvd = i;
       eEC = ER_OK;
       break;
     }else{/*do nothing*/}
@@ -1495,6 +1497,9 @@ ERROR_CODE eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_si
     if(eEC == ER_EVENT)
     {
       //the recieve frame is an event frame, break from the loop
+      //increment i to compensate for the last byte
+      i++;
+      *uiBytes_rcvd = i;
       break;
     }else{/*do nothing*/}
   }
@@ -1584,6 +1589,7 @@ int  iIneedMD_radio_setup(void)
 #endif
   uint32_t iEC;
   ERROR_CODE eEC = ER_OK;
+  ERROR_CODE eEC_radio_in_mux_mode = ER_NO;
   char cSend_buff[BG_SIZE];
   char cRcv_buff[BG_SIZE];
   uint32_t ui32SysClock = MAP_SysCtlClockGet();
@@ -1631,7 +1637,10 @@ int  iIneedMD_radio_setup(void)
     }
 
     //attempt to get the radio out of mux mode if it is in it
-//    eBT_RDIO_mux_mode_disable();
+    if(eEC_radio_in_mux_mode == ER_YES)
+    {
+      eBT_RDIO_mux_mode_disable();
+    }else{/*do nothing*/}
 
     //SET RESET, reset to factory defaults
     //
@@ -2062,7 +2071,7 @@ int  iIneedMD_radio_check_for_connection(void)
   #define vDEBUG_RDIO_CHKCONN(a)
 #endif
 #define rc_chkbuff_size 128
-  int iEC = 0;
+  uint32_t uiFrame_size_rcvd = 0;
   ERROR_CODE eEC = ER_OK;
   uint8_t uiRcv_buff[rc_chkbuff_size];
   bool bIs_radio_data = false;
@@ -2070,9 +2079,7 @@ int  iIneedMD_radio_check_for_connection(void)
   //check if connection with a remote device has been established
   if(bIs_connection == false)
   {
-    //ineedmd_led_pattern(BT_ATTEMPTING);
-    //TODO
-    iHW_delay(10);
+//    ineedmd_led_pattern(BT_ATTEMPTING);
 
     //begin establishing a connection with a remote device
     bIs_radio_data = bRadio_is_data();
@@ -2082,17 +2089,17 @@ int  iIneedMD_radio_check_for_connection(void)
       memset(uiRcv_buff, 0x00, rc_chkbuff_size);
       //receive the ssp confirm from the remote device
       bIs_radio_data = UARTCharsAvail(INEEDMD_RADIO_UART);
-      eEC = eIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size);
+      eEC = eIneedmd_radio_int_rcv_frame(uiRcv_buff, rc_chkbuff_size, &uiFrame_size_rcvd);
 
       //determine origin of the data frame
       if(eEC == ER_OK)
       {
-        vRADIO_ECHO_FRAME(uiRcv_buff, iEC);
+        vRADIO_ECHO_FRAME(uiRcv_buff, uiFrame_size_rcvd);
 
         //check if the frame is a ineedMD command protocol frame
         if(uiRcv_buff[0] == 0x9C)
         {
-          iIneedmd_Rcv_cmnd_frame(uiRcv_buff, iEC);
+          iIneedmd_Rcv_cmnd_frame(uiRcv_buff, uiFrame_size_rcvd);
         }
       }
       else if(eEC == ER_EVENT)

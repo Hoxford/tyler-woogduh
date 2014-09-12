@@ -64,7 +64,6 @@
 #include "driverlib/uart.h"
 #include "driverlib/usb.h"
 #include "driverlib/udma.h"
-#include "app_inc/ineedmd_power_modes.h"
 //USB Lib inc
 #ifdef USE_USBLIB
   #include "usblib/usblib.h"
@@ -3619,7 +3618,6 @@ iBoard_init(void)
   eBSP_Systick_Init();
 
   eMaster_int_enable();
-  sleep_for_tenths(1);
 
   return 1;
 }

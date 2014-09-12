@@ -19,7 +19,7 @@ int         iIneedmd_radio_que_frame(uint8_t *send_frame, uint16_t uiFrame_size)
 int         iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
 int         iIneedmd_radio_rcv_byte(uint8_t *uiRcv_byte);
 int         iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size);
-ERROR_CODE  eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size);
+ERROR_CODE  eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size, uint32_t * uiBytes_rcvd);
 int         iIneedMD_radio_setup(void);
 int         iIneedMD_radio_check_for_connection(void);
 int         iIneedMD_radio_process(void);
