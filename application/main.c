@@ -454,6 +454,8 @@ int main(void)
 //  ineedmd_led_pattern(LED_OFF);
   eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, true);
 
+  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_FLASH_TEST, SPEAKER_SEQ_NONE, true);
+
   //Put the system into low power mode if the shipping jumper is present
   hold_until_short_removed();
 
@@ -487,7 +489,8 @@ int main(void)
   eIneedmd_UI_process_init();
   eIneedMD_radio_process_init();
 
-  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_UP_GOOD, SPEAKER_SEQ_NONE, false);
+//  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_UP_GOOD, SPEAKER_SEQ_NONE, false);
+  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_FLASH_TEST, SPEAKER_SEQ_NONE, false);
 
   vDEBUG_MAIN("Starting super loop");
   while(1)
