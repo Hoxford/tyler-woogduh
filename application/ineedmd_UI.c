@@ -190,46 +190,306 @@ ERROR_CODE eIneedmd_UI_process(void)
       bIsSeqRunning = true;
       break;
     case LED_SEQ_POWER_ON_BATT_LOW:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 1000)
+      {
+        ineedmd_led_pattern(POWER_ON_BATT_LOW_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(POWER_ON_BATT_LOW_ON);
+      }
       break;
     case LED_SEQ_POWER_ON_BATT_GOOD:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 1000)
+      {
+        ineedmd_led_pattern(BATT_CHARGING_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(BATT_CHARGING_ON);
+      }
       break;
     case LED_SEQ_BATT_CHARGING:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 2000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+        else if(uiTick_diff >= 1000)
+      {
+          ineedmd_led_pattern(POWER_ON_BATT_GOOD_ON);
+      }
+      else
+      {
+        ineedmd_led_pattern(POWER_ON_BATT_GOOD_ON);
+      }
       break;
     case LED_SEQ_BATT_CHARGING_LOW:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 2000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+        else if(uiTick_diff >= 1000)
+      {
+          ineedmd_led_pattern(BATT_CHARGING_LOW_OFF);
+      }
+      else
+      {
+        ineedmd_led_pattern(BATT_CHARGING_LOW_ON);
+      }
       break;
     case LED_SEQ_LEAD_LOOSE:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 4000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+        else if(uiTick_diff >= 2000)
+      {
+          ineedmd_led_pattern(LEAD_LOOSE_OFF);
+      }
+      else
+      {
+        ineedmd_led_pattern(LEAD_LOOSE_ON);
+      }
       break;
     case LED_SEQ_LEAD_GOOD_UPLOADING:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 2000)
+      {
+        ineedmd_led_pattern(LEAD_GOOD_UPLOADING_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(LEAD_GOOD_UPLOADING_ON);
+      }
       break;
     case LED_SEQ_DIG_FLATLINE:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 1000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+        else if(uiTick_diff >= 500)
+      {
+          ineedmd_led_pattern(DIG_FLATLINE_OFF);
+      }
+      else
+      {
+        ineedmd_led_pattern(DIG_FLATLINE_ON);
+      }
       break;
     case LED_SEQ_BT_CONNECTED:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 5000)
+      {
+        ineedmd_led_pattern(BT_CONNECTED_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(BT_CONNECTED_ON);
+      }
       break;
-    case LED_SEQ_BT_ATTEMPTING:
-      break;
+      case LED_SEQ_BT_ATTEMPTING:
+        uiTick_diff = uiCurrent_tick - uiTimer;
+        if(uiTick_diff >= 2000)
+        {
+          uiTimer = uiCurrent_tick;
+        }
+          else if(uiTick_diff >= 1000)
+        {
+            ineedmd_led_pattern(BT_CONNECTED_OFF);
+        }
+        else
+        {
+          ineedmd_led_pattern(BT_CONNECTED_ON);
+        }
+        break;
     case LED_SEQ_BT_FAILED:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 5000)
+      {
+        ineedmd_led_pattern(BT_FAILED_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else if(uiTick_diff >= 4000)
+      {
+        ineedmd_led_pattern(BT_FAILED_ON);
+      }
+      else if(uiTick_diff >= 3000)
+      {
+        ineedmd_led_pattern(BT_FAILED_OFF);
+      }
+      else if(uiTick_diff >= 2000)
+      {
+        ineedmd_led_pattern(BT_FAILED_ON);
+      }
+      else if(uiTick_diff >= 1000)
+      {
+        ineedmd_led_pattern(BT_FAILED_OFF);
+      }
+      else
+      {
+        ineedmd_led_pattern(BT_FAILED_ON);
+      }
       break;
     case LED_SEQ_USB_CONNECTED:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 5000)
+      {
+        ineedmd_led_pattern(USB_CONNECTED_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(USB_CONNECTED_ON);
+      }
       break;
     case LED_SEQ_USB_FAILED:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 1000)
+      {
+        ineedmd_led_pattern(USB_FAILED_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(USB_FAILED_ON);
+      }
       break;
     case LED_SEQ_DATA_TRANSFER:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 5000)
+      {
+        ineedmd_led_pattern(DATA_TRANSFER_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else if(uiTick_diff >= 4000)
+      {
+        ineedmd_led_pattern(DATA_TRANSFER_ON);
+      {
+      else if(uiTick_diff >= 3000)
+      {
+        ineedmd_led_pattern(DATA_TRANSFER_OFF);
+      {
+      else if(uiTick_diff >= 2000)
+      {
+        ineedmd_led_pattern(DATA_TRANSFER_ON);
+      {
+      else if(uiTick_diff >= 1000)
+      {
+        ineedmd_led_pattern(DATA_TRANSFER_OFF);
+      {
+      else
+      {
+        ineedmd_led_pattern(DATA_TRANSFER_ON);
+      }
       break;
     case LED_SEQ_TRANSFER_DONE:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 5000)
+      {
+        ineedmd_led_pattern(TRANSFER_DONE_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(TRANSFER_DONE_ON);
+      }
       break;
     case LED_SEQ_STORAGE_WARNING:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 5000)
+      {
+        ineedmd_led_pattern(STORAGE_WARNING_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(STORAGE_WARNING_ON);
+      }
       break;
     case LED_SEQ_ERASING:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 4000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+      else if(uiTick_diff >= 2000)
+      {
+        ineedmd_led_pattern(ERASING_OFF);
+      }
+      else
+      {
+        ineedmd_led_pattern(ERASING_ON);
+      }
       break;
     case LED_SEQ_ERASE_DONE:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 1000)
+      {
+        ineedmd_led_pattern(ERASE_DONE_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(ERASE_DONE_ON);
+      }
       break;
     case LED_SEQ_DFU_MODE:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 5000)
+      {
+        ineedmd_led_pattern(DFU_MODE_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(DFU_MODE_ON);
+      }
       break;
     case LED_SEQ_MV_CAL:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 500)
+      {
+        ineedmd_led_pattern(MV_CAL_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(MV_CAL_ON);
+      }
       break;
     case LED_SEQ_TRI_WVFRM:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 500)
+      {
+        ineedmd_led_pattern(TRI_WVFRM_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(TRI_WVFRML_ON);
+      }
       break;
     case LED_SEQ_REBOOT:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 1000)
+      {
+        ineedmd_led_pattern(REBOOT_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(REBOOT_ON);
+      }
       break;
     case LED_SEQ_HIBERNATE:
       break;
@@ -240,6 +500,7 @@ ERROR_CODE eIneedmd_UI_process(void)
     case LED_SEQ_COM_BUS_TEST:
       break;
     case LED_SEQ_CPU_CLOCK_TEST:
+
       break;
     case LED_SEQ_FLASH_TEST:
       break;
