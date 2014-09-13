@@ -96,8 +96,8 @@
 #define USB_THREE_SEC_DATA_CONN_DELAY   3000
 
 //HW delay defines
-//#define HW_DELAY_MSDIV 1000
-#define HW_DELAY_MSDIV 3000
+#define HW_DELAY_MSDIV 1000
+//#define HW_DELAY_MSDIV 3000
 
 /******************************************************************************
 * variables
@@ -311,8 +311,7 @@ const tUSBBuffer g_sTxBuffer =
 volatile bool bWaveform_timer_tick = false;
 
 //HW delay variables
-uint32_t uiHW_delay_Prev_Sys_speed = 0;
-uint32_t uiHW_delay_Sys_speed_1ms_ticks = 0;
+//uint32_t uiSys_clock_rate_ms = 0;
 
 //system speed variables
 uint16_t uiCurrent_sys_speed = 0;
@@ -1470,7 +1469,7 @@ ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
   MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, uiBaud_rate_to_set, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
   MAP_UARTEnable(INEEDMD_RADIO_UART);
 
-  iHW_delay(500);
+  iHW_delay(100);
 
 #ifdef DEBUG
   vDEBUG_BSB_UART_BAUD("BSB uart baud set to:");
@@ -2179,7 +2178,7 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
     {
       uiTimeout += iHW_delay(1);
       bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
-      if(uiTimeout >= 200) //todo: MAGIC Number!
+      if(uiTimeout >= 100) //todo: MAGIC Number!
       {
         eEC = ER_TIMEOUT;
         break;
@@ -3550,21 +3549,18 @@ int
 iHW_delay(uint32_t uiDelay)
 {
   int i;
-  uint32_t uiCurrent_Sys_speed = 0;
+  uint32_t uiSys_clock_rate_ms = 0;
 
-  //Get the current sys speed
-  uiCurrent_Sys_speed = MAP_SysCtlClockGet();
-  if(uiCurrent_Sys_speed != uiHW_delay_Prev_Sys_speed)
-  {
-    uiHW_delay_Prev_Sys_speed = uiCurrent_Sys_speed;
-    //set the number of ticks for 1ms
-    uiHW_delay_Sys_speed_1ms_ticks = uiHW_delay_Prev_Sys_speed / HW_DELAY_MSDIV;
-  }
+  //Get the current sys clock rate
+  uiSys_clock_rate_ms = MAP_SysCtlClockGet();
+//  if()
+
+  //set the rate to a millisecond value
+  uiSys_clock_rate_ms = uiSys_clock_rate_ms / HW_DELAY_MSDIV;
 
   for(i = 0; i < uiDelay; i++)
   {
-    MAP_SysCtlDelay(uiHW_delay_Sys_speed_1ms_ticks);
-//    vDEBUG_GPIO_TOGGLE_1();
+    MAP_SysCtlDelay(uiSys_clock_rate_ms);
   }
 
   return i;

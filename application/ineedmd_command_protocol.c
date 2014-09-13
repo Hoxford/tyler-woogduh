@@ -742,13 +742,12 @@ void ParseFrame(void *pt)
         {
           printf("Performing DFU...");
           ineedmd_send_ack();
-          //ineedmd_led_pattern(DFU_MODE);
-          //todo proper delay sleep_for_tenths(50);
-          printf("INMD cmnd proto SYS HALT, REQ_FOR_DFU LED not implemented yet");while(1){};
+          eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_ACTUAL_DFU, SPEAKER_SEQ_NONE, true);
+          iHW_delay(500); //todo MAGIC NUMBER
+
           check_for_update();
-          //ineedmd_led_pattern(REBOOT);
-          printf("INMD cmnd proto SYS HALT, REBOOT not implemented yet");while(1){};
-          //todo proper delay sleep_for_tenths(50);
+          eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_REBOOT, SPEAKER_SEQ_NONE, true);
+          iHW_delay(500); //todo MAGIC NUMBER
           ineedmd_watchdog_doorbell();
           //TODO: add dfu entry
         }

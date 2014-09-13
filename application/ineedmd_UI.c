@@ -431,6 +431,10 @@ ERROR_CODE eIneedmd_UI_request(uint8_t uiUser_Interface, INMD_UI_LED_SEQ eUI_LED
         }
         break;
       case LED_SEQ_ACTUAL_DFU:
+        //DFU leq sequence stays on until system reset
+        ineedmd_led_pattern(ACTUAL_DFU);
+        ineedmd_led_pattern(ACTUAL_DFU_ON);
+        eUI_LED_Seq = LED_SEQ_ACTUAL_DFU;
         break;
       default:
         vDEBUG_INMD_UI_REQ("INMD ui req SYS HALT, unknown LED request");
