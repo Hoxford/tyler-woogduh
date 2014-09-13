@@ -37,6 +37,11 @@
 #define INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE 0x40
 #define INEEDMD_LED_PROGRAM_ALL_ILEVEL  0x60
 #define INEEDMD_LED_PROGRAM_ALL_PWM     0x80
+#define LED_1_SEC_DELAY                      330
+#define LED_5_SEC_DELAY                      1650
+#define LED_2_SEC_DELAY                      660
+#define LED_0_5_SEC_DELAY                    165
+
 
 /******************************************************************************
 * variables
