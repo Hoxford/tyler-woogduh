@@ -502,7 +502,6 @@ int main(void)
     iIneedMD_radio_process();
     iIneedmd_command_process();
     iIneedmd_waveform_process();
-//    ineedmd_led_pattern(ledState);
     eClock_process();
     eIneedmd_UI_process();
     check_battery();

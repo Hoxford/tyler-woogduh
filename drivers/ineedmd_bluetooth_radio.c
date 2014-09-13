@@ -252,8 +252,7 @@
 #define BG_SEND_SIZE_SMALL   32
 
 //Delay times
-#define TIMEOUT_RFD_CTS_HL   150
-#define ONESEC_DELAY         100
+#define TIMEOUT_RFD_CTS_HL   2000
 
 /******************************************************************************
 * variables
@@ -1083,6 +1082,7 @@ ERROR_CODE eIneedmd_radio_rfd(void)
   #define vDEBUG_RDIO_RFD(a)
 #endif
   ERROR_CODE eEC = ER_FAIL;
+  ERROR_CODE eEC_radio_in_mux_mode = ER_NO;
 #define RFD_SEND_SZ  64
   char cRFD_Send_buff[RFD_SEND_SZ];
 #define RFD_RCV_SZ   128
@@ -1103,7 +1103,6 @@ ERROR_CODE eIneedmd_radio_rfd(void)
   eRadio_clear_rcv_buffer();
 
   ineedmd_radio_reset();
-
   eEC = eGet_Radio_CTS_status();
   while(eEC == ER_FALSE)
   {
@@ -1116,7 +1115,10 @@ ERROR_CODE eIneedmd_radio_rfd(void)
   }
 
   //attempt to get the radio out of mux mode if it is in it
-  eBT_RDIO_mux_mode_disable();
+  if(eEC_radio_in_mux_mode == ER_YES)
+  {
+    eBT_RDIO_mux_mode_disable();
+  }else{/*do nothing*/}
 
   //SET RESET, reset to factory defaults
   //
@@ -1835,6 +1837,7 @@ int  iIneedMD_radio_setup(void)
           {
             //clear any potential uart traffic
             eRadio_clear_rcv_buffer();
+            uiBaud_index++;
             eEC = ER_FAIL;
           }else{/*do nothing*/}
         }
