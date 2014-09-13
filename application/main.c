@@ -423,6 +423,10 @@ ERROR_CODE ineedmd_ekg_connected(void)
   {
     return ER_CONNECTED;
   }
+  else if(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT)
+  {
+    return ER_CONNECTED;
+  }
   else
   {
     return ER_NOT_CONNECTED;

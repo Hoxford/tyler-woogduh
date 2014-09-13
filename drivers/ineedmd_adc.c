@@ -209,7 +209,13 @@ uint32_t ineedmd_adc_Register_Read(uint32_t address)
 
 	//read FIFO
 	uint32_t rxData;
-	SSIDataGet(INEEDMD_ADC_SPI, &rxData);
+//	for(i = 0; i < 100; i++)
+//	{
+//	  SSIDataGetNonBlocking(INEEDMD_ADC_SPI, &rxData)
+//	  rxData &= 0x00FF
+//	}
+//	SSIDataGet(INEEDMD_ADC_SPI, &rxData);
+	SSIDataGetNonBlocking(INEEDMD_ADC_SPI, &rxData);
 	rxData &= 0x00FF;
 
 	//when done set the CS high
