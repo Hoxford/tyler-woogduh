@@ -583,149 +583,150 @@ void ParseFrame(void *pt)
             case INMD_LED_CMND_LED_OFF:
               printf("LED_OFF");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_POWER_ON_BATT_LOW:
               printf("POWER_ON_BATT_LOW");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_ON_BATT_LOW, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_ON_BATT_LOW, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_POWER_ON_BATT_GOOD:
               printf("POWER_ON_BATT_GOOD");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_ON_BATT_GOOD, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_ON_BATT_GOOD, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_BATT_CHARGING:
               printf("BATT_CHARGING");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BATT_CHARGING, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BATT_CHARGING, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_BATT_CHARGING_LOW:
               printf("BATT_CHARGING_LOW");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BATT_CHARGING_LOW, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BATT_CHARGING_LOW, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_LEAD_LOOSE:
               printf("LEAD_LOOSE");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_LEAD_LOOSE, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_LEAD_LOOSE, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_LEAD_GOOD_UPLOADING:
               printf("LEAD_GOOD_UPLOADING");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_LEAD_GOOD_UPLOADING, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_LEAD_GOOD_UPLOADING, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_DIG_FLATLINE:
               printf("DIG_FLATLINE");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_DIG_FLATLINE, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_DIG_FLATLINE, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_BT_CONNECTED:
               printf("BT_CONNECTED");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BT_CONNECTED, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BT_CONNECTED, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_BT_ATTEMPTING:
               printf("BT_ATTEMPTING");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BT_ATTEMPTING, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BT_ATTEMPTING, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_BT_FAILED:
               printf("BT_FAILED");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BT_FAILED, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_BT_FAILED, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_USB_CONNECTED:
               printf("USB_CONNECTED");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_USB_CONNECTED, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_USB_CONNECTED, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_USB_FAILED:
               printf("USB_FAILED");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_USB_FAILED, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_USB_FAILED, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_DATA_TRANSFER:
               printf("DATA_TRANSFER");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_DATA_TRANSFER, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_DATA_TRANSFER, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_TRANSFER_DONE:
               printf("TRANSFER_DONE");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_TRANSFER_DONE, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_TRANSFER_DONE, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_STORAGE_WARNING:
               printf("STORAGE_WARNING");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_STORAGE_WARNING, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_STORAGE_WARNING, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_ERASING:
               printf("ERASING");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_ERASING, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_ERASING, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_ERASE_DONE:
               printf("ERASE_DONE");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_ERASE_DONE, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_ERASE_DONE, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_DFU_MODE:
               printf("DFU_MODE");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_DFU_MODE, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_DFU_MODE, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_MV_CAL:
               printf("MV_CAL");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_MV_CAL, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_MV_CAL, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_TRI_WVFRM:
               printf("TRI_WVFRM");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_TRI_WVFRM, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_TRI_WVFRM, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_REBOOT:
               printf("REBOOT");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_REBOOT, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_REBOOT, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_HIBERNATE:
               printf("HIBERNATE");
               ineedmd_send_ack();
               //TODO: add battery state check
               //ineedmd_led_pattern(HIBERNATE);
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE, SPEAKER_SEQ_NONE, true);
+              //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE, SPEAKER_SEQ_NONE, false);
+              check_battery();
               break;
             case INMD_LED_CMND_LEADS_ON:
               printf("LEADS_ON");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_LEADS_ON, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_LEADS_ON, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_MEMORY_TEST:
               printf("MEMORY_TEST");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_MEMORY_TEST, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_MEMORY_TEST, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_COM_BUS_TEST:
               printf("COM_BUS_TEST");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_COM_BUS_TEST, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_COM_BUS_TEST, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_CPU_CLOCK_TEST:
               printf("CPU_CLOCK_TEST");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_CPU_CLOCK_TEST, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_CPU_CLOCK_TEST, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_FLASH_TEST:
               printf("FLASH_TEST");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_FLASH_TEST, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_FLASH_TEST, SPEAKER_SEQ_NONE, false);
               break;
             case INMD_LED_CMND_TEST_PASS:
               printf("TEST_PASS");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_TEST_PASS, SPEAKER_SEQ_NONE, true);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_UP_GOOD, SPEAKER_SEQ_NONE, false);
               break;
             default:
               printf("Unrecongnized Sequence - No Soup For You");

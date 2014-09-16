@@ -22,6 +22,7 @@
 #include "utils_inc/error_codes.h"
 #include "app_inc/ineedmd_watchdog.h"
 #include "ineedmd_led.h"
+#include "app_inc/ineedmd_UI.h"
 #include "ineedmd_adc.h"
 #include "board.h"
 
@@ -110,18 +111,22 @@ check_battery(void)
       {
         //the battery voltage is greater then the low voltage value, sys ok
         bIs_batt_critical = false;
+        //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_GOOD, SPEAKER_SEQ_NONE, false);
+
         //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_GOOD);
       }
       else if(uiBatt_voltage > BATTERY_CRITICAL_ADC_VALUE)
       {
         //the battery voltage is greater then the critical voltage value, sys warning ok
         bIs_batt_critical = false;
+        //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_MEDIUM, SPEAKER_SEQ_NONE, false);
         //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_LOW);
       }
       else
       {
         //the battery is at or below the critical voltage value, sys warning critical!
         bIs_batt_critical = true;
+        //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_LOW, SPEAKER_SEQ_NONE, false);
         //todo: led pattern needs to be critical voltage value
         //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_LOW);
       }
