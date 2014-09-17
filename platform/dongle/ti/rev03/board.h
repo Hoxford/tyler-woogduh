@@ -217,6 +217,8 @@ void        write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
 int         set_system_speed (unsigned int);
 ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed);
 void        Set_Timer0_Sleep();
+ERROR_CODE  eBSP_Timer0_Int_Serivce(uint32_t uiInt_Status);
+ERROR_CODE  eBSP_Did_Timer0_Expire(bool bClear_status);
 void        vSystick_int_service(void);
 ERROR_CODE  eBSP_Get_Current_ms_count(uintmax_t * uiCurrent_ms_count);
 ERROR_CODE  eBSP_Get_Current_ms(uint16_t * uiCurrent_ms);

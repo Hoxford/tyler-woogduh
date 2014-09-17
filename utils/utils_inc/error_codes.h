@@ -37,6 +37,8 @@ typedef enum
     ER_NO,
     ER_ENABLED,
     ER_NOT_ENABLED,
+    ER_ON,
+    ER_OFF,
     ER_SET,
     ER_NOT_SET,
     ER_CLEAR,

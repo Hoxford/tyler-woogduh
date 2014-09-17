@@ -43,6 +43,7 @@
 #include "app_inc/ineedmd_UI.h"
 #include "app_inc/ineedmd_watchdog.h"
 #include "app_inc/ineedmd_waveform.h"
+#include "app_inc/ineedmd_power_modes.h"
 
 //*****************************************************************************
 // defines
@@ -50,6 +51,9 @@
 #define WD_TIMEOUT  5  //Watch dog time out value in secons
 
 #define iIneedmd_connection_process  iIneedMD_radio_process
+
+#define ALIVE_ASLEEP 1
+#define ALIVE_AWAKE  2
 /*
 #define LEAD_SHORT                   0x82FF
 #define LEAD_SHORT_RESET             0xA0FF
@@ -63,8 +67,10 @@
 unsigned char ledState = 0;
 
 #ifdef DEBUG
-uintmax_t  uiIm_alive_timer;
-bool       bDid_im_alive = false;
+uintmax_t  uiIm_awake_timer;
+bool       bDid_im_awake = false;
+uintmax_t  uiIm_asleep_timer;
+bool       bDid_im_asleep = false;
 #endif
 
 //*****************************************************************************
@@ -83,205 +89,63 @@ sFileSys sFile_Sys;
 //*****************************************************************************
 // private function declarations
 //*****************************************************************************
-void switch_on_adc_for_lead_detection(void);
+//void switch_on_adc_for_lead_detection(void);
 void check_for_update(void);
 
 //*****************************************************************************
 // external functions
 //*****************************************************************************
-//extern void PowerInitFunction(void);
+
+/******************************************************************************
+* private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+#ifdef DEBUG
+void vDEBUG_IM_ALIVE(uint8_t uiAsleep_Awake)
+{
+  eClock_process();
+  if(uiAsleep_Awake == ALIVE_ASLEEP)
+  {
+    eClock_get_time(&uiIm_asleep_timer);
+    uiIm_asleep_timer &= 0x00000000000FF000;
+    if(uiIm_asleep_timer >= 0x0001E000)
+    {
+      if(bDid_im_asleep == false)
+      {
+        vDEBUG("I'm asleep and running");
+        bDid_im_asleep = true;
+      }else{/*do nothing*/}
+    }
+    else
+    {
+      bDid_im_asleep = false;
+    }
+  }
+  else //ALIVE_AWAKE
+  {
+    eClock_get_time(&uiIm_awake_timer);
+    uiIm_awake_timer &= 0x00000000000FF000;
+    if(uiIm_awake_timer >= 0x0001E000)
+    {
+      if(bDid_im_awake == false)
+      {
+        vDEBUG("I'm awake and running");
+        bDid_im_awake = true;
+      }else{/*do nothing*/}
+    }
+    else
+    {
+      bDid_im_awake = false;
+    }
+  }
+}
+#else
+#define vDEBUG_IM_ALIVE(n)
+#endif
 
 //*****************************************************************************
 // functions
 //*****************************************************************************
 
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void switch_on_adc_for_lead_detection(void)
-{
-  //switch on the SPI port
-  EKGSPIEnable();
-
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
-
-  //when done set the CS high
-  ineedmd_adc_Start_Low();
-  //power on ADC, disable continuous conversions
-  ineedmd_adc_Power_On();
-  //turn off continuous conversion for register read/writes
-  ineedmd_adc_Stop_Continuous_Conv();
-
-  //id = INEEDMD_ADC_Get_ID();
-  ineedmd_adc_Enable_Lead_Detect();
-  //increase comparator threshold for lead off detect
-  uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
-  ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1));
-  //check that we can read the device if not reset
-
-  //start conversions
-  ineedmd_adc_Start_Internal_Reference();
-  ineedmd_adc_Start_High();
-}
-
-
-void hold_until_short_removed(void)
-{
-  ERROR_CODE eEC = ER_OK;
-  uint32_t uiLead_check = 0;
-  uint16_t uiPrevious_speed = 0;
-
-  eEC = eGet_system_speed(&uiPrevious_speed);
-  if(eEC == ER_NOT_SET)
-  {
-    uiPrevious_speed = INEEDMD_CPU_SPEED_FULL_INTERNAL;
-    set_system_speed (uiPrevious_speed);
-  }else{/*nothing*/}
-
-  switch_on_adc_for_lead_detection();
-
-  uiLead_check = ineedmd_adc_Check_Lead_Off();
-
-  while(uiLead_check == LEAD_SHORT_SLEEP)
-  {
-      //disable the spi port
-    EKGSPIDisable();
-    //power down the ADC
-    ineedmd_adc_Power_Off();
-
-    //
-    // Set the Timer0B load value to 10s.
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    eMaster_int_enable();
-    MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-    MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
-
-    //
-    // Enable processor interrupts.
-    //todo: redundant?
-    eMaster_int_enable();
-    //
-    // Configure the Timer0 interrupt for timer timeout.
-    //
-    MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-    //
-    // Enable the Timer0A interrupt on the processor (NVIC).
-    //
-    MAP_IntEnable(INT_TIMER0A);
-    //
-    // clocks down the processor to REALLY slow ( 500khz) and
-    //
-    set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
-    //
-    // Enable Timer0(A)
-    //
-    MAP_TimerEnable(TIMER0_BASE, TIMER_A);
-
-    MAP_SysCtlSleep();
-
-    //comming out we turn the processor all the way up
-    set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
-
-    MAP_TimerDisable(TIMER0_BASE, TIMER_A);
-    MAP_IntDisable(INT_TIMER0A);
-    eMaster_int_disable();
-
-    switch_on_adc_for_lead_detection();
-    iHW_delay(100);
-
-    uiLead_check = ineedmd_adc_Check_Lead_Off();
-  }
-
-  //re-enable master interrupts
-  eMaster_int_enable();
-
-  //set the system speed to what it was originally
-  set_system_speed (uiPrevious_speed);
-}
-
-/* ***************************************************
- * sleeps for 10seconds on low power mode
- *
- * this is designed for the led4 sleep with a flash of
- * the battery state while in sleep
- *****************************************************/
-void ineedmd_sleep(void)
-{
-  ERROR_CODE eEC = ER_OK;
-
-  uint16_t uiPrevious_speed = 0;
-
-  eEC = eGet_system_speed(&uiPrevious_speed);
-  if(eEC == ER_NOT_SET)
-  {
-    uiPrevious_speed = INEEDMD_CPU_SPEED_FULL_INTERNAL;
-    set_system_speed (uiPrevious_speed);
-  }else{/* do nothing */}
-
-//  ineedmd_led_pattern(LED_OFF);
-  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, true);
-
-  //disable the spi port
-  EKGSPIDisable();
-  //power down the ADC
-  ineedmd_adc_Power_Off();
-  iRadio_Power_Off();
-
-
-  //
-  // Set the Timer0B load value to 10s.
-  //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-  eMaster_int_enable();
-  MAP_TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
-  MAP_TimerLoadSet(TIMER0_BASE, TIMER_A, 5000000 );
-
-  //
-  // Enable processor interrupts.
-  //todo: redundant?
-  eMaster_int_enable();
-  //
-  // Configure the Timer0 interrupt for timer timeout.
-  //
-  MAP_TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-  //
-  // Enable the Timer0A interrupt on the processor (NVIC).
-  //
-  MAP_IntEnable(INT_TIMER0A);
-  //
-  // clocks down the processor to REALLY slow ( 500khz) and
-  //
-  set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
-  //
-  // Enable Timer0(A)
-  //
-  MAP_TimerEnable(TIMER0_BASE, TIMER_A);
-
-  MAP_SysCtlSleep();
-
-  //comming out we turn the processor all the way up
-  set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
-
-  MAP_TimerDisable(TIMER0_BASE, TIMER_A);
-  MAP_IntDisable(INT_TIMER0A);
-  eMaster_int_disable();
-
-  switch_on_adc_for_lead_detection();
-  iRadio_Power_On();
-  iHW_delay(100);
-  check_battery();
-
-
-  //re-enable master interrupts
-  eMaster_int_enable();
-
-  //set the system speed to what it was originally
-  set_system_speed (uiPrevious_speed);
-}
 //*****************************************************************************
 // name:
 // description:
@@ -415,15 +279,19 @@ void check_for_reset(void)
 }
 
 //check for the glove status
+//if there is a glove connected we return a connection else we return a not connected
 ERROR_CODE ineedmd_ekg_connected(void)
 {
-  //if there is a glove connected we return a connection else we return a not connected
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiLead_status = 0;
 
-  if(ineedmd_adc_Check_Lead_Off() == LEAD_ALL_SHORTED)
+  eEC = eIneedmd_adc_Power_status();
+  if(eEC == ER_OFF)
   {
-    return ER_CONNECTED;
+    ineedmd_adc_Power_On();
   }
-  else if(ineedmd_adc_Check_Lead_Off() == LEAD_SHORT)
+  uiLead_status = ineedmd_adc_Check_Lead_Off();
+  if(uiLead_status == LEAD_ALL_SHORTED)
   {
     return ER_CONNECTED;
   }
@@ -501,6 +369,8 @@ int main(void)
     {
       ineedmd_watchdog_pat();
       ineedmd_sleep();
+      check_battery();
+      vDEBUG_IM_ALIVE(ALIVE_ASLEEP);
     }
     ineedmd_watchdog_pat();
     iIneedMD_radio_process();
@@ -511,22 +381,7 @@ int main(void)
     check_battery();
 //    check_for_update();
 //    check_for_reset();
-#ifdef DEBUG
-    eClock_get_time(&uiIm_alive_timer);
-    uiIm_alive_timer &= 0x00000000000FF000;
-    if(uiIm_alive_timer >= 0x0001E000)
-    {
-      if(bDid_im_alive == false)
-      {
-        vDEBUG_MAIN("I'm alive and running");
-        bDid_im_alive = true;
-      }else{/*do nothing*/}
-    }
-    else
-    {
-      bDid_im_alive = false;
-    }
-#endif
+    vDEBUG_IM_ALIVE(ALIVE_AWAKE);
   }
 
   //todo debug and possible reset

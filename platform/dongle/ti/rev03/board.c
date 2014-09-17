@@ -307,7 +307,7 @@ const tUSBBuffer g_sTxBuffer =
 //end USB variables
 ///////////////////////////////////////////////////////////////////////////////
 
-//Timer variables
+//Waverform timer variables
 volatile bool bWaveform_timer_tick = false;
 
 //HW delay variables
@@ -331,6 +331,9 @@ bool bIs_Batt_measACD_enabled = false;
 
 //LED and LED I2C variables
 bool bIs_LEDI2D_Enabled = false;
+
+//System sleep variables
+bool bSystem_sleep_timer_expired = false;
 
 //*****************************************************************************
 // The control table used by the uDMA controller. This table must be aligned to a 1024 byte boundary.
@@ -1008,6 +1011,51 @@ Set_Timer0_Sleep()
 
 /******************************************************************************
 * name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE  eBSP_Timer0_Int_Serivce(uint32_t uiInt_Status)
+{
+  ERROR_CODE eEC = ER_OK;
+  if((uiInt_Status & TIMER_TIMA_TIMEOUT) == TIMER_TIMA_TIMEOUT)
+  {
+    bSystem_sleep_timer_expired = true;
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
+ERROR_CODE  eBSP_Did_Timer0_Expire(bool bClear_status)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  bool bPrevious_System_sleep_timer_expired = bSystem_sleep_timer_expired;
+
+  if(bClear_status == true)
+  {
+    bSystem_sleep_timer_expired = false;
+  }
+
+  if(bPrevious_System_sleep_timer_expired == true)
+  {
+    eEC = ER_TRUE;
+  }
+  else
+  {
+    eEC = ER_FALSE;
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name:
 * description: services the sys tick interrupt that is proced every ms
 * param description:
 * return value description:
@@ -1447,7 +1495,7 @@ EKGSPIDisable(void)
 ******************************************************************************/
 ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
 {
-#define DEBUG_eBSP_Set_radio_uart_baud
+//#define DEBUG_eBSP_Set_radio_uart_baud
 #ifdef DEBUG_eBSP_Set_radio_uart_baud
   #define  vDEBUG_BSB_UART_BAUD  vDEBUG
 #else
@@ -1472,7 +1520,7 @@ ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
 
   iHW_delay(500);
 
-#ifdef DEBUG
+#ifdef DEBUG_eBSP_Set_radio_uart_baud
   vDEBUG_BSB_UART_BAUD("BSB uart baud set to:");
   if(uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_57600)
     vDEBUG_BSB_UART_BAUD("57600");
@@ -1672,7 +1720,7 @@ int iRadio_Power_On(void)
 
 //*****************************************************************************
 // name: iRadioPowerOff
-// description: sets the gpio pin to the radio high to turn on the radio
+// description: sets the gpio pin to the radio low to turn the radio off
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
@@ -2224,7 +2272,7 @@ int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 //*****************************************************************************
 ERROR_CODE  eRadio_clear_rcv_buffer(void)
 {
-#define DEBUG_eRadio_clear_rcv_buffer
+//#define DEBUG_eRadio_clear_rcv_buffer
 #ifdef DEBUG_eRadio_clear_rcv_buffer
   #define  vDEBUG_RDIO_RCV_CLR  vDEBUG
 #else
@@ -3551,14 +3599,20 @@ iHW_delay(uint32_t uiDelay)
 {
   int i;
   uint32_t uiCurrent_Sys_speed = 0;
-
   //Get the current sys speed
   uiCurrent_Sys_speed = MAP_SysCtlClockGet();
   if(uiCurrent_Sys_speed != uiHW_delay_Prev_Sys_speed)
   {
     uiHW_delay_Prev_Sys_speed = uiCurrent_Sys_speed;
-    //set the number of ticks for 1ms
-    uiHW_delay_Sys_speed_1ms_ticks = uiHW_delay_Prev_Sys_speed / HW_DELAY_MSDIV;
+    if(uiCurrent_Sys_speed == 500000)
+    {
+      uiHW_delay_Sys_speed_1ms_ticks = 68;
+    }
+    else
+    {
+      //set the number of ticks for 1ms
+      uiHW_delay_Sys_speed_1ms_ticks = uiHW_delay_Prev_Sys_speed / HW_DELAY_MSDIV;
+    }
   }
 
   for(i = 0; i < uiDelay; i++)

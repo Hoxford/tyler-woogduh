@@ -285,11 +285,9 @@
 //#define ADS1198_ID              0xB6
 
 
-
-extern void ineedmd_adc_Hard_Reset();
 extern void ineedmd_adc_Stop_Continuous_Conv();
 extern void ineedmd_adc_Start_Continuous_Conv();
-extern void ineedmd_adc_Power_On();
+
 extern void ineedmd_adc_Send_Command(uint32_t command);
 extern uint32_t ineedmd_adc_Register_Read(uint32_t address);
 extern void ineedmd_adc_Register_Write(uint32_t address, uint32_t value);
@@ -302,9 +300,12 @@ extern void ineedmd_adc_Receive_Data(char* data);
 
 extern int ineedmd_adc_gain_set(int gain_position);
 extern int ineedmd_adc_mux_set(int mux_position);
-extern void ineedmd_adc_Power_Off();
+void ineedmd_adc_Power_Off();
+void ineedmd_adc_Power_On();
+ERROR_CODE eIneedmd_adc_Power_status(void);
 
 extern uint32_t ineedmd_adc_Get_ID();
+       void     switch_on_adc_for_lead_detection(void);
 extern uint32_t ineedmd_adc_Check_Lead_Off();
 extern uint32_t ineedmd_adc_Check_RLD_Lead();
 extern int ineedmd_adc_Check_Update();

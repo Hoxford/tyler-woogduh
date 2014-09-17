@@ -68,6 +68,7 @@
 #define PIO_SET           "PIO SET %.2x %.2x\r\n"
 #define PIO_SETDIR        "PIO SETDIR %.2x %.2x\r\n"
 #define PIO_SETBIAS       "PIO SETBIAS %.2x %.2x\r\n"
+  #define PIO_MASK_NONE   0x0000
   #define PIO_MASK_PIO0   0x0001
   #define PIO_MASK_PIO1   0x0002
   #define PIO_MASK_PIO2   0x0004
@@ -237,6 +238,12 @@
   #define SET_CONTROL_MUX_MODE_ENABLE   1
     #define SET_CONTROL_MUX_MODE  SET_CONTROL_MUX_MODE_ENABLE
 #define SET_CONTROL_MUX_HEX_DISABLE
+#define SET_CONTROL_VREGEN  "SET CONTROL VREGEN %d %x\r\n"
+  #define SET_CONTROL_VREGEN_MODE_0  0
+  #define SET_CONTROL_VREGEN_MODE_1  1
+  #define SET_CONTROL_VREGEN_MODE_2  2
+    #define SET_CONTROL_VREGE_MODE SET_CONTROL_VREGEN_MODE_1
+  #define SET_CONTROL_VREGEN_PIOMASK  PIO_MASK_PIO1
 #define SSP_CONFIRM  "\r\nSSP CONFIRM %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY  "\r\nSSP PASSKEY %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY_PARSE  "%s %s %hhx %c %hhx %c %hhx %c %hhx %c %hhx %c %hhx %d"
@@ -1583,7 +1590,7 @@ ERROR_CODE iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size
 ******************************************************************************/
 int  iIneedMD_radio_setup(void)
 {
-#define DEBUG_iIneedMD_radio_setup
+//#define DEBUG_iIneedMD_radio_setup
 #ifdef DEBUG_iIneedMD_radio_setup
   #define  vDEBUG_RDIO_SETUP  vDEBUG
 #else
@@ -1735,11 +1742,11 @@ int  iIneedMD_radio_setup(void)
         //Change baud rate to find the one the radio is using
         vDEBUG_RDIO_SETUP("Rdio setup, no response to SET RESET, changing baud rate");
         if(uiBaud_index == 0)
-          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_57600;
-        else if(uiBaud_index == 1)
-          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_76800;
-        else if(uiBaud_index == 2)
           uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_115200;
+        else if(uiBaud_index == 1)
+          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_57600;
+        else if(uiBaud_index == 2)
+          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_76800;
         else if(uiBaud_index == 3)
           uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_230400;
         else if(uiBaud_index == 4)
@@ -1962,6 +1969,16 @@ int  iIneedMD_radio_setup(void)
       vRADIO_ECHO(cSend_buff);
     }else{/*do nothing*/}
 
+    //SET CONTROL VREGEN, use the VREG_ENA pin to turn radio power on or off
+    //
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_VREGEN, SET_CONTROL_VREGE_MODE, SET_CONTROL_VREGEN_PIOMASK);
+    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("Rdio setup, SET CONTROL VREGEN, use the VREG_ENA pin");
+      vRADIO_ECHO(cSend_buff);
+    }else{/*do nothing*/}
 
     //SET CONTROL CONFIG, GET the radio config
     //

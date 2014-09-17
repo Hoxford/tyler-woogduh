@@ -60,6 +60,12 @@ ERROR_CODE eIneedmd_UI_process_init(void)
   return eEC;
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description:
+* return value description:
+******************************************************************************/
 ERROR_CODE eIneedmd_UI_request(uint8_t uiUser_Interface, INMD_UI_LED_SEQ eUI_LED_Sequence, INMD_UI_SPEAKER_SEQ eUI_Spkr_Sequence, bool bDo_immediatly)
 {
 #define DEBUG_eIneedmd_UI_request
@@ -334,15 +340,39 @@ ERROR_CODE eIneedmd_UI_request(uint8_t uiUser_Interface, INMD_UI_LED_SEQ eUI_LED
           eClock_get_total_runtime(&uiTimer);
         }
         break;
-      case LED_SEQ_HIBERNATE:
+      case LED_SEQ_HIBERNATE_GOOD:
         if(bDo_immediatly == true)
         {
-          ineedmd_led_pattern(HIBERNATE_BLOCKING);
+          ineedmd_led_pattern(HIBERNATE_GOOD_BLOCKING);
         }
         else
         {
-          ineedmd_led_pattern(HIBERNATE);
-          eUI_LED_Seq = LED_SEQ_HIBERNATE;
+          ineedmd_led_pattern(HIBERNATE_GOOD);
+          eUI_LED_Seq = LED_SEQ_HIBERNATE_GOOD;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_HIBERNATE_MEDIUM:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(HIBERNATE_MEDIUM_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(HIBERNATE_MEDIUM);
+          eUI_LED_Seq = LED_SEQ_HIBERNATE_MEDIUM;
+          eClock_get_total_runtime(&uiTimer);
+        }
+        break;
+      case LED_SEQ_HIBERNATE_LOW:
+        if(bDo_immediatly == true)
+        {
+          ineedmd_led_pattern(HIBERNATE_LOW_BLOCKING);
+        }
+        else
+        {
+          ineedmd_led_pattern(HIBERNATE_LOW);
+          eUI_LED_Seq = LED_SEQ_HIBERNATE_LOW;
           eClock_get_total_runtime(&uiTimer);
         }
         break;
@@ -484,10 +514,13 @@ ERROR_CODE eIneedmd_UI_process(void)
       break;
     case LED_SEQ_POWER_ON_BATT_LOW:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 1000)
+      if(uiTick_diff >= 2000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+      else if(uiTick_diff >= 1000)
       {
         ineedmd_led_pattern(POWER_ON_BATT_LOW_OFF);
-        eUI_LED_Seq = LED_SEQ_NONE;
       }
       else
       {
@@ -495,31 +528,12 @@ ERROR_CODE eIneedmd_UI_process(void)
       }
       break;
     case LED_SEQ_POWER_ON_BATT_GOOD:
-      uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 1000)
-      {
-        ineedmd_led_pattern(BATT_CHARGING_OFF);
-        eUI_LED_Seq = LED_SEQ_NONE;
-      }
-      else
-      {
-        ineedmd_led_pattern(BATT_CHARGING_ON);
-      }
+      bIsSeqRunning = true;
+      ineedmd_led_pattern(POWER_ON_BATT_GOOD_ON);
       break;
     case LED_SEQ_BATT_CHARGING:
-      uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 2000)
-      {
-        uiTimer = uiCurrent_tick;
-      }
-        else if(uiTick_diff >= 1000)
-      {
-          ineedmd_led_pattern(POWER_ON_BATT_GOOD_ON);
-      }
-      else
-      {
-        ineedmd_led_pattern(POWER_ON_BATT_GOOD_ON);
-      }
+      bIsSeqRunning = true;
+      ineedmd_led_pattern(BATT_CHARGING_ON);
       break;
     case LED_SEQ_BATT_CHARGING_LOW:
       uiTick_diff = uiCurrent_tick - uiTimer;
@@ -536,6 +550,7 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(BATT_CHARGING_LOW_ON);
       }
       break;
+
     case LED_SEQ_LEAD_LOOSE:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 4000)
@@ -551,18 +566,23 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(LEAD_LOOSE_ON);
       }
       break;
+
     case LED_SEQ_LEAD_GOOD_UPLOADING:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 2000)
+      if(uiTick_diff >= 4000)
       {
-        ineedmd_led_pattern(LEAD_GOOD_UPLOADING_OFF);
-        eUI_LED_Seq = LED_SEQ_NONE;
+        uiTimer = uiCurrent_tick;
+      }
+        else if(uiTick_diff >= 2000)
+      {
+          ineedmd_led_pattern(LEAD_GOOD_UPLOADING_OFF);
       }
       else
       {
         ineedmd_led_pattern(LEAD_GOOD_UPLOADING_ON);
       }
       break;
+
     case LED_SEQ_DIG_FLATLINE:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 1000)
@@ -578,6 +598,7 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(DIG_FLATLINE_ON);
       }
       break;
+
     case LED_SEQ_BT_CONNECTED:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 5000)
@@ -590,21 +611,55 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(BT_CONNECTED_ON);
       }
       break;
+
     case LED_SEQ_BT_ATTEMPTING:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 2000)
+      if(uiTick_diff >= 10000)
       {
-        uiTimer = uiCurrent_tick;
+        eUI_LED_Seq = LED_SEQ_NONE;
       }
-        else if(uiTick_diff >= 1000)
-      {
-          ineedmd_led_pattern(BT_CONNECTED_OFF);
-      }
+      else if(uiTick_diff >= 9000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
+        }
+      else if(uiTick_diff >= 8000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_ON);
+        }
+      else if(uiTick_diff >= 7000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
+        }
+      else if(uiTick_diff >= 6000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_ON);
+        }
+      else if(uiTick_diff >= 5000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
+        }
+      else if(uiTick_diff >= 4000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_ON);
+        }
+      else if(uiTick_diff >= 3000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
+        }
+      else if(uiTick_diff >= 2000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_ON);
+        }
+      else if(uiTick_diff >= 1000)
+        {
+            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
+        }
       else
       {
-        ineedmd_led_pattern(BT_CONNECTED_ON);
+        ineedmd_led_pattern(BT_ATTEMPTING_ON);
       }
       break;
+
     case LED_SEQ_BT_FAILED:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 5000)
@@ -612,27 +667,12 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(BT_FAILED_OFF);
         eUI_LED_Seq = LED_SEQ_NONE;
       }
-      else if(uiTick_diff >= 4000)
-      {
-        ineedmd_led_pattern(BT_FAILED_ON);
-      }
-      else if(uiTick_diff >= 3000)
-      {
-        ineedmd_led_pattern(BT_FAILED_OFF);
-      }
-      else if(uiTick_diff >= 2000)
-      {
-        ineedmd_led_pattern(BT_FAILED_ON);
-      }
-      else if(uiTick_diff >= 1000)
-      {
-        ineedmd_led_pattern(BT_FAILED_OFF);
-      }
       else
       {
         ineedmd_led_pattern(BT_FAILED_ON);
       }
       break;
+
     case LED_SEQ_USB_CONNECTED:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 5000)
@@ -645,9 +685,10 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(USB_CONNECTED_ON);
       }
       break;
+
     case LED_SEQ_USB_FAILED:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 1000)
+      if(uiTick_diff >= 5000)
       {
         ineedmd_led_pattern(USB_FAILED_OFF);
         eUI_LED_Seq = LED_SEQ_NONE;
@@ -657,6 +698,7 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(USB_FAILED_ON);
       }
       break;
+
     case LED_SEQ_DATA_TRANSFER:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 5000)
@@ -685,6 +727,7 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(DATA_TRANSFER_ON);
       }
       break;
+
     case LED_SEQ_TRANSFER_DONE:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 5000)
@@ -699,7 +742,7 @@ ERROR_CODE eIneedmd_UI_process(void)
       break;
     case LED_SEQ_STORAGE_WARNING:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 5000)
+      if(uiTick_diff >= 10000)
       {
         ineedmd_led_pattern(STORAGE_WARNING_OFF);
         eUI_LED_Seq = LED_SEQ_NONE;
@@ -709,6 +752,7 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(STORAGE_WARNING_ON);
       }
       break;
+
     case LED_SEQ_ERASING:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 4000)
@@ -724,9 +768,10 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(ERASING_ON);
       }
       break;
+
     case LED_SEQ_ERASE_DONE:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 1000)
+      if(uiTick_diff >= 2000)
       {
         ineedmd_led_pattern(ERASE_DONE_OFF);
         eUI_LED_Seq = LED_SEQ_NONE;
@@ -736,42 +781,43 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(ERASE_DONE_ON);
       }
       break;
+
     case LED_SEQ_DFU_MODE:
-      uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 5000)
-      {
-        ineedmd_led_pattern(DFU_MODE_OFF);
-        eUI_LED_Seq = LED_SEQ_NONE;
-      }
-      else
-      {
-        ineedmd_led_pattern(DFU_MODE_ON);
-      }
+      ineedmd_led_pattern(DFU_MODE_ON);
       break;
+
     case LED_SEQ_MV_CAL:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 500)
+      if(uiTick_diff >= 1000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+      else if(uiTick_diff >= 500)
       {
         ineedmd_led_pattern(MV_CAL_OFF);
-        eUI_LED_Seq = LED_SEQ_NONE;
       }
       else
       {
         ineedmd_led_pattern(MV_CAL_ON);
       }
       break;
+
     case LED_SEQ_TRI_WVFRM:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 500)
+      if(uiTick_diff >= 1000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+      else if(uiTick_diff >= 500)
       {
         ineedmd_led_pattern(TRI_WVFRM_OFF);
-        eUI_LED_Seq = LED_SEQ_NONE;
       }
       else
       {
         ineedmd_led_pattern(TRI_WVFRM_ON);
       }
       break;
+
     case LED_SEQ_REBOOT:
       uiTick_diff = uiCurrent_tick - uiTimer;
       if(uiTick_diff >= 1000)
@@ -784,7 +830,43 @@ ERROR_CODE eIneedmd_UI_process(void)
         ineedmd_led_pattern(REBOOT_ON);
       }
       break;
-//    case LED_SEQ_HIBERNATE:
+    case LED_SEQ_HIBERNATE_GOOD:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 500)
+      {
+        ineedmd_led_pattern(HIBERNATE_GOOD_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(HIBERNATE_GOOD_ON);
+      }
+      break;
+    case LED_SEQ_HIBERNATE_MEDIUM:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 500)
+      {
+        ineedmd_led_pattern(HIBERNATE_MEDIUM_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(HIBERNATE_MEDIUM_ON);
+      }
+      break;
+    case LED_SEQ_HIBERNATE_LOW:
+      uiTick_diff = uiCurrent_tick - uiTimer;
+      if(uiTick_diff >= 500)
+      {
+        ineedmd_led_pattern(HIBERNATE_LOW_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
+      }
+      else
+      {
+        ineedmd_led_pattern(HIBERNATE_LOW_ON);
+      }
+      break;
+
 //      break;
 //    case LED_SEQ_LEADS_ON:
 //      break;
@@ -821,24 +903,24 @@ ERROR_CODE eIneedmd_UI_process(void)
       break;
     case LED_SEQ_POWER_UP_GOOD:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 500)
+      if(uiTick_diff >= 2500)
       {
         ineedmd_led_pattern(POWER_UP_GOOD_OFF);
         eUI_LED_Seq = LED_SEQ_NONE;
       }
-      else if(uiTick_diff >= 400)
+      else if(uiTick_diff >= 2000)
       {
          ineedmd_led_pattern(POWER_UP_GOOD_ON);
       }
-      else if(uiTick_diff >= 300)
+      else if(uiTick_diff >= 1500)
       {
         ineedmd_led_pattern(POWER_UP_GOOD_OFF);
       }
-      else if(uiTick_diff >= 200)
+      else if(uiTick_diff >= 1000)
       {
         ineedmd_led_pattern(POWER_UP_GOOD_ON);
       }
-      else if(uiTick_diff >= 100)
+      else if(uiTick_diff >= 500)
       {
         ineedmd_led_pattern(POWER_UP_GOOD_OFF);
       }
@@ -850,6 +932,7 @@ ERROR_CODE eIneedmd_UI_process(void)
       break;
     case LED_SEQ_ACTUAL_DFU:
       break;
+
     default:
       vDEBUG_INMD_UI_PROC("INMD ui proc SYS HALT, unknown LED sequence");
       while(1){};
