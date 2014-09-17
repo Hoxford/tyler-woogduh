@@ -85,6 +85,9 @@ check_battery(void)
   bool bIs_batt_critical = false;
   uint32_t uiBatt_voltage = 0;
   uint16_t uiPrev_sys_speed = 0;
+#ifdef DEBUG
+  uint16_t uiIm_charging_timer = 0;
+#endif
 
 #ifdef RADIO_BAT_LOW_PIN_NOT_IMPLEMENTED
   //check if the radio low battery pin is set
@@ -161,8 +164,6 @@ check_battery(void)
 
     //Turn the system "off"
     //
-    // shut down the LEDs
-    ineedmd_led_pattern(LED_OFF);
     //stop the conversions
     ineedmd_adc_Start_Low();
     //shut down the reference
@@ -180,7 +181,15 @@ check_battery(void)
       iHW_delay(1000);
       uiBatt_voltage = 0;
       measure_battery(&uiBatt_voltage, true);
-      ineedmd_watchdog_pat();
+      ineedmd_watchdog_feed();
+#ifdef DEBUG
+      uiIm_charging_timer++;
+      if(uiIm_charging_timer == 60)
+      {
+        vDEBUG_CHK_BATT("Chk Batt, batt charging");
+        uiIm_charging_timer = 0;
+      }
+#endif //#ifdef DEBUG
     }
 
     //turn the system back "on"

@@ -28,14 +28,14 @@
 //********************************************************************************
 void ineedmd_adc_Hard_Reset()
 {
-	//toggle reset pin
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
-	//keep low for 2 clock cycles
+  //toggle reset pin
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
+  //keep low for 2 clock cycles
     //todo proper delay not sleep
-	sleep_for_tenths(1);
+  sleep_for_tenths(1);
 
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-	//wait 18 device clock cycles - 9 usec
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
+  //wait 18 device clock cycles - 9 usec
     //todo proper delay not sleep
     sleep_for_tenths(1);
 }
@@ -50,18 +50,18 @@ void ineedmd_adc_Hard_Reset()
 //********************************************************************************
 void ineedmd_adc_Stop_Continuous_Conv()
 {
-	//set the CS low
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-	//2us at fullmspeed
+  //set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
     //todo proper delay not sleep
     sleep_for_tenths(1);
 
-	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
-	while(SSIBusy(INEEDMD_ADC_SPI))
-	{
-	}
-	//when done set the CS high
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
+  while(SSIBusy(INEEDMD_ADC_SPI))
+  {
+  }
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
 }
 
@@ -74,17 +74,17 @@ void ineedmd_adc_Stop_Continuous_Conv()
 //********************************************************************************
 void ineedmd_adc_Start_Continuous_Conv()
 {
-	//set the CS low
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-	//2us at fullmspeed
+  //set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
     iHW_delay(1);
 
-	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_RDATAC);
-	while(SSIBusy(INEEDMD_ADC_SPI))
-	{
-	}
-	//when done set the CS high
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  SSIDataPut(INEEDMD_ADC_SPI, ADS1198_RDATAC);
+  while(SSIBusy(INEEDMD_ADC_SPI))
+  {
+  }
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 }
 
 //********************************************************************************
@@ -103,10 +103,10 @@ void ineedmd_adc_Power_On()
     SSIEnable(INEEDMD_ADC_SPI);
 
 
-	//power up and raise reset (active low pins)
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-	//Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
+  //power up and raise reset (active low pins)
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
+  //Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
 
     //todo proper delay not sleep
     sleep_for_tenths(5);
@@ -123,10 +123,10 @@ void ineedmd_adc_Power_On()
 void ineedmd_adc_Power_Off()
 {
 
-	//takes the ~rest line low putting the ADS1198 into reset
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
-	//takes the ~powerdn line low putting the ADS1198 into low power mode
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
+  //takes the ~rest line low putting the ADS1198 into reset
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
+  //takes the ~powerdn line low putting the ADS1198 into low power mode
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
 
 }
 
@@ -141,21 +141,21 @@ void ineedmd_adc_Power_Off()
 */
 void ineedmd_adc_Send_Command(uint32_t command)
 {
-	//put in write only mode
-	//SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
-	//send single byte command
+  //put in write only mode
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+  //send single byte command
 
-	//set the CS low
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-	//2us at fullmspeed
+  //set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
    iHW_delay(1);
 
-	SSIDataPut(INEEDMD_ADC_SPI, command);
-	while(SSIBusy(INEEDMD_ADC_SPI))
-	{
-	}
-	//when done set the CS high
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  SSIDataPut(INEEDMD_ADC_SPI, command);
+  while(SSIBusy(INEEDMD_ADC_SPI))
+  {
+  }
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 }
 
 //********************************************************************************
@@ -168,56 +168,205 @@ void ineedmd_adc_Send_Command(uint32_t command)
 //********************************************************************************
 uint32_t ineedmd_adc_Register_Read(uint32_t address)
 {
-	//Write only SPI mode is enabled
-	//SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
-	//setup bytes for a register read command
-	uint32_t txData[2];
-	txData[0] = (RREG | address); 	//mask with read command
-	txData[1] = 0x00;				//read n + 1 bytes (1)
+#ifdef USE_ENHANCED_ineedmd_adc_Register_Read
+  //Write only SPI mode is enabled
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+  //setup bytes for a register read command
+  ERROR_CODE eEC = ER_OK;
+  uint32_t iEC = 0;
+  uint16_t iDelay_ct = 0;
+  uint32_t txData[2];
+  uint32_t rxData;
+  txData[0] = (RREG | address);   //mask with read command
+  txData[1] = 0x00;        //read n + 1 bytes (1)
 
-	int i;
+  int i;
 
-	//set the CS low
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
+  //set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
+//  MAP_SysCtlDelay(60);
+  iHW_delay(1);
+
+  //send SPI command to tell ADC to output register content
+  iEC = 0;
+  iDelay_ct = 0;
+  for(i = 0; i < 2; i++)
+  {
+    while(iEC == 0)
+    {
+      iEC = SSIDataPutNonBlocking(INEEDMD_ADC_SPI, txData[i]);
+      if(iEC == 0)
+      {
+        iHW_delay(1);
+        iDelay_ct++;
+        if(iDelay_ct == 10)
+        {
+          eEC = ER_TIMEOUT;
+          break;
+        }
+        else
+        {
+          eEC = ER_OK;
+        }
+      }
+    }
+
+    iDelay_ct = 0;
+    iEC = SSIBusy(INEEDMD_ADC_SPI);
+    while(iEC == 0)
+    {
+      iEC = SSIBusy(INEEDMD_ADC_SPI);
+      if(iEC == 0)
+      {
+        iHW_delay(1);
+        iDelay_ct++;
+        if(iDelay_ct == 10)
+        {
+          eEC = ER_TIMEOUT;
+          break;
+        }
+        else
+        {
+          eEC = ER_OK;
+        }
+      }
+    }
+
+    if(eEC != ER_OK)
+    {
+      break;
+    }
+  }
+
+  //flush receive FIFO
+  uint32_t flush = 0;
+  while(SSIDataGetNonBlocking(SSI0_BASE, &flush))
+  {
+  }
+
+  //enable R/W mode - data can be clocked into rx FIFO
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_READ_WRITE);
+
+  if(eEC == ER_OK)
+  {
+    //send NOP to clock data in to FIFO
+    SSIDataPut(INEEDMD_ADC_SPI, ADS1198_NOP);
+    //wait for the NOP to clear out of the FIFO
+    iEC = SSIBusy(INEEDMD_ADC_SPI);
+    iDelay_ct = 0;
+    while(iEC == 1)
+    {
+      iEC = SSIBusy(INEEDMD_ADC_SPI);
+      if(iEC == 0)
+      {
+        iHW_delay(1);
+        iDelay_ct++;
+        if(iDelay_ct == 10)
+        {
+          eEC = ER_TIMEOUT;
+          break;
+        }
+        else
+        {
+          eEC = ER_OK;
+        }
+      }
+    }
+  }
+
+  //read FIFO
+  if(eEC == ER_OK)
+  {
+    iEC = 0;
+    iDelay_ct = 0;
+    while(iEC == 0)
+    {
+      iEC = SSIDataGetNonBlocking(INEEDMD_ADC_SPI, &rxData);
+      if(iEC == 0)
+      {
+        iHW_delay(1);
+        iDelay_ct++;
+        if(iDelay_ct == 10)
+        {
+          eEC = ER_TIMEOUT;
+          break;
+        }
+        else
+        {
+          eEC = ER_OK;
+        }
+      }
+      else
+      {
+        //delay and read the SSI again to verify that there was data on the bus and there was not a false positive
+        iHW_delay(1);
+        iEC = SSIDataGetNonBlocking(INEEDMD_ADC_SPI, &rxData);
+      }
+    }
+  }
+
+  //mask the receive buffer to isolate only the needed bits
+  rxData &= 0x00FF;
+
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  //CS
+  //put back into write only mode
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+  return rxData;
+#else
+  //Write only SPI mode is enabled
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+  //setup bytes for a register read command
+  uint32_t txData[2];
+  txData[0] = (RREG | address);   //mask with read command
+  txData[1] = 0x00;       //read n + 1 bytes (1)
+
+  int i;
+
+  //set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
+  MAP_SysCtlDelay(60);
 
 
-	//send SPI command to tell ADC to output register content
-	for(i = 0; i < 2; i++)
-	{
-		SSIDataPut(INEEDMD_ADC_SPI, txData[i]);
-		while(SSIBusy(INEEDMD_ADC_SPI))
-		{
-		}
-	}
+  //send SPI command to tell ADC to output register content
+  for(i = 0; i < 2; i++)
+  {
+    SSIDataPut(INEEDMD_ADC_SPI, txData[i]);
+    while(SSIBusy(INEEDMD_ADC_SPI))
+    {
+    }
+  }
 
-	//flush receive FIFO
-	uint32_t flush;
-	while(SSIDataGetNonBlocking(SSI0_BASE, &flush))
-	{
-	}
+  //flush receive FIFO
+  uint32_t flush;
+  while(SSIDataGetNonBlocking(SSI0_BASE, &flush))
+  {
+  }
 
-	//enable R/W mode - data can be clocked into rx FIFO
-	//SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_READ_WRITE);
+  //enable R/W mode - data can be clocked into rx FIFO
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_READ_WRITE);
 
-	//send NOP to clock data in to FIFO
-	SSIDataPut(INEEDMD_ADC_SPI, ADS1198_NOP);
-	while(SSIBusy(INEEDMD_ADC_SPI))
-			{
-			}
+  //send NOP to clock data in to FIFO
+  SSIDataPut(INEEDMD_ADC_SPI, ADS1198_NOP);
+  while(SSIBusy(INEEDMD_ADC_SPI))
+      {
+      }
 
-	//read FIFO
-	uint32_t rxData;
-	SSIDataGet(INEEDMD_ADC_SPI, &rxData);
-	rxData &= 0x00FF;
+  //read FIFO
+  uint32_t rxData;
+  SSIDataGet(INEEDMD_ADC_SPI, &rxData);
+  rxData &= 0x00FF;
 
-	//when done set the CS high
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
-	//CS
-	//put back into write only mode
-	//SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
-	return rxData;
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  //CS
+  //put back into write only mode
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+  return rxData;
+#endif
 }
 
 //********************************************************************************
@@ -230,33 +379,33 @@ uint32_t ineedmd_adc_Register_Read(uint32_t address)
 //********************************************************************************
 void ineedmd_adc_Register_Write(uint32_t address, uint32_t value)
 {
-	//Write only SPI mode is enabled
-	//SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
-	//setup bytes for a register write command
-	uint32_t txData[3];
-	txData[0] = (WREG | address); 	//mask with read command
-	txData[1] = 0x00;				//write n + 1 bytes (1)
-	txData[2] = ineedmd_adc_Register_Read(address);	//get current value of register
-	txData[2] |= value;								//mask with new value
-	int i;
+  //Write only SPI mode is enabled
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+  //setup bytes for a register write command
+  uint32_t txData[3];
+  txData[0] = (WREG | address);   //mask with read command
+  txData[1] = 0x00;        //write n + 1 bytes (1)
+  txData[2] = ineedmd_adc_Register_Read(address);  //get current value of register
+  txData[2] |= value;                //mask with new value
+  int i;
 
-	//set the CS low
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
+  //set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
+  MAP_SysCtlDelay(60);
 
 
-	//send write command followed by data
-	for(i = 0; i < 3; i++)
-	{
-		SSIDataPut(INEEDMD_ADC_SPI, txData[i]);
-		while(SSIBusy(INEEDMD_ADC_SPI))
-		{
-		}
-	}
+  //send write command followed by data
+  for(i = 0; i < 3; i++)
+  {
+    SSIDataPut(INEEDMD_ADC_SPI, txData[i]);
+    while(SSIBusy(INEEDMD_ADC_SPI))
+    {
+    }
+  }
 
-	//when done set the CS high
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
 }
 
@@ -269,22 +418,22 @@ void ineedmd_adc_Register_Write(uint32_t address, uint32_t value)
 //********************************************************************************
 void ineedmd_adc_Start_Internal_Reference()
 {
-	uint32_t val = ineedmd_adc_Register_Read(CONFIG3);
-	val |= PD_REFBUF;
+  uint32_t val = ineedmd_adc_Register_Read(CONFIG3);
+  val |= PD_REFBUF;
 
-	//set the CS low
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
+  //set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
+  MAP_SysCtlDelay(60);
 
 
-	ineedmd_adc_Register_Write(CONFIG3, val);
-	//wait for reference to start
+  ineedmd_adc_Register_Write(CONFIG3, val);
+  //wait for reference to start
     //todo proper delay not sleep
     sleep_for_tenths(10);
 
-	//when done set the CS high
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
 }
 //********************************************************************************
@@ -304,7 +453,7 @@ void ineedmd_adc_Stop_Internal_Reference()
 //********************************************************************************
 void ineedmd_adc_Start_High()
 {
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, INEEDMD_PORTA_ADC_START_PIN);
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, INEEDMD_PORTA_ADC_START_PIN);
 }
 
 //********************************************************************************
@@ -312,8 +461,8 @@ void ineedmd_adc_Start_High()
 //********************************************************************************
 void ineedmd_adc_Start_Low()
 {
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, 0x00);
-	//wait for 2 device clocks - 1uSec
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, 0x00);
+  //wait for 2 device clocks - 1uSec
     //todo proper delay not sleep
     sleep_for_tenths(1);
 }
@@ -330,7 +479,7 @@ void ineedmd_adc_Request_Data()
 {
 
 
-	ineedmd_adc_Send_Command(ADS1198_RDATA);
+  ineedmd_adc_Send_Command(ADS1198_RDATA);
 
 }
 
@@ -342,41 +491,41 @@ void ineedmd_adc_Request_Data()
 //********************************************************************************
 void ineedmd_adc_Receive_Data(char* data)
 {
-	//enable read to clock data into rx FIFO
-	//SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_READ_WRITE);
-	//flush receive FIFO
-	uint32_t flush;
+  //enable read to clock data into rx FIFO
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_READ_WRITE);
+  //flush receive FIFO
+  uint32_t flush;
 
 
-	//when set the CS low
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-	//2us at fullmspeed
-	MAP_SysCtlDelay(60);
+  //when set the CS low
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+  //2us at fullmspeed
+  MAP_SysCtlDelay(60);
 
-	while(SSIDataGetNonBlocking(SSI0_BASE, &flush))
-	{
-	}
-	uint32_t dat;
-	int i;
-	//read 19 bytes of data
-	for(i = 0; i < INEEDMD_ADC_DATA_SIZE; i++)
-	{
-		//send NOP to clock data into Rx FIFO
-		SSIDataPut(INEEDMD_ADC_SPI, ADS1198_NOP);
-		while(SSIBusy(INEEDMD_ADC_SPI))
-		{
-		}
-		//read Rx FIFO
-		SSIDataGet(INEEDMD_ADC_SPI, &dat);
-		data[i] = dat;
-	}
-	while(SSIDataGetNonBlocking(SSI0_BASE, &flush))
-		{
-		}
-	//SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+  while(SSIDataGetNonBlocking(SSI0_BASE, &flush))
+  {
+  }
+  uint32_t dat;
+  int i;
+  //read 19 bytes of data
+  for(i = 0; i < INEEDMD_ADC_DATA_SIZE; i++)
+  {
+    //send NOP to clock data into Rx FIFO
+    SSIDataPut(INEEDMD_ADC_SPI, ADS1198_NOP);
+    while(SSIBusy(INEEDMD_ADC_SPI))
+    {
+    }
+    //read Rx FIFO
+    SSIDataGet(INEEDMD_ADC_SPI, &dat);
+    data[i] = dat;
+  }
+  while(SSIDataGetNonBlocking(SSI0_BASE, &flush))
+    {
+    }
+  //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
 
-	//when done set the CS high
-	GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+  //when done set the CS high
+  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
 
 }
@@ -393,7 +542,7 @@ void ineedmd_adc_Receive_Data(char* data)
 //********************************************************************************
 uint32_t ineedmd_adc_Get_ID()
 {
-	return ineedmd_adc_Register_Read(ADS1198_ID_ADDRESS);
+  return ineedmd_adc_Register_Read(ADS1198_ID_ADDRESS);
 
 
 }
@@ -410,14 +559,14 @@ uint32_t ineedmd_adc_Get_ID()
 //********************************************************************************
 uint32_t ineedmd_adc_Check_Lead_Off()
 {
-	uint32_t leadStat = 0;
+  uint32_t leadStat = 0;
 
-	leadStat |= ineedmd_adc_Register_Read(LOFF_STATN);
-	leadStat |= (ineedmd_adc_Register_Read(LOFF_STATP) << 8);
-	//mask lower 16bits
-	leadStat &= 0xFFFF;
+  leadStat |= ineedmd_adc_Register_Read(LOFF_STATN);
+  leadStat |= (ineedmd_adc_Register_Read(LOFF_STATP) << 8);
+  //mask lower 16bits
+  leadStat &= 0xFFFF;
 
-	return leadStat;
+  return leadStat;
 }
 
 //********************************************************************************
@@ -431,10 +580,10 @@ uint32_t ineedmd_adc_Check_Lead_Off()
 uint32_t ineedmd_adc_Check_RLD_Lead()
 {
 
-	uint32_t statRLD = ineedmd_adc_Register_Read(CONFIG3);
-	//mask unwanted bits
-	statRLD &= RLD_STAT;
-	return statRLD;
+  uint32_t statRLD = ineedmd_adc_Register_Read(CONFIG3);
+  //mask unwanted bits
+  statRLD &= RLD_STAT;
+  return statRLD;
 }
 
 //********************************************************************************
@@ -638,36 +787,36 @@ int ineedmd_adc_mux_set(int mux_position)
 void ineedmd_adc_Set_Sample_Rate(uint32_t SPS)
 {
 
-	//if out of bounds, default to 500 SPS
-	if(SPS > 6)
-	{
-		SPS = 4;
-	}
-	//mask SPS value with current CONFIG1 register to preserve other settings
-	SPS |= ineedmd_adc_Register_Read(CONFIG1);
-	//write new SPS value
-	ineedmd_adc_Register_Write(CONFIG1, SPS);
+  //if out of bounds, default to 500 SPS
+  if(SPS > 6)
+  {
+    SPS = 4;
+  }
+  //mask SPS value with current CONFIG1 register to preserve other settings
+  SPS |= ineedmd_adc_Register_Read(CONFIG1);
+  //write new SPS value
+  ineedmd_adc_Register_Write(CONFIG1, SPS);
 }
 
 //********************************************************************************
 //Enable lead off detection
 //
 //Uses default configuration:
-//	Current source detection
-//	DC excititation signal
-//	4nA current magnitude
-//	95% Positive / 5% negative for comparator threshold
+//  Current source detection
+//  DC excititation signal
+//  4nA current magnitude
+//  95% Positive / 5% negative for comparator threshold
 //********************************************************************************
 void ineedmd_adc_Enable_Lead_Detect()
 {
-	ineedmd_adc_Register_Write(LOFF, FLEAD_OFF0 | FLEAD_OFF1);
-	ineedmd_adc_Register_Write(CONFIG4, PD_LOFF_COMP);
-	ineedmd_adc_Register_Write(LOFF_SENSP, 0xFFFF);
-	ineedmd_adc_Register_Write(LOFF_SENSN, 0xFFFF);
+  ineedmd_adc_Register_Write(LOFF, FLEAD_OFF0 | FLEAD_OFF1);
+  ineedmd_adc_Register_Write(CONFIG4, PD_LOFF_COMP);
+  ineedmd_adc_Register_Write(LOFF_SENSP, 0xFFFF);
+  ineedmd_adc_Register_Write(LOFF_SENSN, 0xFFFF);
 
-	//increase comparator threshold for lead off detect
-	uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
-	ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1 | COMP_TH1 | COMP_TH2 ));
+  //increase comparator threshold for lead off detect
+  uint32_t regVal = ineedmd_adc_Register_Read(LOFF);
+  ineedmd_adc_Register_Write(LOFF, (regVal | ILEAD_OFF0 | ILEAD_OFF1 | COMP_TH1 | COMP_TH2 ));
 }
 
 //configure to use 3 lead setup

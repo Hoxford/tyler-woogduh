@@ -68,6 +68,7 @@
 #define PIO_SET           "PIO SET %.2x %.2x\r\n"
 #define PIO_SETDIR        "PIO SETDIR %.2x %.2x\r\n"
 #define PIO_SETBIAS       "PIO SETBIAS %.2x %.2x\r\n"
+  #define PIO_MASK_NONE   0x0000
   #define PIO_MASK_PIO0   0x0001
   #define PIO_MASK_PIO1   0x0002
   #define PIO_MASK_PIO2   0x0004
@@ -237,6 +238,12 @@
   #define SET_CONTROL_MUX_MODE_ENABLE   1
     #define SET_CONTROL_MUX_MODE  SET_CONTROL_MUX_MODE_ENABLE
 #define SET_CONTROL_MUX_HEX_DISABLE
+#define SET_CONTROL_VREGEN  "SET CONTROL VREGEN %d %x\r\n"
+  #define SET_CONTROL_VREGEN_MODE_0  0
+  #define SET_CONTROL_VREGEN_MODE_1  1
+  #define SET_CONTROL_VREGEN_MODE_2  2
+    #define SET_CONTROL_VREGE_MODE SET_CONTROL_VREGEN_MODE_1
+  #define SET_CONTROL_VREGEN_PIOMASK  PIO_MASK_NONE
 #define SSP_CONFIRM  "\r\nSSP CONFIRM %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY  "\r\nSSP PASSKEY %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY_PARSE  "%s %s %hhx %c %hhx %c %hhx %c %hhx %c %hhx %c %hhx %d"
@@ -252,8 +259,7 @@
 #define BG_SEND_SIZE_SMALL   32
 
 //Delay times
-#define TIMEOUT_RFD_CTS_HL   150
-#define ONESEC_DELAY         100
+#define TIMEOUT_RFD_CTS_HL   2000
 
 /******************************************************************************
 * variables
@@ -1083,6 +1089,7 @@ ERROR_CODE eIneedmd_radio_rfd(void)
   #define vDEBUG_RDIO_RFD(a)
 #endif
   ERROR_CODE eEC = ER_FAIL;
+  ERROR_CODE eEC_radio_in_mux_mode = ER_NO;
 #define RFD_SEND_SZ  64
   char cRFD_Send_buff[RFD_SEND_SZ];
 #define RFD_RCV_SZ   128
@@ -1103,7 +1110,6 @@ ERROR_CODE eIneedmd_radio_rfd(void)
   eRadio_clear_rcv_buffer();
 
   ineedmd_radio_reset();
-
   eEC = eGet_Radio_CTS_status();
   while(eEC == ER_FALSE)
   {
@@ -1116,7 +1122,10 @@ ERROR_CODE eIneedmd_radio_rfd(void)
   }
 
   //attempt to get the radio out of mux mode if it is in it
-  eBT_RDIO_mux_mode_disable();
+  if(eEC_radio_in_mux_mode == ER_YES)
+  {
+    eBT_RDIO_mux_mode_disable();
+  }else{/*do nothing*/}
 
   //SET RESET, reset to factory defaults
   //
@@ -1733,11 +1742,11 @@ int  iIneedMD_radio_setup(void)
         //Change baud rate to find the one the radio is using
         vDEBUG_RDIO_SETUP("Rdio setup, no response to SET RESET, changing baud rate");
         if(uiBaud_index == 0)
-          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_57600;
-        else if(uiBaud_index == 1)
-          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_76800;
-        else if(uiBaud_index == 2)
           uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_115200;
+        else if(uiBaud_index == 1)
+          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_57600;
+        else if(uiBaud_index == 2)
+          uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_76800;
         else if(uiBaud_index == 3)
           uiBaud_to_set = INEEDMD_RADIO_UART_BAUD_230400;
         else if(uiBaud_index == 4)
@@ -1835,6 +1844,7 @@ int  iIneedMD_radio_setup(void)
           {
             //clear any potential uart traffic
             eRadio_clear_rcv_buffer();
+            uiBaud_index++;
             eEC = ER_FAIL;
           }else{/*do nothing*/}
         }
@@ -1959,6 +1969,16 @@ int  iIneedMD_radio_setup(void)
       vRADIO_ECHO(cSend_buff);
     }else{/*do nothing*/}
 
+    //SET CONTROL VREGEN, use the VREG_ENA pin to turn radio power on or off
+    //
+    memset(cSend_buff, 0x00, BG_SIZE);
+    snprintf(cSend_buff, BG_SIZE, SET_CONTROL_VREGEN, SET_CONTROL_VREGE_MODE, SET_CONTROL_VREGEN_PIOMASK);
+    eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
+    if(eEC == ER_OK)
+    {
+      vDEBUG_RDIO_SETUP("Rdio setup, SET CONTROL VREGEN, use the VREG_ENA pin");
+      vRADIO_ECHO(cSend_buff);
+    }else{/*do nothing*/}
 
     //SET CONTROL CONFIG, GET the radio config
     //

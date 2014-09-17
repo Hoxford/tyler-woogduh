@@ -756,11 +756,13 @@ void ParseFrame(void *pt)
         {
           printf("Performing RESET..");
           ineedmd_send_ack();
+          //give the watchdog a long timeout timer
+          ineedmd_watchdog_feed();
+
           eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_REBOOT, SPEAKER_SEQ_NONE, true);
 
           //set the radio to factory defaults
           eIneedmd_radio_rfd();
-          //todo proper delay sleep_for_tenths(50);
 
           //Reset the system
           ineedmd_watchdog_doorbell();
