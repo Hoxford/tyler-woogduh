@@ -2,6 +2,10 @@ project/ccs/Debug/
 project/ccs/.launches/aerosmith.launch
 project/ccs/\.launches/*.*
 project/ccs/.settings/org.eclipse.core.resources.prefs
+project/ccs_os/Debug/
+project/ccs_os/.launches/aerosmith.launch
+project/ccs_os/\.launches/*.*
+project/ccs_os/.settings/org.eclipse.core.resources.prefs
 *.out
 *.xml
 *.obj
