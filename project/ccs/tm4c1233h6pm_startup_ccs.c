@@ -345,6 +345,7 @@ IntDefaultHandler(void)
 static void vSysTickIntHandler(void)
 {
   vSystick_int_service();
+  vDEBUG_GPIO_TOGGLE_1();
   return;
 }
 

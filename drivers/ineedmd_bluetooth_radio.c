@@ -35,9 +35,8 @@
 #include "utils_inc/error_codes.h"
 
 #include "board.h"
-#include "ineedmd_bluetooth_radio.h"
-#include "ineedmd_led.h"
-#include "app_inc/ineedmd_command_protocol.h"
+#include "drivers_inc/ineedmd_bluetooth_radio.h"
+//#include "app_inc/ineedmd_command_protocol.h"
 #include "utils_inc/proj_debug.h"
 
 //*****************************************************************************
@@ -297,7 +296,7 @@ eRadio_event eActive_radio_events = RDIO_NO_EVENT; //eActive_radio_events, used 
 //*****************************************************************************
 // external functions
 //*****************************************************************************
-
+#ifdef NOT_NOW
 //*****************************************************************************
 // private function declarations
 //*****************************************************************************
@@ -1001,6 +1000,8 @@ ERROR_CODE eIneedMD_radio_process_init(void)
   return eEC;
 }
 
+#endif //#ifdef NOT_NOW
+
 /* ineedmd_radio_power
  * Power up and down the radio
  *
@@ -1011,26 +1012,25 @@ ERROR_CODE eIneedMD_radio_process_init(void)
  */
 void ineedmd_radio_power(bool power_up)
 {
-
-	if (power_up == true)
-	{
-	  //power on the radio
+  if (power_up == true)
+  {
+    //power on the radio
     iRadio_Power_On();
-	}
-	else
-	{
-		//otherwise sets it to low
-//		GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
-	  iRadio_Power_Off();
+  }
+  else
+  {
+    //otherwise sets it to low
+    //		GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, 0x00);
+    iRadio_Power_Off();
 
-		// Disables the UART
-		UARTDisable(INEEDMD_RADIO_UART);
-		// then get rid of the FIFO
-		UARTFIFODisable(INEEDMD_RADIO_UART);
-
-	}
+    // Disables the UART
+    UARTDisable(INEEDMD_RADIO_UART);
+    // then get rid of the FIFO
+    UARTFIFODisable(INEEDMD_RADIO_UART);
+  }
 }
 
+#ifdef NOT_NOW
 /* ineedmd_radio_reset
  * Reset the radio
  *
@@ -1578,7 +1578,7 @@ ERROR_CODE iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size
 
   return eEC;
 }
-
+#endif //#ifdef NOT_NOW
 /******************************************************************************
 * name:iIneedMD_radio_setup
 * description: this function sets the radio interface for the corresponding
@@ -1588,7 +1588,7 @@ ERROR_CODE iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size
 * param description: none
 * return value description: returns 1 if successful
 ******************************************************************************/
-int  iIneedMD_radio_setup(void)
+ERROR_CODE eIneedMD_radio_setup(void)
 {
 //#define DEBUG_iIneedMD_radio_setup
 #ifdef DEBUG_iIneedMD_radio_setup
@@ -1614,15 +1614,16 @@ int  iIneedMD_radio_setup(void)
     memset(uiRemote_dev_addr,0x00, BT_MACADDR_NUM_BYTES);
     memset(uiSet_ctrl_config,0x0000, 4); //todo: magic number!
 
+    //enable radio interface
+    eRadio_interface_enable();
+
     //get the current system baud
     eBSP_Get_radio_uart_baud(&uiSystem_Baud);
 
     //turn power on to the radio
     ineedmd_radio_power(true);
 
-    //enable radio interface
-    iRadio_interface_enable();
-
+#ifdef NOT_NOW
     //todo: perform a DTR pin set and check if radio responsive to commands, will be released in board rev 5
 
     iIneedmd_radio_cmnd_mode(true);
@@ -2074,11 +2075,23 @@ int  iIneedMD_radio_setup(void)
     vDEBUG_RDIO_SETUP("Rdio setup SYS HALT, additional platforms are not defined");
     while(1){};
 #endif
+#endif //#ifdef NOT_NOW
   }
-  return 1;
+  return eEC;
 #undef vDEBUG_RDIO_SETUP
 }
 
+void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count)
+{
+
+}
+
+void vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count)
+{
+
+}
+
+#ifdef NOT_NOW
 /*
  * Check for BT connection
  */
@@ -2202,7 +2215,7 @@ int iIneedMD_radio_process(void)
 /*
  * Get status from the radio
  */
-
+#endif //#ifdef NOT_NOW
 
 /*
  * END

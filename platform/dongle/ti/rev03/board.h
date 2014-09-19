@@ -39,12 +39,55 @@
 #define __BOARD_H__
 
 /******************************************************************************
-* includes
+* includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-
+#include <ti/drivers/GPIO.h>
+#include <ti/drivers/UART.h>
 /******************************************************************************
-* defines
+*public defines ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+//RTOS init function mappings
+#define Board_initDMA               EK_TM4C123GXL_initDMA
+#define Board_initGeneral           EK_TM4C123GXL_initGeneral
+#define Board_initGPIO              EK_TM4C123GXL_initGPIO
+#define Board_initI2C               EK_TM4C123GXL_initI2C
+#define Board_initSDSPI             EK_TM4C123GXL_initSDSPI
+#define Board_initSPI               EK_TM4C123GXL_initSPI
+#define Board_initUART              EK_TM4C123GXL_initUART
+#define Board_initUSB               EK_TM4C123GXL_initUSB
+#define Board_initWatchdog          EK_TM4C123GXL_initWatchdog
+#define Board_initWiFi              EK_TM4C123GXL_initWiFi
+//end RTOS init funciton mappings
+
+#define Board_I2C0                  EK_TM4C123GXL_I2C0
+#define Board_I2C1                  EK_TM4C123GXL_I2C3
+#define Board_I2C_TMP               EK_TM4C123GXL_I2C3
+#define Board_I2C_NFC               EK_TM4C123GXL_I2C3
+#define Board_I2C_TPL0401           EK_TM4C123GXL_I2C3
+
+#define Board_SDSPI0                EK_TM4C123GXL_SDSPI0
+
+#define Board_SPI0                  EK_TM4C123GXL_SPI0
+#define Board_SPI1                  EK_TM4C123GXL_SPI3
+#define Board_SPI_CC3000            EK_TM4C123GXL_SPI2
+#define Board_SPI_CC3100            EK_TM4C123GXL_SPI2
+
+#define Board_USBDEVICE             EK_TM4C123GXL_USBDEVICE
+
+#define Board_UART0                 EK_TM4C123GXL_UART0
+
+#define Board_WATCHDOG0             EK_TM4C123GXL_WATCHDOG0
+
+#define Board_WIFI                  EK_TM4C123GXL_WIFI
+
+#define Board_gpioCallbacks0        EK_TM4C123GXL_gpioPortFCallbacks
+#define Board_gpioCallbacks1        EK_TM4C123GXL_gpioPortFCallbacks
+
+/* Board specific I2C addresses */
+#define Board_TMP006_ADDR           (0x40)
+#define Board_RF430CL330_ADDR       (0x28)
+#define Board_TPL0401_ADDR          (0x40)
+
 #define INEEDMD_PORTA_ADC_PWRDN_OUT_PIN 0x80
 #define INEEDMD_PORTA_ADC_RESET_OUT_PIN 0X40
 #define INEEDMD_PORTA_ADC_INTERUPT_PIN  0x01
@@ -79,7 +122,8 @@
 
 //BT Radio mappings
 //
-#define INEEDMD_RADIO_UART                     UART1_BASE
+//#define INEEDMD_RADIO_UART                     UART1_BASE
+#define INEEDMD_RADIO_UART                     EK_TM4C123GXL_UART1
 #define INEEDMD_RADIO_UART_CLK                 16000000
 //Radio UART baud rates
 #define INEEDMD_RADIO_UART_BAUD_57600    57600
@@ -193,24 +237,222 @@
 //define the WTC channel C input for the LL electronde as the channel 4 Positive input
 #define WTC_C_CHANNEL 0x06
 
+/* LEDs on EK_TM4C123GXL are active high. */
+#define EK_TM4C123GXL_LED_OFF (0)
+#define EK_TM4C123GXL_LED_ON  (~0)
+
 /******************************************************************************
-* variables
+*public variables /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 
 /******************************************************************************
-* external variables
+* external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+/* GPIO_Callbacks structure for GPIO interrupts */
+extern const GPIO_Callbacks EK_TM4C123GXL_gpioPortFCallbacks;
+
+/******************************************************************************
+*public enums /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+/*!
+ *  @def    EK_TM4C123GXL_GPIOName
+ *  @brief  Enum of GPIO names on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_GPIOName
+{
+  EK_TM4C123GXL_DEBUG = 0,
+  EK_TM4C123GXL_RADIO_POWER,
+  EK_TM4C123GXL_GPIOCOUNT
+
+} EK_TM4C123GXL_GPIOName;
+
+/*!
+ *  @def    EK_TM4C123GXL_I2CName
+ *  @brief  Enum of I2C names on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_I2CName {
+    EK_TM4C123GXL_I2C0 = 0,
+    EK_TM4C123GXL_I2C3,
+
+    EK_TM4C123GXL_I2CCOUNT
+} EK_TM4C123GXL_I2CName;
+
+/*!
+ *  @def    EK_TM4C123GXL_SDSPIName
+ *  @brief  Enum of SDSPI names on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_SDSPIName {
+    EK_TM4C123GXL_SDSPI0 = 0,
+
+    EK_TM4C123GXL_SDSPICOUNT
+} EK_TM4C123GXL_SDSPIName;
+
+/*!
+ *  @def    EK_TM4C123GXL_SPIName
+ *  @brief  Enum of SPI names on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_SPIName {
+    EK_TM4C123GXL_SPI0 = 0,
+    EK_TM4C123GXL_SPI2,
+    EK_TM4C123GXL_SPI3,
+
+    EK_TM4C123GXL_SPICOUNT
+} EK_TM4C123GXL_SPIName;
+
+/*!
+ *  @def    EK_TM4C123GXL_UARTName
+ *  @brief  Enum of UARTs on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_UARTName {
+    EK_TM4C123GXL_UART0 = 0,
+    EK_TM4C123GXL_UART1,
+
+    EK_TM4C123GXL_UARTCOUNT
+} EK_TM4C123GXL_UARTName;
+
+/*!
+ *  @def    EK_TM4C123GXL_USBMode
+ *  @brief  Enum of USB setup function on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_USBMode {
+    EK_TM4C123GXL_USBDEVICE,
+    EK_TM4C123GXL_USBHOST
+} EK_TM4C123GXL_USBMode;
+
+/*!
+ *  @def    EK_TM4C123GXL_WatchdogName
+ *  @brief  Enum of Watchdogs on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_WatchdogName {
+    EK_TM4C123GXL_WATCHDOG0 = 0,
+
+    EK_TM4C123GXL_WATCHDOGCOUNT
+} EK_TM4C123GXL_WatchdogName;
+
+/*!
+ *  @def    EK_TM4C123GXL_WiFiName
+ *  @brief  Enum of WiFi names on the EK_TM4C123GXL dev board
+ */
+typedef enum EK_TM4C123GXL_WiFiName {
+    EK_TM4C123GXL_WIFI = 0,
+
+    EK_TM4C123GXL_WIFICOUNT
+} EK_TM4C123GXL_WiFiName;
+
+/******************************************************************************
+*public structures ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 
 /******************************************************************************
-* enums
+* external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+/*!
+ *  @brief  Initialize board specific DMA settings
+ *
+ *  This function creates a hwi in case the DMA controller creates an error
+ *  interrrupt, enables the DMA and supplies it with a uDMA control table.
+ */
+extern void EK_TM4C123GXL_initDMA(void);
+
+/*!
+ *  @brief  Initialize the general board specific settings
+ *
+ *  This function initializes the general board specific settings. This include
+ *     - Flash wait states based on the process
+ *     - Disable clock source to watchdog module
+ *     - Enable clock sources for peripherals
+ */
+extern void EK_TM4C123GXL_initGeneral(void);
+
+/*!
+ *  @brief  Initialize board specific GPIO settings
+ *
+ *  This function initializes the board specific GPIO settings and
+ *  then calls the GPIO_init API to initialize the GPIO module.
+ *
+ *  The GPIOs controlled by the GPIO module are determined by the GPIO_config
+ *  variable.
+ */
+extern void EK_TM4C123GXL_initGPIO(void);
+
+/*!
+ *  @brief  Initialize board specific I2C settings
+ *
+ *  This function initializes the board specific I2C settings and then calls
+ *  the I2C_init API to initialize the I2C module.
+ *
+ *  The I2C peripherals controlled by the I2C module are determined by the
+ *  I2C_config variable.
+ */
+extern void EK_TM4C123GXL_initI2C(void);
+
+/*!
+ *  @brief  Initialize board specific SDSPI settings
+ *
+ *  This function initializes the board specific SDSPI settings and then calls
+ *  the SDSPI_init API to initialize the SDSPI module.
+ *
+ *  The SDSPI peripherals controlled by the SDSPI module are determined by the
+ *  SDSPI_config variable.
+ */
+extern void EK_TM4C123GXL_initSDSPI(void);
+
+/*!
+ *  @brief  Initialize board specific SPI settings
+ *
+ *  This function initializes the board specific SPI settings and then calls
+ *  the SPI_init API to initialize the SPI module.
+ *
+ *  The SPI peripherals controlled by the SPI module are determined by the
+ *  SPI_config variable.
+ */
+extern void EK_TM4C123GXL_initSPI(void);
+
+/*!
+ *  @brief  Initialize board specific UART settings
+ *
+ *  This function initializes the board specific UART settings and then calls
+ *  the UART_init API to initialize the UART module.
+ *
+ *  The UART peripherals controlled by the UART module are determined by the
+ *  UART_config variable.
+ */
+extern void EK_TM4C123GXL_initUART(void);
+
+/*!
+ *  @brief  Initialize board specific USB settings
+ *
+ *  This function initializes the board specific USB settings and pins based on
+ *  the USB mode of operation.
+ *
+ *  @param      usbMode    USB mode of operation
+ */
+extern void EK_TM4C123GXL_initUSB(EK_TM4C123GXL_USBMode usbMode);
+
+/*!
+ *  @brief  Initialize board specific Watchdog settings
+ *
+ *  This function initializes the board specific Watchdog settings and then
+ *  calls the Watchdog_init API to initialize the Watchdog module.
+ *
+ *  The Watchdog peripherals controlled by the Watchdog module are determined
+ *  by the Watchdog_config variable.
+ */
+extern void EK_TM4C123GXL_initWatchdog(void);
+
+/*!
+ *  @brief  Initialize board specific WiFi settings
+ *
+ *  This function initializes the board specific WiFi settings and then calls
+ *  the WiFi_init API to initialize the WiFi module.
+ *
+ *  The hardware resources controlled by the WiFi module are determined by the
+ *  WiFi_config variable.
+ */
+extern void EK_TM4C123GXL_initWiFi(void);
 
 /******************************************************************************
-* structures
-******************************************************************************/
-
-/******************************************************************************
-* public functions
+* public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 void        wait_time (unsigned int);
 void        write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
@@ -249,7 +491,7 @@ ERROR_CODE  eSet_radio_to_cmnd_mode(void);  //sets the uP radio command mode pin
 ERROR_CODE  eIs_radio_in_cmnd_mode(void);
 ERROR_CODE  eSet_radio_to_data_mode(void);  //clears the uP radio command mode pin
 ERROR_CODE  eUsing_radio_uart_dma(void);
-int         iRadio_interface_enable(void);
+ERROR_CODE  eRadio_interface_enable(void);
 int         iRadio_gpio_set(uint16_t uiMask);
 int         iRadio_gpio_clear(uint16_t uiMask);
 int         iRadio_gpio_read(uint16_t uiMask);
@@ -291,6 +533,6 @@ void USBPortDisable(void);
 ERROR_CODE eMaster_int_enable(void);
 ERROR_CODE eMaster_int_disable(void);
 int iHW_delay(uint32_t uiDelay);
-int iBoard_init(void);
+ERROR_CODE eBSP_Board_init(void);  //Does board hardware initalization
 
 #endif //  __BOARD_H__

@@ -13,28 +13,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef USING_TIRTOS
-  #include <xdc/std.h>
-  #include <xdc/cfg/global.h>
-  #include <xdc/runtime/Error.h>
-  #include <xdc/runtime/System.h>
-  #include <ti/drivers/Watchdog.h>
-  #include <ti/drivers/watchdog/WatchdogTiva.h>
-#else
-#include <driverlib/rom.h>
-
-//Pull the processor
-#include <inc/tm4c1233h6pm.h>
-#include "driverlib/rom_map.h"
-
-//#include "inc/hw_types.h"
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/watchdog.h"
-#endif
+#include <xdc/std.h>
+#include <xdc/cfg/global.h>
+#include <xdc/runtime/Error.h>
+#include <xdc/runtime/System.h>
+#include <ti/drivers/Watchdog.h>
 
 #include "utils_inc/error_codes.h"
-#include "app_inc/ineedmd_watchdog.h"
+#include "utils_inc/proj_debug.h"
+#include "drivers_inc/ineedmd_watchdog.h"
 
 #include "board.h"
 
@@ -51,7 +38,7 @@
 /******************************************************************************
 * variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-unsigned int Watchdog_configIndex = 0;
+bool flag = false;
 /******************************************************************************
 * external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -63,7 +50,8 @@ unsigned int Watchdog_configIndex = 0;
 /******************************************************************************
 * structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-
+Watchdog_Handle     handle;
+Watchdog_Params     params;
 /******************************************************************************
 * external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -80,6 +68,16 @@ unsigned int Watchdog_configIndex = 0;
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 
+/*
+ *  ======== callback ========
+ *  Watchdog interrupt callback function. It toggles and LED, and if a button
+ *  has not been pressed, clears the watchdog interrupt flag.
+ */
+void vINMD_watchdog_callback(UArg handle)
+{
+  vDEBUG("Watchdog Bark!");
+}
+
 /******************************************************************************
 * name:
 * description:
@@ -89,17 +87,28 @@ unsigned int Watchdog_configIndex = 0;
 ERROR_CODE ineedmd_watchdog_setup(void)
 {
 #ifdef USING_TIRTOS
-  ERROR_CODE eEC = ER_OK;
+  ERROR_CODE eEC = ER_FAIL;
 
-  Watchdog_Handle     handle;
-  Watchdog_Params     params;
   Watchdog_Params_init(&params);
   params.resetMode = Watchdog_RESET_OFF;
-  handle = Watchdog_open(Watchdog_configIndex, &params);
+#ifdef DEBUG
+  //For debugging Watchdog counter will stop while stepping through code and reset is disabled
+  //
+  ineedmd_watchdog_debug_mode();
+
+#endif
+  params.callbackFxn = vINMD_watchdog_callback;
+  handle = Watchdog_open(Board_WATCHDOG0, &params);
   if (!handle)
   {
     System_printf("Watchdog did not open");
+    eEC = ER_FAIL;
   }
+  else
+  {
+    eEC = ER_OK;
+  }
+
   return eEC;
 #else
   ERROR_CODE eEC = ER_OK;
@@ -160,7 +169,7 @@ ERROR_CODE ineedmd_watchdog_pat(void)
 {
 #ifdef USING_TIRTOS
   ERROR_CODE eEC = ER_OK;
-
+  Watchdog_clear((Watchdog_Handle)handle);
   return eEC;
 #else
   ERROR_CODE eEC = ER_OK;
@@ -186,7 +195,7 @@ ERROR_CODE ineedmd_watchdog_feed(void)
 {
 #ifdef USING_TIRTOS
   ERROR_CODE eEC = ER_OK;
-
+  Watchdog_clear((Watchdog_Handle)handle);
   return eEC;
 #else
   ERROR_CODE eEC = ER_OK;
@@ -234,7 +243,7 @@ ERROR_CODE ineedmd_watchdog_debug_mode(void)
 {
 #ifdef USING_TIRTOS
   ERROR_CODE eEC = ER_OK;
-
+  params.debugStallMode = Watchdog_DEBUG_STALL_ON;
   return eEC;
 #else
   ERROR_CODE eEC = ER_OK;

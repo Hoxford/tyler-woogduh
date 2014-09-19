@@ -20,7 +20,9 @@ int         iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
 int         iIneedmd_radio_rcv_byte(uint8_t *uiRcv_byte);
 int         iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size);
 ERROR_CODE  eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size, uint32_t * uiBytes_rcvd);
-int         iIneedMD_radio_setup(void);
+ERROR_CODE  eIneedMD_radio_setup(void);
+void        vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count);
+void        vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count);
 int         iIneedMD_radio_check_for_connection(void);
 int         iIneedMD_radio_process(void);
 

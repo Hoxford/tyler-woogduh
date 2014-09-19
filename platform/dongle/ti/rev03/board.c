@@ -37,9 +37,9 @@
 
 #ifndef __BOARD_C__
 #define __BOARD_C__
-//*****************************************************************************
-// includes
-//*****************************************************************************
+/******************************************************************************
+* includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 #include "file.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -72,6 +72,7 @@
   #include "usblib/device/usbdbulk.h"
 #endif //#ifdef USE_USBLIB
 //end USB Lib inc
+
 #include "utils_inc/error_codes.h"
 #include "utils_inc/proj_debug.h"
 
@@ -79,9 +80,9 @@
 #include "board.h"
 
 
-//*****************************************************************************
-// defines
-//*****************************************************************************
+/******************************************************************************
+* defines /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 //radio uart DMA defines
 #define USE_RADIO_UART_DMA      false
 #define DMA_RDIO_RCV_BUFFSZ     1024
@@ -100,7 +101,7 @@
 #define HW_DELAY_MSDIV 3000
 
 /******************************************************************************
-* variables
+* variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 //UART variables
 volatile bool bIs_usart_data = false;
@@ -348,13 +349,13 @@ uint8_t ui8ControlTable[1024];
 uint8_t ui8ControlTable[1024] __attribute__ ((aligned(1024)));
 #endif
 
-//*****************************************************************************
-// external variables
-//*****************************************************************************
+/******************************************************************************
+* external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-//*****************************************************************************
-// enums
-//*****************************************************************************
+/******************************************************************************
+* enums ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 typedef enum
 {
   RB_NONE,
@@ -363,10 +364,9 @@ typedef enum
   RB_OTHER
 }eRcv_Buff_type;
 
-//*****************************************************************************
-// structures
-//*****************************************************************************
-
+/******************************************************************************
+* structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 //DMA RX struct
 typedef struct
 {
@@ -390,9 +390,16 @@ tDMA_RX_struct tDMA_RX_struct_array[NUM_DMA_RDIO_RCV_BUFFS];
 tDMA_TX_struct tDMA_TX_struct_array[NUM_DMA_RDIO_TX_BUFFS];
 #endif
 
-//*****************************************************************************
-// external functions
-//*****************************************************************************
+UART_Handle sRadio_UART_handle;
+UART_Params sRadio_UART_params;
+
+/******************************************************************************
+* external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+extern void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count);
+extern void vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count);
+
+#ifndef USING_TIRTOS
 
 //*****************************************************************************
 // private function declarations
@@ -1549,6 +1556,7 @@ ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
 #undef vDEBUG_BSB_UART_BAUD
 }
 
+#endif
 /******************************************************************************
 * name:
 * description:
@@ -1626,82 +1634,98 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
 #undef vDEBUG_BSB_GET_BAUD
 }
 
+
 //*****************************************************************************
 // name: RadioUARTEnable
 // description: configures and enables the usart for the BT radio
 // param description: none
 // return value description: none
 //*****************************************************************************
-int
-RadioUARTEnable(void)
+int RadioUARTEnable(void)
 {
-  //RADIO_CONFIG
-  //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
+  sRadio_UART_params.readMode = UART_MODE_BLOCKING;         /*!< Mode for all read calls */
+  sRadio_UART_params.writeMode = UART_MODE_BLOCKING;        /*!< Mode for all write calls */
+  sRadio_UART_params.readTimeout = 1000;      /*!< Timeout for read semaphore */
+  sRadio_UART_params.writeTimeout = 1000;     /*!< Timeout for write semaphore */
+  sRadio_UART_params.readCallback = vIneedMD_radio_read_cb;     /*!< Pointer to read callback */
+  sRadio_UART_params.writeCallback = vIneedMD_radio_write_cb;    /*!< Pointer to write callback */
+  sRadio_UART_params.readReturnMode = UART_RETURN_NEWLINE;   /*!< Receive return mode */
+  sRadio_UART_params.readDataMode =  UART_DATA_TEXT;     /*!< Type of data being read */
+  sRadio_UART_params.writeDataMode = UART_DATA_TEXT;    /*!< Type of data being written */
+  sRadio_UART_params.readEcho = UART_ECHO_ON;         /*!< Echo received data back */
+  sRadio_UART_params.baudRate = INEEDMD_RADIO_UART_BAUD_1382400;         /*!< Baud rate for UART */
+  sRadio_UART_params.dataLength = UART_LEN_8;       /*!< Data length for UART */
+  sRadio_UART_params.stopBits = UART_STOP_ONE;         /*!< Stop bits for UART */
+  sRadio_UART_params.parityType = UART_PAR_NONE;       /*!< Parity bit type for UART */
 
-  // Enable pin PE0 for GPIOOutput - this is the reset for the radio.
-  //
-  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN);
-
-  // Radio command mode, set pin to gpio output
-  //
-  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN);
-
-  // Radio enable, set pin to gpio output
-  //
-  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_EN_PORT, INEEDMD_RADIO_ENABLE_PIN);
-
-  //
-  // Enable pin PF0 for UART1 U1RTS
-  // First open the lock and select the bits we want to modify in the GPIO commit register.
-  //
-  HWREG(INEEDMD_RADIO_RTS_PORT + INEEDMD_GPIO_RTS_LOCK) = GPIO_LOCK_KEY;
-  HWREG(INEEDMD_RADIO_RTS_PORT + INEEDMD_GPIO_RTS_CR) = 0x1;  //todo: no magic number!
-
-  // Configure the alternate function for UART RTS pin
-  //
-  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRTS);
-  MAP_GPIOPinTypeUART(INEEDMD_RADIO_RTS_PORT, INEEDMD_RADIO_RTS_PIN);
-
-  // Configure the alternate function for UART CTS pin
-  //
-  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTCTS);
-  MAP_GPIOPinTypeUART(INEEDMD_RADIO_CTS_PORT, INEEDMD_RADIO_CTS_PIN);
-
-  // Configure the alternate function for UART TX and RX pins
-  //
-  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTTX);
-  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRX);
-
-  // Set the TX pin type for the radio uart
-  //
-  MAP_GPIOPinTypeUART(INEEDMD_GPIO_TX_PORT, INEEDMD_GPIO_TX_PIN);
-
-  // Set the RX pin type for the radio uart
-  //
-  MAP_GPIOPinTypeUART(INEEDMD_GPIO_RX_PORT, INEEDMD_GPIO_RX_PIN);
-
-  //Set the UART clock source to internal
-  //
-  MAP_UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
-
-  //Config the uart speed, len, stop bits and parity
-  //
-  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
-  MAP_UARTEnable(INEEDMD_RADIO_UART); //todo: can this function call be removed since it is called at the end?
-
-  //Config the uart flow control
-  //
-  MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
-
-  // Enable the communication FIFO
-  //
-  MAP_UARTFIFOEnable(INEEDMD_RADIO_UART);
-  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX7_8, UART_FIFO_RX1_8);
-
-  //Do the final UART enable to begin transmitting and receiving
-  //
-  MAP_UARTEnable(INEEDMD_RADIO_UART);
+  sRadio_UART_handle = UART_open(INEEDMD_RADIO_UART, &sRadio_UART_params);
+//  //RADIO_CONFIG
+//  //
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
+//
+//  // Enable pin PE0 for GPIOOutput - this is the reset for the radio.
+//  //
+//  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN);
+//
+//  // Radio command mode, set pin to gpio output
+//  //
+//  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN);
+//
+//  // Radio enable, set pin to gpio output
+//  //
+//  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_EN_PORT, INEEDMD_RADIO_ENABLE_PIN);
+//
+//  //
+//  // Enable pin PF0 for UART1 U1RTS
+//  // First open the lock and select the bits we want to modify in the GPIO commit register.
+//  //
+//  HWREG(INEEDMD_RADIO_RTS_PORT + INEEDMD_GPIO_RTS_LOCK) = GPIO_LOCK_KEY;
+//  HWREG(INEEDMD_RADIO_RTS_PORT + INEEDMD_GPIO_RTS_CR) = 0x1;  //todo: no magic number!
+//
+//  // Configure the alternate function for UART RTS pin
+//  //
+//  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRTS);
+//  MAP_GPIOPinTypeUART(INEEDMD_RADIO_RTS_PORT, INEEDMD_RADIO_RTS_PIN);
+//
+//  // Configure the alternate function for UART CTS pin
+//  //
+//  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTCTS);
+//  MAP_GPIOPinTypeUART(INEEDMD_RADIO_CTS_PORT, INEEDMD_RADIO_CTS_PIN);
+//
+//  // Configure the alternate function for UART TX and RX pins
+//  //
+//  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTTX);
+//  MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRX);
+//
+//  // Set the TX pin type for the radio uart
+//  //
+//  MAP_GPIOPinTypeUART(INEEDMD_GPIO_TX_PORT, INEEDMD_GPIO_TX_PIN);
+//
+//  // Set the RX pin type for the radio uart
+//  //
+//  MAP_GPIOPinTypeUART(INEEDMD_GPIO_RX_PORT, INEEDMD_GPIO_RX_PIN);
+//
+//  //Set the UART clock source to internal
+//  //
+//  MAP_UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
+//
+//  //Config the uart speed, len, stop bits and parity
+//  //
+//  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+//  MAP_UARTEnable(INEEDMD_RADIO_UART); //todo: can this function call be removed since it is called at the end?
+//
+//  //Config the uart flow control
+//  //
+//  MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+//
+//  // Enable the communication FIFO
+//  //
+//  MAP_UARTFIFOEnable(INEEDMD_RADIO_UART);
+//  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX7_8, UART_FIFO_RX1_8);
+//
+//  //Do the final UART enable to begin transmitting and receiving
+//  //
+//  MAP_UARTEnable(INEEDMD_RADIO_UART);
 
   return 1;
 }
@@ -1714,7 +1738,7 @@ RadioUARTEnable(void)
 //*****************************************************************************
 int iRadio_Power_On(void)
 {
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN);
+  GPIO_write(EK_TM4C123GXL_RADIO_POWER, INEEDMD_RADIO_ENABLE_PIN_SET);
   return 1;
 }
 
@@ -1726,10 +1750,11 @@ int iRadio_Power_On(void)
 //*****************************************************************************
 int iRadio_Power_Off(void)
 {
-  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN, INEEDMD_RADIO_ENABLE_PIN_CLEAR);
+  GPIO_write(EK_TM4C123GXL_RADIO_POWER, INEEDMD_RADIO_ENABLE_PIN_CLEAR);
   return 1;
 }
 
+#ifndef USING_TIRTOS
 /******************************************************************************
 * name: eBSP_Radio_Power_Cycle
 * description:
@@ -1951,14 +1976,14 @@ ERROR_CODE eUsing_radio_uart_dma(void)
 
   return eEC;
 }
-
+#endif
 //*****************************************************************************
 // name: iRadio_interface_enable
 // description: enables the serial interface to the external radio
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
-int iRadio_interface_enable(void)
+ERROR_CODE eRadio_interface_enable(void)
 {
   ERROR_CODE eEC = ER_OK;
   int iEC = 0;
@@ -1974,7 +1999,7 @@ int iRadio_interface_enable(void)
   else
   {
     //configure the radio UART interrupts
-    iEC = iRadio_interface_int_enable();
+//    iEC = iRadio_interface_int_enable();
 
     //check the error codes
     if(iEC == 1)
@@ -1988,16 +2013,14 @@ int iRadio_interface_enable(void)
   }
 
   //check the error codes
-  if(eEC == ER_OK)
+  if(eEC != ER_OK)
   {
-    return 1;
-  }
-  else
-  {
-    return -1;
-  }
-}
+    eEC = ER_FAIL;
+  }else{/*do nothing*/}
 
+  return eEC;
+}
+#ifndef USING_TIRTOS
 int iRadio_gpio_set(uint16_t uiMask)
 {
 #ifdef DEBUG
@@ -3624,13 +3647,7 @@ iHW_delay(uint32_t uiDelay)
   return i;
 }
 
-//
-//a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
-//
-//void vHW_delay (unsigned int tenths_of_seconds)
-//{
-//  MAP_SysCtlDelay(( MAP_SysCtlClockGet() / 30  )*tenths_of_seconds );
-//}
+#endif //#ifndef USING_TIRTOS
 
 //*****************************************************************************
 // name: iBoard_init
@@ -3638,9 +3655,20 @@ iHW_delay(uint32_t uiDelay)
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
-int
-iBoard_init(void)
+ERROR_CODE eBSP_Board_init(void)
 {
+#ifdef USING_TIRTOS
+  ERROR_CODE eEC = ER_OK;
+
+  Board_initGeneral();
+  Board_initGPIO();
+  Board_initWatchdog();
+  Board_initUART();
+
+  return eEC;
+#else
+  ERROR_CODE eEC = ER_OK;
+
   // switch on the GPIO
   GPIOEnable();
 
@@ -3677,6 +3705,7 @@ iBoard_init(void)
 
   eMaster_int_enable();
 
-  return 1;
+  return eEC;
+#endif //#ifdef USING_TIRTOS
 }
 #endif //__BOARD_C__
