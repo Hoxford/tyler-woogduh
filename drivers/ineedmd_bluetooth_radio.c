@@ -33,11 +33,14 @@
 #include <inc/tm4c1233h6pm.h>
 
 #include "utils_inc/error_codes.h"
+#include <xdc/std.h>
+#include <xdc/runtime/System.h>
 
 #include "board.h"
 #include "drivers_inc/ineedmd_bluetooth_radio.h"
 //#include "app_inc/ineedmd_command_protocol.h"
 #include "utils_inc/proj_debug.h"
+
 
 //*****************************************************************************
 // defines
@@ -267,6 +270,8 @@ volatile bool bIs_data;
 volatile bool bIs_connection = false;
 volatile bool bIs_frame_to_send = false;
 
+bool bDid_rcv_callback = false;
+
 uint8_t   uiBT_addr[6];        //BT module mac address
 char      cBT_addr_string[18]; //BT module mac address in string format
 uint8_t   uiRemote_dev_addr[6];        //remote BT module mac address
@@ -296,16 +301,19 @@ eRadio_event eActive_radio_events = RDIO_NO_EVENT; //eActive_radio_events, used 
 //*****************************************************************************
 // external functions
 //*****************************************************************************
-#ifdef NOT_NOW
+
 //*****************************************************************************
 // private function declarations
 //*****************************************************************************
-int        iIneedmd_radio_cmnd_mode    (bool bMode_Set);
+ERROR_CODE eIneedmd_radio_cmnd_mode    (bool bMode_Set);
 ERROR_CODE eBT_RDIO_mux_mode_disable   (void); //attempts to get radio out of mux mode
 ERROR_CODE eSend_Radio_CMND            (char * cCmnd_buff,     uint16_t uiCmnd_Buff_size);
+#ifdef NOT_NOW
 int        iIneed_md_parse_ssp         (char * cBuffer,        uint8_t * uiDev_addr, uint32_t * uiDev_key);
 int        iIneedmd_parse_addr         (char * cString_buffer, uint8_t * uiAddr);
+#endif
 ERROR_CODE iIneedmd_radio_rcv_boot_msg (char * cRcv_string,    uint16_t uiBuff_size);
+#ifdef NOT_NOW
 ERROR_CODE iIneedmd_radio_rcv_settings (char * cRcv_string,    uint16_t uiBuff_size);
 ERROR_CODE eIneedmd_radio_rcv_config   (char * cRcv_string,    uint16_t uiBuff_size, uint16_t * uiSetcfg_Param);
 ERROR_CODE eIneedmd_radio_parse_default_settings (char * cSettings_buff);
@@ -315,7 +323,7 @@ ERROR_CODE eIneedmd_radio_chk_event    (char * cEvent_buff);
 #else
   #define vRADIO_ECHO_FRAME(a, i)
 #endif //INEEDMD_RADIO_CMND_ECHO
-
+#endif
 //*****************************************************************************
 // private functions
 //*****************************************************************************
@@ -325,7 +333,7 @@ ERROR_CODE eIneedmd_radio_chk_event    (char * cEvent_buff);
 * param description:
 * return value description:
 ******************************************************************************/
-int iIneedmd_radio_cmnd_mode(bool bMode_Set)
+ERROR_CODE eIneedmd_radio_cmnd_mode(bool bMode_Set)
 {
 //#define DEBUG_iIneedmd_radio_cmnd_mode
 #ifdef DEBUG_iIneedmd_radio_cmnd_mode
@@ -333,26 +341,29 @@ int iIneedmd_radio_cmnd_mode(bool bMode_Set)
 #else
   #define vDEBUG_RDIO_CMND_MODE(a)
 #endif
+  ERROR_CODE eEC = ER_FAIL;
+
   if(bMode_Set == true)
   {
-    eSet_radio_to_cmnd_mode();
+    eEC = eSet_radio_to_cmnd_mode();
   }
   else if(bMode_Set == false)
   {
-    eSet_radio_to_data_mode();
+    eEC = eSet_radio_to_data_mode();
   }
   else
   {
 #ifdef DEBUG
     vDEBUG_RDIO_CMND_MODE("Cmnd mode SYS HALTED, unknown mode set value")
+    eEC = ER_FAIL;
     while(1){}; //unknown mode set value
+#elif
+    eEC = ER_FAIL;
 #endif
-    return -1;
   }
-  return 1;
+  return eEC;
 #undef  vDEBUG_RDIO_CMND_MODE
 }
-
 
 ERROR_CODE eBT_RDIO_mux_mode_disable(void)
 {
@@ -475,7 +486,7 @@ ERROR_CODE eSend_Radio_CMND(char * cCmnd_buff, uint16_t uiCmnd_Buff_size)
   int iStr_cmp = 0;
   ERROR_CODE eEC = ER_FAIL;
 
-  eEC = eIs_UART_using_DMA();
+  eEC = eUsing_radio_uart_dma();
   if(eEC == ER_TRUE)
   {
     iStr_cmp = strcmp(cCmnd_buff, SET_SET);
@@ -523,7 +534,7 @@ ERROR_CODE eSend_Radio_CMND(char * cCmnd_buff, uint16_t uiCmnd_Buff_size)
   return eEC;
 #undef  vDEBUG_RDIO_SND_CMND
 }
-
+#ifdef NOT_NOW
 /******************************************************************************
 * name:
 * description:
@@ -581,7 +592,7 @@ int iIneedmd_parse_addr(char * cString_buffer, uint8_t * uiAddr)
   }
   return 1;
 }
-
+#endif
 /******************************************************************************
 * name: iIneedmd_radio_rcv_boot_msg
 * description: get boot message from the radio
@@ -724,6 +735,9 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
       }else{/*do nothing*/}
 
       eEC = iRadio_rcv_char(&cRcv_string[i]);
+      while(bDid_rcv_callback == false){};
+      bDid_rcv_callback = false;
+//      uiRcv_len = iRadio_rcv_string(cRcv_string, BG_SIZE);
 
       if(eEC == ER_TIMEOUT)
       {
@@ -736,7 +750,8 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
         if(cRcv_string[i] == '\n')
         {
           //check if the last part of the boot message is the end of the boot message
-          if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+          //if (strcmp(&cRcv_string[i - (READY_STRLEN - 1)], READY) == 0)
+          if(strstr((char *)cRcv_string, READY) != 0)
           {
             eEC = ER_VALID;
             break;
@@ -767,7 +782,7 @@ ERROR_CODE iIneedmd_radio_rcv_boot_msg(char *cRcv_string, uint16_t uiBuff_size)
   return eEC;
 #undef vDEBUG_RDIO_RCV_BOOTMSG
 }
-
+#ifdef NOT_NOW
 /*
  * get the settings from the radio
  */
@@ -1030,7 +1045,7 @@ void ineedmd_radio_power(bool power_up)
   }
 }
 
-#ifdef NOT_NOW
+
 /* ineedmd_radio_reset
  * Reset the radio
  *
@@ -1038,30 +1053,11 @@ void ineedmd_radio_power(bool power_up)
  */
 void ineedmd_radio_reset(void)
 {
-
-//  uint32_t uiSysClk = 0;
-//
-//  uiSysClk = MAP_SysCtlClockGet();
-//
-//  uiSysClk = uiSysClk/10;
-//
-//  //exerts the processor rest pin
-//  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_RESET_PIN,  INEEDMD_RADIO_RESET_PIN );
-//
-//  //as we dont know the state of the processor or the timers we will do the delay in cpu clock cycles
-//  //about a 10th of a second
-//  //it would be nicer to have this as a proces sleep..
-//  MAP_SysCtlDelay( uiSysClk );
-//
-//  //de-exert,sets it low, reset pin
-//  GPIOPinWrite (GPIO_PORTE_BASE, INEEDMD_RADIO_RESET_PIN, 0x00);
-
-
   //perform the reset pin toggle
   eBSP_Radio_Reset();
 
 }
-
+#ifdef NOT_NOW
 //*****************************************************************************
 // name:
 // description:
@@ -1330,7 +1326,7 @@ ERROR_CODE eIneedmd_radio_rfd(void)
 
 #undef vDEBUG_RDIO_RFD
 }
-
+#endif
 /*
  * send message to the radio
  * This function in it's current state just passes the parameters to the HAL.
@@ -1387,7 +1383,7 @@ int ineedmd_radio_send_frame(uint8_t *send_frame, uint16_t uiFrame_size)
   return i;
 #undef vDEBUG_RDIO_SND_FR
 }
-
+#ifdef NOT_NOW
 //*****************************************************************************
 // name:
 // description:
@@ -1425,7 +1421,7 @@ int  iIneedmd_radio_que_frame(uint8_t *send_frame, uint16_t uiFrame_size)
 
   return iEC;
 }
-
+#endif
 /*
  * get message from the radio
  */
@@ -1449,7 +1445,7 @@ int iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 
   return i;
 }
-
+#ifdef NOT_NOW
 /*
  * get a byte from the radio
  */
@@ -1615,26 +1611,29 @@ ERROR_CODE eIneedMD_radio_setup(void)
     memset(uiSet_ctrl_config,0x0000, 4); //todo: magic number!
 
     //enable radio interface
-    eRadio_interface_enable();
+    eEC = eRadio_interface_enable();
 
-    //get the current system baud
-    eBSP_Get_radio_uart_baud(&uiSystem_Baud);
+    if(eEC == ER_OK)
+    {
+      //get the current system baud
+      eBSP_Get_radio_uart_baud(&uiSystem_Baud);
+    }
 
     //turn power on to the radio
     ineedmd_radio_power(true);
 
-#ifdef NOT_NOW
+    eRadio_clear_rcv_buffer();
     //todo: perform a DTR pin set and check if radio responsive to commands, will be released in board rev 5
 
-    iIneedmd_radio_cmnd_mode(true);
+    eIneedmd_radio_cmnd_mode(true);
 
     //clear any data in the UART
     eRadio_clear_rcv_buffer();
 
-    //hardware power reset the radio
+    //software reset the radio
     //
+    vDEBUG_RDIO_SETUP("Rdio setup, radio software reset");
     ineedmd_radio_reset();
-    vDEBUG_RDIO_SETUP("Rdio setup, waiting for the radio to come back from soft reset");
     eEC = eGet_Radio_CTS_status();
     while(eEC == ER_FALSE)
     {
@@ -1851,7 +1850,7 @@ ERROR_CODE eIneedMD_radio_setup(void)
         }
       }
     }
-
+#ifdef NOT_NOW
     //SET CONTROL ECHO, set the radio echo
     //
     memset(cSend_buff, 0x00, BG_SIZE);
@@ -2083,12 +2082,17 @@ ERROR_CODE eIneedMD_radio_setup(void)
 
 void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count)
 {
-
+  bDid_rcv_callback = true;
+  return;
 }
 
 void vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count)
 {
+  ERROR_CODE eEC;
 
+  eEC = ER_OK;
+
+  return;
 }
 
 #ifdef NOT_NOW

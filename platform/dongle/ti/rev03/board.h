@@ -123,7 +123,8 @@
 //BT Radio mappings
 //
 //#define INEEDMD_RADIO_UART                     UART1_BASE
-#define INEEDMD_RADIO_UART                     EK_TM4C123GXL_UART1
+#define INEEDMD_RADIO_UART_INDEX               EK_TM4C123GXL_UART1
+#define INEEDMD_RADIO_UART                     UART1_BASE
 #define INEEDMD_RADIO_UART_CLK                 16000000
 //Radio UART baud rates
 #define INEEDMD_RADIO_UART_BAUD_57600    57600
@@ -182,23 +183,27 @@
   #define INEEDMD_GPIO_RST_PORT                  GPIO_PORTE_BASE
   #define INEEDMD_RADIO_RESET_PIN                GPIO_PIN_0
   #define INEEDMD_RADIO_RESET_PIN_SET            GPIO_PIN_0
-  #define INEEDMD_RADIO_RESET_PIN_CLEAR          ~GPIO_PIN_0
+  #define INEEDMD_RADIO_RESET_PIN_CLEAR          0
 //Radio command mode mappings
   #define INEEDMD_GPIO_CMND_PORT                 GPIO_PORTE_BASE
   #define INEEDMD_RADIO_CMND_PIN                 GPIO_PIN_1
   #define INEEDMD_RADIO_CMND_PIN_SET             GPIO_PIN_1
-  #define INEEDMD_RADIO_CMND_PIN_CLEAR           0 //todo: will ~GPIO_PIN_1 work?
+  #define INEEDMD_RADIO_CMND_PIN_CLEAR           0
 //Radio enable mappings
   #define INEEDMD_GPIO_EN_PORT                   GPIO_PORTE_BASE
   #define INEEDMD_RADIO_ENABLE_PIN               GPIO_PIN_2
   #define INEEDMD_RADIO_ENABLE_PIN_SET           GPIO_PIN_2
-  #define INEEDMD_RADIO_ENABLE_PIN_CLEAR         ~GPIO_PIN_2
+  #define INEEDMD_RADIO_ENABLE_PIN_CLEAR         0
 //Radio low batt mappings
 //  #define INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN    GPIO_PIN_1  //todo no longer will be on pin 1
 //Radio interrupt mappings
   #define INEEDMD_RADIO_UART_INT                 INT_UART1
 
-#define INEEDMD_PORTD_XTAL_ENABLE GPIO_PIN_5
+//External clock mappings
+  #define INEEDMD_XTAL_PORT              GPIO_PORTD_BASE
+  #define INEEDMD_XTAL_ENABLE_PIN        GPIO_PIN_5
+  #define INEEDMD_XTAL_ENABLE_PIN_SET    GPIO_PIN_5
+  #define INEEDMD_XTAL_ENABLE_PIN_CLEAR  0
 
 //port mappings to make easier to read names...
 #define INEEDMD_ADC_SPI     SSI0_BASE
@@ -217,18 +222,17 @@
 #define INEEDMD_RADIO  0x04
 #define INEED_USB      0x05
 
-//subsystem block number - just used to make some coding functions easer.
-#define INEEDMD_CPU_SPEED_NOT_SET           0x00
-#define INEEDMD_CPU_SPEED_FULL_EXTERNAL     0x07
-#define INEEDMD_CPU_SPEED_HALF_EXTERNAL     0x05
-#define INEEDMD_CPU_SPEED_QUARTER_EXTERNAL  0x06
-#define INEEDMD_CPU_SPEED_FULL_INTERNAL     0x01
-#define INEEDMD_CPU_SPEED_HALF_INTERNAL     0x02
-#define INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC 0x08
-#define INEEDMD_CPU_SPEED_SLOW_INTERNAL     0x03
-#define INEEDMD_CPU_SPEED_REALLY_SLOW       0x04
-  #define INEEDMD_CPU_SPEED_DEFAULT       INEEDMD_CPU_SPEED_HALF_INTERNAL
-
+//Default CPU speed
+#define INEEDMD_CPU_SPEED_DEFAULT       INEEDMD_CPU_SPEED_HALF_INTERNAL
+//#define INEEDMD_CPU_SPEED_NOT_SET           0x00
+//#define INEEDMD_CPU_SPEED_FULL_EXTERNAL     0x07
+//#define INEEDMD_CPU_SPEED_HALF_EXTERNAL     0x05
+//#define INEEDMD_CPU_SPEED_QUARTER_EXTERNAL  0x06
+//#define INEEDMD_CPU_SPEED_FULL_INTERNAL     0x01
+//#define INEEDMD_CPU_SPEED_HALF_INTERNAL     0x02
+//#define INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC 0x08
+//#define INEEDMD_CPU_SPEED_SLOW_INTERNAL     0x03
+//#define INEEDMD_CPU_SPEED_REALLY_SLOW       0x04
 
 //define the WTC channel A input for the RA electronde as the channel 3 negative input
 #define WTC_A_CHANNEL 0x05
@@ -262,6 +266,9 @@ typedef enum EK_TM4C123GXL_GPIOName
 {
   EK_TM4C123GXL_DEBUG = 0,
   EK_TM4C123GXL_RADIO_POWER,
+  EK_TM4C123GXL_RADIO_CMND_MODE,
+  EK_TM4C123GXL_RADIO_RESET,
+  EK_TM4C123GXL_XTAL_ENABLE,
   EK_TM4C123GXL_GPIOCOUNT
 
 } EK_TM4C123GXL_GPIOName;
@@ -306,7 +313,7 @@ typedef enum EK_TM4C123GXL_SPIName {
 typedef enum EK_TM4C123GXL_UARTName {
     EK_TM4C123GXL_UART0 = 0,
     EK_TM4C123GXL_UART1,
-
+    EK_TM4C123GXL_UART5,
     EK_TM4C123GXL_UARTCOUNT
 } EK_TM4C123GXL_UARTName;
 
@@ -338,6 +345,20 @@ typedef enum EK_TM4C123GXL_WiFiName {
 
     EK_TM4C123GXL_WIFICOUNT
 } EK_TM4C123GXL_WiFiName;
+
+typedef enum SYSTEM_SPEED_INDEX
+{
+  INEEDMD_CPU_SPEED_NOT_SET = 0x00,
+  INEEDMD_CPU_SPEED_FULL_EXTERNAL,
+  INEEDMD_CPU_SPEED_HALF_EXTERNAL,
+  INEEDMD_CPU_SPEED_QUARTER_EXTERNAL,
+  INEEDMD_CPU_SPEED_FULL_INTERNAL,
+  INEEDMD_CPU_SPEED_HALF_INTERNAL,
+  INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC,
+  INEEDMD_CPU_SPEED_SLOW_INTERNAL,
+  INEEDMD_CPU_SPEED_REALLY_SLOW,
+  INEEDMD_CPU_SPEED_INDEX_COUNT
+}eSYSTEM_SPEED_INDEX;
 
 /******************************************************************************
 *public structures ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -456,7 +477,7 @@ extern void EK_TM4C123GXL_initWiFi(void);
 ******************************************************************************/
 void        wait_time (unsigned int);
 void        write_2_byte_i2c (unsigned char, unsigned char, unsigned char);
-int         set_system_speed (unsigned int);
+ERROR_CODE  set_system_speed (eSYSTEM_SPEED_INDEX eHow_Fast);
 ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed);
 void        Set_Timer0_Sleep();
 ERROR_CODE  eBSP_Timer0_Int_Serivce(uint32_t uiInt_Status);
@@ -478,7 +499,7 @@ int         EKGSPIEnable(void);
 int         EKGSPIDisable(void);
 ERROR_CODE  eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set);
 ERROR_CODE  eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get);
-int         RadioUARTEnable(void);
+ERROR_CODE  eBSP_RadioUARTEnable(void);
 int         RadioUARTDisable(void);
 int         iRadio_Power_On(void);
 int         iRadio_Power_Off(void);

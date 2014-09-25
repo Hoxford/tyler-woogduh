@@ -53,15 +53,12 @@ int main(void)
 
   Error_Block eb;
 
-  vDEBUG("Hello World!");
-
   //Perform the basic board init functions
   //
-  eEC = eBSP_Board_init();
-  if(eEC == ER_OK)
-  {
-      vDEBUG("eBSP_Board_init() done");
-  }
+  eBSP_Board_init();
+
+  vDEBUG_init();
+  vDEBUG("Hello World!");
 
   //Call driver init functions
   //

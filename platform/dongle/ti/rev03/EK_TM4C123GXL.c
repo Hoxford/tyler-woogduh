@@ -160,8 +160,11 @@ void gpioButtonFxn1(void);
 
 /* GPIO configuration structure */
 const GPIO_HWAttrs gpioHWAttrs[EK_TM4C123GXL_GPIOCOUNT] = {
-        {DEBUG_GPIO_PORT_1,    DEBUG_GPIO_PIN_1,         GPIO_OUTPUT},
-        {INEEDMD_GPIO_EN_PORT, INEEDMD_RADIO_ENABLE_PIN, GPIO_OUTPUT},
+        {DEBUG_GPIO_PORT_1,      DEBUG_GPIO_PIN_1,         GPIO_OUTPUT},
+        {INEEDMD_GPIO_EN_PORT,   INEEDMD_RADIO_ENABLE_PIN, GPIO_OUTPUT},
+        {INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN,   GPIO_OUTPUT},
+        {INEEDMD_GPIO_RST_PORT,  INEEDMD_RADIO_RESET_PIN,  GPIO_OUTPUT},
+        {INEEDMD_XTAL_PORT,      INEEDMD_XTAL_ENABLE_PIN,  GPIO_OUTPUT},
 };
 
 /* Memory for the GPIO module to construct a Hwi */
@@ -173,12 +176,13 @@ const GPIO_Callbacks EK_TM4C123GXL_gpioPortFCallbacks = {
     {gpioButtonFxn1, NULL, NULL, NULL, gpioButtonFxn0, NULL, NULL, NULL}
 };
 
+/* GPIO config structure, must be called in order of the gpio name */
 const GPIO_Config GPIO_config[] = {
-    {&gpioHWAttrs[0]},
-    {&gpioHWAttrs[1]},
-    {&gpioHWAttrs[2]},
-//    {&gpioHWAttrs[3]},
-//    {&gpioHWAttrs[4]},
+    {&gpioHWAttrs[EK_TM4C123GXL_DEBUG]},
+    {&gpioHWAttrs[EK_TM4C123GXL_RADIO_POWER]},
+    {&gpioHWAttrs[EK_TM4C123GXL_RADIO_CMND_MODE]},
+    {&gpioHWAttrs[EK_TM4C123GXL_RADIO_RESET]},
+    {&gpioHWAttrs[EK_TM4C123GXL_XTAL_ENABLE]},
     {NULL},
 };
 
@@ -210,6 +214,18 @@ void EK_TM4C123GXL_initGPIO(void)
   //Init radio power enable pin
   //
   MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_EN_PORT, INEEDMD_RADIO_ENABLE_PIN);  //radio power enable pin
+
+  //Init radio command mode pin
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN);  //radio command mode pin
+
+  //Init radio reset pin
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN);  //radio reset pin
+
+  //Init external clock enable pin
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_XTAL_PORT, INEEDMD_XTAL_ENABLE_PIN);  //external clock enable pin
 
   /* Once GPIO_init is called, GPIO_config cannot be changed */
   GPIO_init();
@@ -452,13 +468,27 @@ UARTTiva_Object uartTivaObjects[EK_TM4C123GXL_UARTCOUNT];
 const UARTTiva_HWAttrs uartTivaHWAttrs[EK_TM4C123GXL_UARTCOUNT] = {
     {UART0_BASE, INT_UART0}, /* EK_TM4C123GXL_UART0 */
     {UART1_BASE, INT_UART1}, /* EK_TM4C123GXL_UART1 */
+    {UART5_BASE, INT_UART5}, /* EK_TM4C123GXL_UART5 */
 };
 
 const UART_Config UART_config[] = {
+    // EK_TM4C123GXL_UART0
     {
         &UARTTiva_fxnTable,
-        &uartTivaObjects[0],
-        &uartTivaHWAttrs[0]
+        &uartTivaObjects[EK_TM4C123GXL_UART0],
+        &uartTivaHWAttrs[EK_TM4C123GXL_UART0]
+    },
+    // EK_TM4C123GXL_UART1
+    {
+        &UARTTiva_fxnTable,
+        &uartTivaObjects[EK_TM4C123GXL_UART1],
+        &uartTivaHWAttrs[EK_TM4C123GXL_UART1]
+    },
+    // EK_TM4C123GXL_UART5
+    {
+        &UARTTiva_fxnTable,
+        &uartTivaObjects[EK_TM4C123GXL_UART5],
+        &uartTivaHWAttrs[EK_TM4C123GXL_UART5]
     },
     {NULL, NULL, NULL}
 };
@@ -489,6 +519,29 @@ void EK_TM4C123GXL_initUART(void)
   //
   MAP_GPIOPinTypeUART(INEEDMD_GPIO_TX_PORT, INEEDMD_GPIO_TX_PIN);
   MAP_GPIOPinTypeUART(INEEDMD_GPIO_RX_PORT, INEEDMD_GPIO_RX_PIN);
+
+  //Set the UART clock source to internal
+  //
+//  MAP_UARTClockSourceSet(INEEDMD_RADIO_UART, UART_CLOCK_PIOSC);
+
+  //Config the uart speed, len, stop bits and parity
+  //
+//  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+
+  //DEBUG UART
+  //
+  MAP_SysCtlPeripheralEnable(DEBUG_SYSCTL_PERIPH_UART);
+
+  // Configure the debug port pins
+  MAP_GPIOPinConfigure(DEBUG_TX_PIN_MUX_MODE);
+  MAP_GPIOPinConfigure(DEBUG_RX_PIN_MUX_MODE);
+
+  // Set the debug uart pin types
+  MAP_GPIOPinTypeUART(DEBUG_UART_PIN_PORT, DEBUG_TX_PIN);
+  MAP_GPIOPinTypeUART(DEBUG_UART_PIN_PORT, DEBUG_RX_PIN);
+
+  //Set the clock source for the debug uart
+//  UARTClockSourceSet(DEBUG_UART, UART_CLOCK_PIOSC);
 
   /* Initialize the UART driver */
   UART_init();

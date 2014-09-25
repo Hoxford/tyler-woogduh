@@ -45,6 +45,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <xdc/runtime/Types.h>
+#include <ti/sysbios/BIOS.h>
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_nvic.h"
@@ -312,11 +314,22 @@ const tUSBBuffer g_sTxBuffer =
 volatile bool bWaveform_timer_tick = false;
 
 //HW delay variables
-uint32_t uiHW_delay_Prev_Sys_speed = 0;
 uint32_t uiHW_delay_Sys_speed_1ms_ticks = 0;
 
 //system speed variables
-uint16_t uiCurrent_sys_speed = 0;
+uint32_t uiCurrent_sys_speed = 0;
+uint32_t uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_INDEX_COUNT] =
+{
+  0,         //INEEDMD_CPU_SPEED_NOT_SET
+  80000000,  //INEEDMD_CPU_SPEED_FULL_EXTERNAL,
+  40000000,  //INEEDMD_CPU_SPEED_HALF_EXTERNAL,
+  20000000,  //INEEDMD_CPU_SPEED_QUARTER_EXTERNAL,
+  80000000,  //INEEDMD_CPU_SPEED_FULL_INTERNAL,
+  40000000,  //INEEDMD_CPU_SPEED_HALF_INTERNAL,
+  40000000,  //INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC,
+  500000,    //INEEDMD_CPU_SPEED_SLOW_INTERNAL,
+  30000      //INEEDMD_CPU_SPEED_REALLY_SLOW,
+};
 
 //Total time running variables
 volatile uintmax_t uiRunClock_Sys_ms_count = 0;
@@ -335,6 +348,9 @@ bool bIs_LEDI2D_Enabled = false;
 
 //System sleep variables
 bool bSystem_sleep_timer_expired = false;
+
+// BIOS variables
+bool bIs_BIOS_running = false;
 
 //*****************************************************************************
 // The control table used by the uDMA controller. This table must be aligned to a 1024 byte boundary.
@@ -364,6 +380,7 @@ typedef enum
   RB_OTHER
 }eRcv_Buff_type;
 
+eSYSTEM_SPEED_INDEX eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_NOT_SET;
 /******************************************************************************
 * structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -390,8 +407,12 @@ tDMA_RX_struct tDMA_RX_struct_array[NUM_DMA_RDIO_RCV_BUFFS];
 tDMA_TX_struct tDMA_TX_struct_array[NUM_DMA_RDIO_TX_BUFFS];
 #endif
 
+//UART parameters
 UART_Handle sRadio_UART_handle;
 UART_Params sRadio_UART_params;
+
+//CPU frequency parameters
+Types_FreqHz sCPU_freq;
 
 /******************************************************************************
 * external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -846,14 +867,14 @@ void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsign
     while(I2CMasterBusy(I2C0_BASE));
 
 }
-
+#endif //#ifndef USING_TIRTOS
 //*****************************************************************************
 // name:
 // description: sets the system speed according to the passed in parameter
 // param description:
 // return value description:
 //*****************************************************************************
-int set_system_speed (unsigned int how_fast)
+ERROR_CODE set_system_speed (eSYSTEM_SPEED_INDEX eHow_Fast)
 {
 //#define DEBUG_set_system_speed
 #ifdef DEBUG_set_system_speed
@@ -861,21 +882,98 @@ int set_system_speed (unsigned int how_fast)
 #else
   #define vDEBUG_SET_SYS_SPEED(a)
 #endif
+  ERROR_CODE eEC = ER_OK;
+  uint32_t uiRCC_reg = 0;
+
+  if(eCurrent_sys_speed_index == INEEDMD_CPU_SPEED_NOT_SET)
+  {
+    BIOS_getCpuFreq(&sCPU_freq);
+    uiCurrent_sys_speed = (uint32_t)sCPU_freq.lo;
+
+    //determine if the clock source is internal or external
+    uiRCC_reg = HWREG(SYSCTL_RCC);
+    if((uiRCC_reg & SYSCTL_RCC_MOSCDIS) == SYSCTL_RCC_MOSCDIS)
+    {
+      //clock source is internal
+      //
+      //set the sys speed index to the proper value
+      if(uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_FULL_INTERNAL])
+      {
+        eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_FULL_INTERNAL;
+      }
+      else if((uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_HALF_INTERNAL]) |
+              (uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC]))
+      {
+        //determine if the internal oscillator being used is the PISOC
+        if((uiRCC_reg & SYSCTL_RCC_OSCSRC_INT) == SYSCTL_RCC_OSCSRC_INT)
+        {
+          //clock source is PISOC
+          //
+          eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC;
+        }
+        else
+        {
+          //clock source is Main internal
+          //
+          eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_HALF_INTERNAL;
+        }
+      }
+      else if(uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_SLOW_INTERNAL])
+      {
+        eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_SLOW_INTERNAL;
+      }
+      else if(uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_REALLY_SLOW])
+      {
+        eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_REALLY_SLOW;
+      }
+      else
+      {
+        vDEBUG_SET_SYS_SPEED("Sys speed SYS HALT, unknown system speed");
+        while(1){};
+      }
+    }
+    else
+    {
+      //Clock source is external
+      //
+      //set the sys speed index to the proper value
+      if(uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_FULL_EXTERNAL])
+      {
+        eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_FULL_EXTERNAL;
+      }
+      else if(uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_HALF_EXTERNAL])
+      {
+        eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_HALF_EXTERNAL;
+      }
+      else if(uiCurrent_sys_speed == uiSystem_Speed_Freq[INEEDMD_CPU_SPEED_QUARTER_EXTERNAL])
+      {
+        eCurrent_sys_speed_index = INEEDMD_CPU_SPEED_QUARTER_EXTERNAL;
+      }
+      else
+      {
+        vDEBUG_SET_SYS_SPEED("Sys speed SYS HALT, unknown system speed");
+        while(1){};
+      }
+    }
+  }
 
   //check if the system speed needs to be chaged if it is not at what is being requested
-  if(uiCurrent_sys_speed != how_fast)
-//  if(1)
+  if(eCurrent_sys_speed_index != eHow_Fast)
   {
-    switch (how_fast)
+    switch (eHow_Fast)
     {
       case INEEDMD_CPU_SPEED_FULL_EXTERNAL:
         //WARNING - do not use on first board rev!!!!
         //turn on the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_SET);
         // let it stabalise
         MAP_SysCtlDelay(1000);
         //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-        SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
+//        SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ );
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_EXTERNAL");
         break;
@@ -883,11 +981,15 @@ int set_system_speed (unsigned int how_fast)
       case INEEDMD_CPU_SPEED_HALF_EXTERNAL:
         //WARNING - do not use on first board rev!!!!
         //turn on the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_SET);
         // let it stabalise
         MAP_SysCtlDelay(1000);
         //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-        SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+//        SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_EXTERNAL");
 
@@ -896,11 +998,15 @@ int set_system_speed (unsigned int how_fast)
       case INEEDMD_CPU_SPEED_QUARTER_EXTERNAL:
         //WARNING - do not use on first board rev!!!!
         //turn on the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, INEEDMD_PORTD_XTAL_ENABLE);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_SET);
         // let it stabalise
         MAP_SysCtlDelay(1000);
         //setting to run on the PLL from the external xtal and switch off the internal oscillator this gives us an 80Mhz clock
-        SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+//        SysCtlClockSet( SYSCTL_SYSDIV_10 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);(uint32_t)sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_QUARTER_EXTERNAL");
 
@@ -908,19 +1014,26 @@ int set_system_speed (unsigned int how_fast)
 
       case INEEDMD_CPU_SPEED_FULL_INTERNAL:
         //setting to run on the PLL from the internal clock and switch off the external xtal pads and pin this gives us an 80 Mhz clock
-        SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+//        SysCtlClockSet( SYSCTL_SYSDIV_2_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
         // switch off the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
-
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_CLEAR);
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_FULL_INTERNAL");
 
         break;
 
       case INEEDMD_CPU_SPEED_HALF_INTERNAL:
         //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 40Mhz
-        SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+//        SysCtlClockSet( SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
         // switch off the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_CLEAR);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_INTERNAL");
 
@@ -928,9 +1041,13 @@ int set_system_speed (unsigned int how_fast)
 
       case INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC:
         //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
-        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+//        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
         // switch off the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_CLEAR);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC");
 
@@ -938,9 +1055,13 @@ int set_system_speed (unsigned int how_fast)
 
       case INEEDMD_CPU_SPEED_SLOW_INTERNAL:
         //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 500khz
-        SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
+//        SysCtlClockSet( SYSCTL_SYSDIV_8 | SYSCTL_USE_OSC | SYSCTL_OSC_INT4 | SYSCTL_MAIN_OSC_DIS);
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
         // switch off the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_CLEAR);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_SLOW_INTERNAL");
 
@@ -949,9 +1070,13 @@ int set_system_speed (unsigned int how_fast)
       case INEEDMD_CPU_SPEED_REALLY_SLOW:
         //setting to run on the  the internal OSC and switch off the external xtal pads and pin.. Setting the divider to run us at 30Khz.
         //Communication is't possible.. we are in hibernation
-        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_OSC_INT30 | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+//        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_OSC_INT30 | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
         // switch off the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_CLEAR);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, INEEDMD_CPU_SPEED_REALLY_SLOW");
 
@@ -959,9 +1084,13 @@ int set_system_speed (unsigned int how_fast)
 
       default:
         //setting the intrnal at full speed as the default.
-        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+//        SysCtlClockSet( SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_INT | SYSCTL_MAIN_OSC_DIS);
+        sCPU_freq.lo = uiSystem_Speed_Freq[eHow_Fast];
+        sCPU_freq.hi = 0;
+        BIOS_setCpuFreq(&sCPU_freq);
         // switch off the external oscillator
-        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+//        MAP_GPIOPinWrite (GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE, 0x00);
+        GPIO_write(EK_TM4C123GXL_XTAL_ENABLE, INEEDMD_XTAL_ENABLE_PIN_CLEAR);
 
         vDEBUG_SET_SYS_SPEED("Sys speed, default");
 
@@ -969,20 +1098,22 @@ int set_system_speed (unsigned int how_fast)
     }
 
     //preserve the system speed
-    uiCurrent_sys_speed = how_fast;
+    eCurrent_sys_speed_index = eHow_Fast;
+    uiCurrent_sys_speed = uiSystem_Speed_Freq[eHow_Fast];
 
     //reset all the functions that require the current sys speed
-    eBSP_Set_System_Timers();
+//    eBSP_Set_System_Timers();
     //set the system tic to compensate for the new system speed
 //    eBSP_Systick_Init();
-    eBSP_LEDI2C_clock_set();
+//    eBSP_LEDI2C_clock_set();
   }
 
-  return how_fast;
+  return eEC;
 
 #undef vDEBUG_SET_SYS_SPEED
 }
 
+#ifndef USING_TIRTOS
 ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed)
 {
   ERROR_CODE eEC = ER_OK;
@@ -1493,7 +1624,7 @@ EKGSPIDisable(void)
   return 1;
 
 }
-
+#endif
 /******************************************************************************
 * name:
 * description:
@@ -1521,9 +1652,40 @@ ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
          (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_2764800) || \
          (uiBaud_rate_to_set == INEEDMD_RADIO_UART_BAUD_3686400));
 
-  MAP_UARTDisable(INEEDMD_RADIO_UART);
-  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, uiBaud_rate_to_set, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
-  MAP_UARTEnable(INEEDMD_RADIO_UART);
+//  MAP_UARTDisable(INEEDMD_RADIO_UART);
+//  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, uiBaud_rate_to_set, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+//  MAP_UARTEnable(INEEDMD_RADIO_UART);
+
+  if(sRadio_UART_handle != NULL)
+  {
+    UART_close(sRadio_UART_handle);
+  }else{/*do nothing*/}
+
+  sRadio_UART_params.readMode       = UART_MODE_CALLBACK;              /*!< Mode for all read calls */
+  sRadio_UART_params.writeMode      = UART_MODE_CALLBACK;              /*!< Mode for all write calls */
+  sRadio_UART_params.readTimeout    = 1000;                            /*!< Timeout for read semaphore */
+  sRadio_UART_params.writeTimeout   = 1000;                            /*!< Timeout for write semaphore */
+  sRadio_UART_params.readCallback   = vIneedMD_radio_read_cb;          /*!< Pointer to read callback */
+  sRadio_UART_params.writeCallback  = vIneedMD_radio_write_cb;         /*!< Pointer to write callback */
+  sRadio_UART_params.readReturnMode = UART_RETURN_NEWLINE;             /*!< Receive return mode */
+  sRadio_UART_params.readDataMode   = UART_DATA_TEXT;                  /*!< Type of data being read */
+  sRadio_UART_params.writeDataMode  = UART_DATA_TEXT;                  /*!< Type of data being written */
+  sRadio_UART_params.readEcho       = UART_ECHO_OFF;                    /*!< Echo received data back */
+  sRadio_UART_params.baudRate       = uiBaud_rate_to_set;              /*!< Baud rate for UART */
+  sRadio_UART_params.dataLength     = UART_LEN_8;                      /*!< Data length for UART */
+  sRadio_UART_params.stopBits       = UART_STOP_ONE;                   /*!< Stop bits for UART */
+  sRadio_UART_params.parityType     = UART_PAR_NONE;                   /*!< Parity bit type for UART */
+
+  sRadio_UART_handle = UART_open(INEEDMD_RADIO_UART_INDEX, &sRadio_UART_params);
+
+  if(sRadio_UART_handle == NULL)
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
 
   iHW_delay(500);
 
@@ -1556,7 +1718,6 @@ ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
 #undef vDEBUG_BSB_UART_BAUD
 }
 
-#endif
 /******************************************************************************
 * name:
 * description:
@@ -1616,7 +1777,14 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
   else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_3686400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_3686400u10))
   {
     uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_3686400;
-  }else{/*do nothing*/}
+  }
+  else
+  {
+#ifdef DEBUG
+    vDEBUG_BSB_GET_BAUD("Get baud SYS HALT, unknown baud rate");
+    while(1){};
+#endif
+  }
 
   if(uiCurrent_Baud_rate == 0)
   {
@@ -1641,24 +1809,27 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
 // param description: none
 // return value description: none
 //*****************************************************************************
-int RadioUARTEnable(void)
+ERROR_CODE  eBSP_RadioUARTEnable(void)
 {
-  sRadio_UART_params.readMode = UART_MODE_BLOCKING;         /*!< Mode for all read calls */
-  sRadio_UART_params.writeMode = UART_MODE_BLOCKING;        /*!< Mode for all write calls */
-  sRadio_UART_params.readTimeout = 1000;      /*!< Timeout for read semaphore */
-  sRadio_UART_params.writeTimeout = 1000;     /*!< Timeout for write semaphore */
-  sRadio_UART_params.readCallback = vIneedMD_radio_read_cb;     /*!< Pointer to read callback */
-  sRadio_UART_params.writeCallback = vIneedMD_radio_write_cb;    /*!< Pointer to write callback */
-  sRadio_UART_params.readReturnMode = UART_RETURN_NEWLINE;   /*!< Receive return mode */
-  sRadio_UART_params.readDataMode =  UART_DATA_TEXT;     /*!< Type of data being read */
-  sRadio_UART_params.writeDataMode = UART_DATA_TEXT;    /*!< Type of data being written */
-  sRadio_UART_params.readEcho = UART_ECHO_ON;         /*!< Echo received data back */
-  sRadio_UART_params.baudRate = INEEDMD_RADIO_UART_BAUD_1382400;         /*!< Baud rate for UART */
-  sRadio_UART_params.dataLength = UART_LEN_8;       /*!< Data length for UART */
-  sRadio_UART_params.stopBits = UART_STOP_ONE;         /*!< Stop bits for UART */
-  sRadio_UART_params.parityType = UART_PAR_NONE;       /*!< Parity bit type for UART */
+  ERROR_CODE eEC = ER_FAIL;
 
-  sRadio_UART_handle = UART_open(INEEDMD_RADIO_UART, &sRadio_UART_params);
+  eEC = eBSP_Set_radio_uart_baud(INEEDMD_RADIO_UART_BAUD_1382400);
+
+  if(eEC == ER_OK)
+  {
+    //Config the uart speed, len, stop bits and parity
+    //
+    MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+
+    //Config the uart flow control
+    //
+    MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
 //  //RADIO_CONFIG
 //  //
 //  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
@@ -1727,7 +1898,7 @@ int RadioUARTEnable(void)
 //  //
 //  MAP_UARTEnable(INEEDMD_RADIO_UART);
 
-  return 1;
+  return eEC;
 }
 
 //*****************************************************************************
@@ -1788,7 +1959,7 @@ ERROR_CODE  eBSP_Radio_Power_Cycle(void)
 
   return eEC;
 }
-
+#endif
 /******************************************************************************
 * name:
 * description:
@@ -1800,11 +1971,11 @@ ERROR_CODE  eBSP_Radio_Enable(void)
   ERROR_CODE eEC = ER_OK;
   uint32_t uiPin_Read = 0;
 
-  MAP_GPIOPinWrite (INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN, INEEDMD_RADIO_RESET_PIN_CLEAR);
+  GPIO_write(EK_TM4C123GXL_RADIO_RESET, INEEDMD_RADIO_RESET_PIN_CLEAR);
 
-  uiPin_Read = MAP_GPIOPinRead (INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN);
+  uiPin_Read = GPIO_read(EK_TM4C123GXL_RADIO_RESET);
 
-  if((uiPin_Read | INEEDMD_RADIO_RESET_PIN_CLEAR) == INEEDMD_RADIO_RESET_PIN_CLEAR)
+  if((uiPin_Read & INEEDMD_RADIO_RESET_PIN) == INEEDMD_RADIO_RESET_PIN_CLEAR)
   {
     eEC = ER_OK;
   }
@@ -1825,8 +1996,22 @@ ERROR_CODE  eBSP_Radio_Enable(void)
 ERROR_CODE  eBSP_Radio_Disable(void)
 {
   ERROR_CODE eEC = ER_OK;
+  uint32_t uiPin_value = 0;
 
-  MAP_GPIOPinWrite (INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN,  INEEDMD_RADIO_RESET_PIN_SET );
+//  MAP_GPIOPinWrite (INEEDMD_GPIO_RST_PORT, INEEDMD_RADIO_RESET_PIN,  INEEDMD_RADIO_RESET_PIN_SET );
+
+  GPIO_write(EK_TM4C123GXL_RADIO_RESET, INEEDMD_RADIO_RESET_PIN_SET);
+
+  uiPin_value = GPIO_read(EK_TM4C123GXL_RADIO_RESET);
+
+  if((uiPin_value & INEEDMD_RADIO_RESET_PIN) == INEEDMD_RADIO_RESET_PIN_SET)
+  {
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
 
   return eEC;
 }
@@ -1840,15 +2025,12 @@ ERROR_CODE  eBSP_Radio_Disable(void)
 ERROR_CODE  eBSP_Radio_Reset(void)
 {
   ERROR_CODE eEC = ER_OK;
-  uint32_t uiSysClk = MAP_SysCtlClockGet() / 10;
 
   //exert the radio rest pin
   eBSP_Radio_Disable();
 
-  //as we dont know the state of the processor or the timers we will do the delay in cpu clock cycles
-  //about a 10th of a second
-  //it would be nicer to have this as a proces sleep..
-  MAP_SysCtlDelay( uiSysClk );
+  //delay for 100ms
+  iHW_delay(100);
 
   //de-exert,sets it low, reset pin
   eBSP_Radio_Enable();
@@ -1874,23 +2056,33 @@ ERROR_CODE eSet_radio_to_cmnd_mode(void)
   #define vDEBUG_BRD_SET_RDIO_CMND_MODE(a)
 #endif
   ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiPin_value = 0;
 
-  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-  ROM_GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_1);
-  ROM_GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_PIN_1);
-//  iRadio_gpio_config(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
-//  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, 0);
-  iHW_delay(10);
-  MAP_GPIOPinWrite(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN_SET);
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_1);
+//  MAP_GPIOPinWrite(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_PIN_1);
+////  iRadio_gpio_config(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
+////  MAP_GPIOPinWrite(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN, 0);
+//  iHW_delay(10);
+//  MAP_GPIOPinWrite(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN_SET);
 
+  GPIO_write(EK_TM4C123GXL_RADIO_CMND_MODE, INEEDMD_RADIO_CMND_PIN_SET);
+
+  uiPin_value =  GPIO_read(EK_TM4C123GXL_RADIO_CMND_MODE);
+  if(uiPin_value != INEEDMD_RADIO_CMND_PIN_SET)
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
 #ifdef DEBUG_eSet_radio_to_cmnd_mode
   memset(cDbg_snd_buff, 0x00, SND_BUFF_SZ);
   uiGPIO_rd = MAP_GPIOPinRead(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
   snprintf(cDbg_snd_buff, SND_BUFF_SZ, "Set rdio cmnd md, %.4x", uiGPIO_rd);
   vDEBUG_BRD_SET_RDIO_CMND_MODE(cDbg_snd_buff);
 #endif
-
-  eEC = ER_OK;
 
   return eEC;
 #undef  vDEBUG_BRD_SET_RDIO_CMND_MODE
@@ -1939,17 +2131,26 @@ ERROR_CODE eSet_radio_to_data_mode(void)
   #define vDEBUG_BRD_SET_RDIO_DTA_MODE(a)
 #endif
   ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiPin_value = 0;
 
-  MAP_GPIOPinWrite(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN_CLEAR);
+//  MAP_GPIOPinWrite(INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN, INEEDMD_RADIO_CMND_PIN_CLEAR);
+  GPIO_write(EK_TM4C123GXL_RADIO_CMND_MODE, INEEDMD_RADIO_CMND_PIN_CLEAR);
 
+  uiPin_value =  GPIO_read(EK_TM4C123GXL_RADIO_CMND_MODE);
+  if(uiPin_value != INEEDMD_RADIO_CMND_PIN_CLEAR)
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
 #ifdef DEBUG_eSet_radio_to_data_mode
   memset(cDbg_snd_buff, 0x00, SND_BUFF_SZ);
   uiGPIO_rd = MAP_GPIOPinRead(INEEDMD_RADIO_PORT, INEEDMD_RADIO_CMND_PIN);
   snprintf(cDbg_snd_buff, SND_BUFF_SZ, "Set rdio dta md, %.4x", uiGPIO_rd);
   vDEBUG_BRD_SET_RDIO_DTA_MODE(cDbg_snd_buff);
 #endif
-
-  eEC = ER_OK;
 
   return eEC;
 #undef vDEBUG_BRD_SET_RDIO_DTA_MODE
@@ -1976,7 +2177,7 @@ ERROR_CODE eUsing_radio_uart_dma(void)
 
   return eEC;
 }
-#endif
+
 //*****************************************************************************
 // name: iRadio_interface_enable
 // description: enables the serial interface to the external radio
@@ -1986,30 +2187,17 @@ ERROR_CODE eUsing_radio_uart_dma(void)
 ERROR_CODE eRadio_interface_enable(void)
 {
   ERROR_CODE eEC = ER_OK;
-  int iEC = 0;
 
-  RadioUARTEnable();
+  eEC = eBSP_RadioUARTEnable();
 
-  //check if UART DMA is enabled
-  if(USE_RADIO_UART_DMA == true)
+  if(eEC == ER_OK)
   {
-    //configure the radio UART to use DMA
-    eEC = Radio_UART_DMA_Config();
-  }
-  else
-  {
-    //configure the radio UART interrupts
-//    iEC = iRadio_interface_int_enable();
-
-    //check the error codes
-    if(iEC == 1)
+    //check if UART DMA is enabled
+    if(USE_RADIO_UART_DMA == true)
     {
-      eEC = ER_OK;
-    }
-    else
-    {
-      eEC = ER_FAIL;
-    }
+      //configure the radio UART to use DMA
+      eEC = Radio_UART_DMA_Config();
+    }else{/*do nothing*/}
   }
 
   //check the error codes
@@ -2055,7 +2243,7 @@ int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask)
   //todo: read the register and verify settings took hold
   return 1;
 }
-
+#endif
 //*****************************************************************************
 // name:
 // description:
@@ -2079,17 +2267,20 @@ int iRadio_send_char(char * byte)
 int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
 {
   uint32_t i;
+  int iBytes_sent = 0;
   i = strlen(cSend_string);
   if(i != uiBuff_size)
   {
     return 0;
   }
 
-  for (i = 0; i<uiBuff_size; i++)
-  {
-    UARTCharPut(INEEDMD_RADIO_UART, cSend_string[i]);
-  }
-  return i;
+  iBytes_sent = UART_writePolling(sRadio_UART_handle, cSend_string, i);
+
+//  for (i = 0; i<uiBuff_size; i++)
+//  {
+//    UARTCharPut(INEEDMD_RADIO_UART, cSend_string[i]);
+//  }
+  return iBytes_sent;
 }
 
 //*****************************************************************************
@@ -2194,7 +2385,7 @@ int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size)
 
   for (i = 0; i<uiFrame_size; i++)
   {
-    UARTCharPut(INEEDMD_RADIO_UART, cSend_frame[i]);
+    MAP_UARTCharPut(INEEDMD_RADIO_UART, cSend_frame[i]);
   }
   return i;
 }
@@ -2242,31 +2433,34 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
   ERROR_CODE eEC = ER_OK;
   bool bChar_avail = false;
   uint16_t uiTimeout = 0;
+  uint16_t i = 0;
 
-  bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
-  if(bChar_avail == false)
-  {
-    while(bChar_avail == false)
-    {
-      uiTimeout += iHW_delay(1);
-      bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
-      if(uiTimeout >= 200) //todo: MAGIC Number!
-      {
-        eEC = ER_TIMEOUT;
-        break;
-      }
-    }
-  }else{/*do nothing*/}
+  i = UART_read(sRadio_UART_handle, cRcv_char, 1);
 
-  if(eEC == ER_OK)
-  {
-    //get the character
-    *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
-  }else{/*do nothing */}
+//  bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
+//  if(bChar_avail == false)
+//  {
+//    while(bChar_avail == false)
+//    {
+//      uiTimeout += iHW_delay(1);
+//      bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
+//      if(uiTimeout >= 200) //todo: MAGIC Number!
+//      {
+//        eEC = ER_TIMEOUT;
+//        break;
+//      }
+//    }
+//  }else{/*do nothing*/}
+//
+//  if(eEC == ER_OK)
+//  {
+//    //get the character
+//    *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+//  }else{/*do nothing */}
 
   return eEC;
 }
-
+#ifndef USING_TIRTOS
 //*****************************************************************************
 // name: iRadio_rcv_byte
 // description: calls the uart char get function.
@@ -2280,7 +2474,7 @@ int iRadio_rcv_byte(uint8_t *uiRcv_byte)
 
   return 1;
 }
-
+#endif
 //*****************************************************************************
 // name: eRadio_clear_rcv_buffer
 // description: performs a non-blocking receive on the radio UART untill there
@@ -2664,17 +2858,7 @@ ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
 #undef vDEBUG_DMARCV_BOOTFRM
 }
 
-ERROR_CODE eIs_UART_using_DMA(void)
-{
-  if(USE_RADIO_UART_DMA == true)
-  {
-    return ER_TRUE;
-  }
-  else
-  {
-    return ER_FALSE;
-  }
-}
+#ifndef USING_TIRTOS
 //*****************************************************************************
 // name:
 // description:
@@ -2848,7 +3032,7 @@ bool bRadio_is_data(void)
 //todo: enable interrupts
   return bWas_usart_data;
 }
-
+#endif
 //*****************************************************************************
 // name: eGet_Radio_CTS_status
 // description:
@@ -2876,6 +3060,7 @@ ERROR_CODE  eGet_Radio_CTS_status(void)
   return eEC;
 }
 
+#ifndef USING_TIRTOS
 //*****************************************************************************
 // name: eGet_Radio_CTS_INT_status
 // description:
@@ -3609,45 +3794,58 @@ ERROR_CODE eMaster_int_disable(void)
   MAP_IntMasterDisable();
   return eEC;
 }
+#endif //#ifndef USING_TIRTOS
 
-//*****************************************************************************
-// name: iHW_delay
-// description: performs a blocking hardware based delay. the delay is in 100ms
-//  "chunks"
-// param description:  uint32_t number of 1ms cycles to delay
-// return value description: the number of cycles delayed
-//*****************************************************************************
+/******************************************************************************
+* name: iHW_delay
+* description: performs a blocking hardware based delay. the delay is in 1ms
+*  "chunks". Only to be used before BIOS start.
+* param description:  uint32_t number of 1ms cycles to delay
+* return value description: the number of cycles delayed
+******************************************************************************/
 int
 iHW_delay(uint32_t uiDelay)
 {
-  int i;
-  uint32_t uiCurrent_Sys_speed = 0;
-  //Get the current sys speed
-  uiCurrent_Sys_speed = MAP_SysCtlClockGet();
-  if(uiCurrent_Sys_speed != uiHW_delay_Prev_Sys_speed)
+  int i = 0;
+  uint32_t uiHW_delay_Prev_Sys_speed = uiCurrent_sys_speed;
+  uint32_t uiSys_speed = 0;
+  Types_FreqHz sCurr_CPU_freq;
+
+  //check if the bios is running, this routine should not be used once it is
+  if(bIs_BIOS_running == false)
   {
-    uiHW_delay_Prev_Sys_speed = uiCurrent_Sys_speed;
-    if(uiCurrent_Sys_speed == 500000)
+    //Get the current sys speed
+    BIOS_getCpuFreq(&sCurr_CPU_freq);
+    uiSys_speed = sCurr_CPU_freq.lo;
+    //check if the current speed is not the same as the previous speed
+    if(uiSys_speed != uiHW_delay_Prev_Sys_speed)
     {
-      uiHW_delay_Sys_speed_1ms_ticks = 68;
-    }
-    else
-    {
+      //The previous speed is not the same as the current speed
+      //update delay control variables
+      uiCurrent_sys_speed = uiSys_speed;
       //set the number of ticks for 1ms
-      uiHW_delay_Sys_speed_1ms_ticks = uiHW_delay_Prev_Sys_speed / HW_DELAY_MSDIV;
+      uiHW_delay_Sys_speed_1ms_ticks = uiCurrent_sys_speed / HW_DELAY_MSDIV;
+    }else{/*do nothing*/}
+
+    //check if the 1ms delay ticks control variable was not set
+    if(uiHW_delay_Sys_speed_1ms_ticks == 0)
+    {
+      //Set the 1ms tick control variable
+      uiHW_delay_Sys_speed_1ms_ticks = uiCurrent_sys_speed / HW_DELAY_MSDIV;
+    }else{/*do nothing*/}
+
+    for(i = 0; i < uiDelay; i++)
+    {
+      MAP_SysCtlDelay(uiHW_delay_Sys_speed_1ms_ticks);
     }
   }
-
-  for(i = 0; i < uiDelay; i++)
+  else
   {
-    MAP_SysCtlDelay(uiHW_delay_Sys_speed_1ms_ticks);
-//    vDEBUG_GPIO_TOGGLE_1();
+    i = 0;
   }
 
   return i;
 }
-
-#endif //#ifndef USING_TIRTOS
 
 //*****************************************************************************
 // name: iBoard_init
@@ -3664,6 +3862,8 @@ ERROR_CODE eBSP_Board_init(void)
   Board_initGPIO();
   Board_initWatchdog();
   Board_initUART();
+
+  set_system_speed (INEEDMD_CPU_SPEED_FULL_EXTERNAL);
 
   return eEC;
 #else
