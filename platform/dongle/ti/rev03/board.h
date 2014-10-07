@@ -88,18 +88,28 @@
 #define Board_RF430CL330_ADDR       (0x28)
 #define Board_TPL0401_ADDR          (0x40)
 
-#define INEEDMD_PORTA_ADC_PWRDN_OUT_PIN 0x80
-#define INEEDMD_PORTA_ADC_RESET_OUT_PIN 0X40
-#define INEEDMD_PORTA_ADC_INTERUPT_PIN  0x01
-#define INEEDMD_PORTA_ADC_START_PIN     0x02
-#define INEEDMD_PORTA_ADC_nCS_PIN       0x08
+//A to D Converter port mappings
+#define INEEDMD_ADC_GPIO_PORT           GPIO_PORTA_BASE
+//#define INEEDMD_PORTA_ADC_PWRDN_OUT_PIN GPIO_PIN_7 //0x80
+//#define INEEDMD_PORTA_ADC_RESET_OUT_PIN GPIO_PIN_6 //0X40
+//#define INEEDMD_PORTA_ADC_INTERUPT_PIN  GPIO_PIN_0 //0x01
+//#define INEEDMD_PORTA_ADC_START_PIN     GPIO_PIN_1 //0x02
+//#define INEEDMD_PORTA_ADC_nCS_PIN       GPIO_PIN_3 //0x08
+#define INEEDMD_ADC_PWR_PIN       GPIO_PIN_7 //0x80
+#define INEEDMD_ADC_RESET_PIN     GPIO_PIN_6 //0X40
+#define INEEDMD_ADC_INTERUPT_PIN  GPIO_PIN_0 //0x01
+#define INEEDMD_ADC_START_PIN     GPIO_PIN_1 //0x02
+#define INEEDMD_ADC_nCS_PIN       GPIO_PIN_3 //0x08
+//port mappings to make easier to read names...
+#define INEEDMD_ADC_SPI     SSI0_BASE
+#define INEEDMD_FLASH_SPI   SSI1_BASE
+#define INEEDMD_SPI_CLK                 16000000
 
+//EKG Lead reading mappings
 #define LEAD_SHORT                     0x82FF
 #define LEAD_SHORT_RESET               0xA0FF
 #define LEAD_SHORT_SLEEP               0xA2FF  //5 & 6 short
 #define LEAD_ALL_SHORTED               0x00FF
-
-
 
 //battery port mappings
 #define INEEDMD_BATTERY_PORT                 GPIO_PORTE_BASE
@@ -116,8 +126,6 @@
 #define TEMPERATURE_ADC_CTL                  ADC_CTL_TS
 #define TEMPERATURE_SYSCTL_PERIPH_ADC        SYSCTL_PERIPH_ADC1
 
-
-
 //#define BATTERY_SYSCTL_PERIPH_GPIO           SYSCTL_PERIPH_GPIOE
 
 //BT Radio mappings
@@ -125,6 +133,7 @@
 //#define INEEDMD_RADIO_UART                     UART1_BASE
 #define INEEDMD_RADIO_UART_INDEX               EK_TM4C123GXL_UART1
 #define INEEDMD_RADIO_UART                     UART1_BASE
+#define INEEDMD_RADIO_SYSCTL_PERIPH_UART       SYSCTL_PERIPH_UART1
 #define INEEDMD_RADIO_UART_CLK                 16000000
 //Radio UART baud rates
 #define INEEDMD_RADIO_UART_BAUD_57600    57600
@@ -205,13 +214,17 @@
   #define INEEDMD_XTAL_ENABLE_PIN_SET    GPIO_PIN_5
   #define INEEDMD_XTAL_ENABLE_PIN_CLEAR  0
 
-//port mappings to make easier to read names...
-#define INEEDMD_ADC_SPI     SSI0_BASE
-#define INEEDMD_FLASH_SPI   SSI1_BASE
-#define INEEDMD_SPI_CLK                 16000000
+//I2C LED controller mappings
+#define INEEDMD_LED_I2C_BASE          I2C0_BASE
+#define INEEDMD_LED_I2C_INT           INT_I2C0
+#define INEEDMD_LED_SYSCTL_PRIPH_I2C  SYSCTL_PERIPH_I2C0
+#define INEEDMD_LED_GPIO_PORT         GPIO_PORTB_BASE
+#define INEEDMD_LED_I2CSCL_PIN        GPIO_PIN_2
+#define INEEDMD_LED_I2CSDA_PIN        GPIO_PIN_3
+#define INEEDMD_LED_GPIO_I2CSCL       GPIO_PB2_I2C0SCL
+#define INEEDMD_LED_GPIO_I2CSDA       GPIO_PB3_I2C0SDA
 
-#define INEEDMD_LED_I2C     I2C0_BASE
-
+//USB mappings
 #define INEEDMD_USB         USB0_BASE
 
 //subsystem block number - just used to make some coding functions easer.
@@ -269,6 +282,11 @@ typedef enum EK_TM4C123GXL_GPIOName
   EK_TM4C123GXL_RADIO_CMND_MODE,
   EK_TM4C123GXL_RADIO_RESET,
   EK_TM4C123GXL_XTAL_ENABLE,
+  EK_TM4C123GXL_ADC_POWER,
+  EK_TM4C123GXL_ADC_RESET,
+  EK_TM4C123GXL_ADC_INTERUPT,
+  EK_TM4C123GXL_ADC_START,
+  EK_TM4C123GXL_ADC_nCS,
   EK_TM4C123GXL_GPIOCOUNT
 
 } EK_TM4C123GXL_GPIOName;
@@ -278,8 +296,7 @@ typedef enum EK_TM4C123GXL_GPIOName
  *  @brief  Enum of I2C names on the EK_TM4C123GXL dev board
  */
 typedef enum EK_TM4C123GXL_I2CName {
-    EK_TM4C123GXL_I2C0 = 0,
-    EK_TM4C123GXL_I2C3,
+    EK_TM4C123GXL_I2C_LED = 0,
 
     EK_TM4C123GXL_I2CCOUNT
 } EK_TM4C123GXL_I2CName;
@@ -299,9 +316,10 @@ typedef enum EK_TM4C123GXL_SDSPIName {
  *  @brief  Enum of SPI names on the EK_TM4C123GXL dev board
  */
 typedef enum EK_TM4C123GXL_SPIName {
-    EK_TM4C123GXL_SPI0 = 0,
-    EK_TM4C123GXL_SPI2,
-    EK_TM4C123GXL_SPI3,
+  EK_TM4C123GXL_SPI_ADC = 0,
+//    EK_TM4C123GXL_SPI0 = 0,
+//    EK_TM4C123GXL_SPI2,
+//    EK_TM4C123GXL_SPI3,
 
     EK_TM4C123GXL_SPICOUNT
 } EK_TM4C123GXL_SPIName;
@@ -521,7 +539,7 @@ int         iRadio_send_char(char * byte);
 int         iRadio_send_string(char *cSend_string, uint16_t uiBuff_size);
 ERROR_CODE  eRadio_DMA_send_string(char *cSend_string, uint16_t uiBuff_size);
 int         iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
-int         iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
+ERROR_CODE  eRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
 ERROR_CODE  iRadio_rcv_char(char *cRcv_char);
 int         iRadio_rcv_byte(uint8_t *uiRcv_byte);
 ERROR_CODE  eRadio_clear_rcv_buffer(void);

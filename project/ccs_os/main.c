@@ -12,17 +12,18 @@
 
 #include <driverlib/sysctl.h>
 
-#include <xdc/runtime/Error.h>
+
 #include <xdc/runtime/System.h>
 
 #include <ti/sysbios/BIOS.h>
 
 #include <ti/sysbios/knl/Task.h>
-
+#include <ti/sysbios/knl/Clock.h>
 #include <ti/drivers/ENV.h>
 
 #include "utils_inc/error_codes.h"
 #include "utils_inc/proj_debug.h"
+#include "utils_inc/osal.h"
 #include "board.h"
 #include "drivers_inc/ineedmd_watchdog.h"
 #include "drivers_inc/ineedmd_bluetooth_radio.h"
@@ -35,10 +36,31 @@
 ******************************************************************************/
 void vIdle_Task(UArg a0, UArg a1)
 {
+  ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiClock_time_start = 0;
+  uint32_t uiClock_time_current = 0;
+  uint32_t uiClock_time_diff = 0;
+
   vDEBUG("enter vTask_Idle()");
+
+  uiClock_time_start = Clock_getTicks();
+
+  eEC = ineedmd_watchdog_setup();
+  if(eEC == ER_OK)
+  {
+    vDEBUG("ineedmd_watchdog_setup()");
+  }
 
   while(1)
   {
+    Task_sleep(1);
+    uiClock_time_current = Clock_getTicks();
+    uiClock_time_diff = (uiClock_time_current - uiClock_time_start);
+    if(uiClock_time_diff >= 60000)
+    {
+      vDEBUG("I'm alive and running!");
+      uiClock_time_start = Clock_getTicks();
+    }
     ineedmd_watchdog_pat();
     GPIO_toggle(EK_TM4C123GXL_DEBUG);
   }
@@ -59,25 +81,26 @@ int main(void)
 
   vDEBUG_init();
   vDEBUG("Hello World!");
-
   //Call driver init functions
   //
   //Watchdog
-  eEC = ineedmd_watchdog_setup();
-  if(eEC == ER_OK)
-  {
-    vDEBUG("ineedmd_watchdog_setup()");
-  }
+//  eEC = ineedmd_watchdog_setup();
+//  if(eEC == ER_OK)
+//  {
+//    vDEBUG("ineedmd_watchdog_setup()");
+//  }
 
   //Wireless radio
-  eEC = eIneedMD_radio_setup();
-  if(eEC == ER_OK)
-  {
-    vDEBUG("eIneedMD_radio_setup()");
-  }
+//  eEC = eIneedMD_radio_setup();
+//  if(eEC == ER_OK)
+//  {
+//    vDEBUG("eIneedMD_radio_setup()");
+//  }
 
-  Error_init(&eb);
+//  Error_init(&eb);
 
-  BIOS_start();    /* does not return */
+//  BIOS_start();    /* does not return */
+  eOSAL_OS_start();
+
   return(0);
 }

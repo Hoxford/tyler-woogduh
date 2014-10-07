@@ -106,6 +106,7 @@ ERROR_CODE ineedmd_watchdog_setup(void)
   }
   else
   {
+    Watchdog_setReload(handle, WD_BIG_PAT);
     eEC = ER_OK;
   }
 

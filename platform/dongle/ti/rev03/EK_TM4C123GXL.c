@@ -165,6 +165,11 @@ const GPIO_HWAttrs gpioHWAttrs[EK_TM4C123GXL_GPIOCOUNT] = {
         {INEEDMD_GPIO_CMND_PORT, INEEDMD_RADIO_CMND_PIN,   GPIO_OUTPUT},
         {INEEDMD_GPIO_RST_PORT,  INEEDMD_RADIO_RESET_PIN,  GPIO_OUTPUT},
         {INEEDMD_XTAL_PORT,      INEEDMD_XTAL_ENABLE_PIN,  GPIO_OUTPUT},
+        {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_PWR_PIN,      GPIO_OUTPUT},
+        {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_RESET_PIN,    GPIO_OUTPUT},
+        {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_INTERUPT_PIN, GPIO_INPUT},
+        {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_START_PIN,    GPIO_OUTPUT},
+        {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_nCS_PIN,      GPIO_OUTPUT},
 };
 
 /* Memory for the GPIO module to construct a Hwi */
@@ -183,6 +188,11 @@ const GPIO_Config GPIO_config[] = {
     {&gpioHWAttrs[EK_TM4C123GXL_RADIO_CMND_MODE]},
     {&gpioHWAttrs[EK_TM4C123GXL_RADIO_RESET]},
     {&gpioHWAttrs[EK_TM4C123GXL_XTAL_ENABLE]},
+    {&gpioHWAttrs[EK_TM4C123GXL_ADC_POWER]},
+    {&gpioHWAttrs[EK_TM4C123GXL_ADC_RESET]},
+    {&gpioHWAttrs[EK_TM4C123GXL_ADC_INTERUPT]},
+    {&gpioHWAttrs[EK_TM4C123GXL_ADC_START]},
+    {&gpioHWAttrs[EK_TM4C123GXL_ADC_nCS]},
     {NULL},
 };
 
@@ -227,6 +237,26 @@ void EK_TM4C123GXL_initGPIO(void)
   //
   MAP_GPIOPinTypeGPIOOutput(INEEDMD_XTAL_PORT, INEEDMD_XTAL_ENABLE_PIN);  //external clock enable pin
 
+  //Init ADC power on pin
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_ADC_GPIO_PORT, INEEDMD_ADC_PWR_PIN);
+
+  //Init ADC reset pin
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_ADC_GPIO_PORT, INEEDMD_ADC_RESET_PIN);
+
+  // Init ADC interrupt pin
+  //
+  MAP_GPIOPinTypeGPIOInput(INEEDMD_ADC_GPIO_PORT, INEEDMD_ADC_INTERUPT_PIN);
+
+  // Init ADC start pin
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_ADC_GPIO_PORT, INEEDMD_ADC_START_PIN);
+
+  //Init ADC nCS pin
+  //
+  MAP_GPIOPinTypeGPIOOutput(INEEDMD_ADC_GPIO_PORT, INEEDMD_ADC_nCS_PIN);
+
   /* Once GPIO_init is called, GPIO_config cannot be changed */
   GPIO_init();
 
@@ -242,13 +272,12 @@ I2CTiva_Object i2cTivaObjects[EK_TM4C123GXL_I2CCOUNT];
 
 /* I2C configuration structure, describing which pins are to be used */
 const I2CTiva_HWAttrs i2cTivaHWAttrs[EK_TM4C123GXL_I2CCOUNT] = {
-    {I2C1_BASE, INT_I2C1},
-    {I2C3_BASE, INT_I2C3},
+//  {INEEDMD_I2C_BASE_ADDRESS, INEEDMD_I2C_INTERUPT_ADDRESS},
+  {INEEDMD_LED_I2C_BASE, INEEDMD_LED_I2C_INT},
 };
 
 const I2C_Config I2C_config[] = {
     {&I2CTiva_fxnTable, &i2cTivaObjects[0], &i2cTivaHWAttrs[0]},
-    {&I2CTiva_fxnTable, &i2cTivaObjects[1], &i2cTivaHWAttrs[1]},
     {NULL, NULL, NULL}
 };
 
@@ -257,32 +286,18 @@ const I2C_Config I2C_config[] = {
  */
 void EK_TM4C123GXL_initI2C(void)
 {
-    /* I2C1 Init */
-    /* Enable the peripheral */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C1);
+    // Enable and configure the peripheral used by the I2C
+    //
+    MAP_SysCtlPeripheralEnable(INEEDMD_LED_SYSCTL_PRIPH_I2C);
 
-    /* Configure the appropriate pins to be I2C instead of GPIO. */
-    GPIOPinConfigure(GPIO_PA6_I2C1SCL);
-    GPIOPinConfigure(GPIO_PA7_I2C1SDA);
-    GPIOPinTypeI2CSCL(GPIO_PORTA_BASE, GPIO_PIN_6);
-    GPIOPinTypeI2C(GPIO_PORTA_BASE, GPIO_PIN_7);
+    // Configure the alternate function for the I2C SCL pin and tie it to the I2C
+    MAP_GPIOPinConfigure(INEEDMD_LED_GPIO_I2CSCL);
+    MAP_GPIOPinTypeI2CSCL(INEEDMD_LED_GPIO_PORT, INEEDMD_LED_I2CSCL_PIN);
 
-    /* I2C3 Init */
-    /* Enable the peripheral */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C3);
+    //Configure the alternate function for the I2C SDA pin and tie it to the I2C
+    MAP_GPIOPinConfigure(INEEDMD_LED_GPIO_I2CSDA);
+    MAP_GPIOPinTypeI2C(INEEDMD_LED_GPIO_PORT, INEEDMD_LED_I2CSDA_PIN);
 
-    /* Configure the appropriate pins to be I2C instead of GPIO. */
-    GPIOPinConfigure(GPIO_PD0_I2C3SCL);
-    GPIOPinConfigure(GPIO_PD1_I2C3SDA);
-    GPIOPinTypeI2CSCL(GPIO_PORTD_BASE, GPIO_PIN_0);
-    GPIOPinTypeI2C(GPIO_PORTD_BASE, GPIO_PIN_1);
-
-    /*
-     * These GPIOs are connected to PD0 and PD1 and need to be brought into a
-     * GPIO input state so they don't interfere with I2C communications.
-     */
-    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_6);
-    GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_7);
 
     I2C_init();
 }
@@ -382,34 +397,34 @@ const SPITivaDMA_HWAttrs spiTivaDMAHWAttrs[EK_TM4C123GXL_SPICOUNT] = {
         UDMA_CH10_SSI0RX,
         UDMA_CH11_SSI0TX
     },
-    {
-        SSI2_BASE,
-        INT_SSI2,
-        &spiTivaDMAscratchBuf[1],
-        0,
-        UDMA_SEC_CHANNEL_UART2RX_12,
-        UDMA_SEC_CHANNEL_UART2TX_13,
-        uDMAChannelAssign,
-        UDMA_CH12_SSI2RX,
-        UDMA_CH13_SSI2TX
-    },
-    {
-        SSI3_BASE,
-        INT_SSI3,
-        &spiTivaDMAscratchBuf[2],
-        0,
-        UDMA_SEC_CHANNEL_TMR2A_14,
-        UDMA_SEC_CHANNEL_TMR2B_15,
-        uDMAChannelAssign,
-        UDMA_CH14_SSI3RX,
-        UDMA_CH15_SSI3TX
-    }
+//    {
+//        SSI2_BASE,
+//        INT_SSI2,
+//        &spiTivaDMAscratchBuf[1],
+//        0,
+//        UDMA_SEC_CHANNEL_UART2RX_12,
+//        UDMA_SEC_CHANNEL_UART2TX_13,
+//        uDMAChannelAssign,
+//        UDMA_CH12_SSI2RX,
+//        UDMA_CH13_SSI2TX
+//    },
+//    {
+//        SSI3_BASE,
+//        INT_SSI3,
+//        &spiTivaDMAscratchBuf[2],
+//        0,
+//        UDMA_SEC_CHANNEL_TMR2A_14,
+//        UDMA_SEC_CHANNEL_TMR2B_15,
+//        uDMAChannelAssign,
+//        UDMA_CH14_SSI3RX,
+//        UDMA_CH15_SSI3TX
+//    }
 };
 
 const SPI_Config SPI_config[] = {
     {&SPITivaDMA_fxnTable, &spiTivaDMAobjects[0], &spiTivaDMAHWAttrs[0]},
-    {&SPITivaDMA_fxnTable, &spiTivaDMAobjects[1], &spiTivaDMAHWAttrs[1]},
-    {&SPITivaDMA_fxnTable, &spiTivaDMAobjects[2], &spiTivaDMAHWAttrs[2]},
+//    {&SPITivaDMA_fxnTable, &spiTivaDMAobjects[1], &spiTivaDMAHWAttrs[1]},
+//    {&SPITivaDMA_fxnTable, &spiTivaDMAobjects[2], &spiTivaDMAHWAttrs[2]},
     {NULL, NULL, NULL},
 };
 
@@ -418,41 +433,61 @@ const SPI_Config SPI_config[] = {
  */
 void EK_TM4C123GXL_initSPI(void)
 {
-    /* SPI0 */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
+  // SPI0_BASE is mapped to INEEDMD_ADC_SPI
+  //
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
 
-    /* Need to unlock PF0 */
-    GPIOPinConfigure(GPIO_PA2_SSI0CLK);
-    GPIOPinConfigure(GPIO_PA3_SSI0FSS);
-    GPIOPinConfigure(GPIO_PA4_SSI0RX);
-    GPIOPinConfigure(GPIO_PA5_SSI0TX);
+  // Enable pin PA2 for SSI0 SSI0CLK
+  //
+  MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK);
 
-    GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3 |
-                                    GPIO_PIN_4 | GPIO_PIN_5);
+  // Enable pin PA5 for SSI0 SSI0TX
+  //
+  MAP_GPIOPinConfigure(GPIO_PA5_SSI0TX);
 
-    /* SSI2 */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
+  // Enable pin PA4 for SSI0 SSI0RX
+  //
+  MAP_GPIOPinConfigure(GPIO_PA4_SSI0RX);
 
-    GPIOPinConfigure(GPIO_PB4_SSI2CLK);
-    GPIOPinConfigure(GPIO_PB5_SSI2FSS);
-    GPIOPinConfigure(GPIO_PB6_SSI2RX);
-    GPIOPinConfigure(GPIO_PB7_SSI2TX);
+  //Set the pins to type SSI
+  //
+  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, (GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_2));
 
-    GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5 |
-                                    GPIO_PIN_6 | GPIO_PIN_7);
-
-    /* SSI3 */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI3);
-
-    GPIOPinConfigure(GPIO_PD0_SSI3CLK);
-    GPIOPinConfigure(GPIO_PD1_SSI3FSS);
-    GPIOPinConfigure(GPIO_PD2_SSI3RX);
-    GPIOPinConfigure(GPIO_PD3_SSI3TX);
-
-    GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1 |
-                                    GPIO_PIN_2 | GPIO_PIN_3);
-
-    EK_TM4C123GXL_initDMA();
+//    /* SPI0 */
+//    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
+//
+//    /* Need to unlock PF0 */
+//    GPIOPinConfigure(GPIO_PA2_SSI0CLK);
+//    GPIOPinConfigure(GPIO_PA3_SSI0FSS);
+//    GPIOPinConfigure(GPIO_PA4_SSI0RX);
+//    GPIOPinConfigure(GPIO_PA5_SSI0TX);
+//
+//    GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3 |
+//                                    GPIO_PIN_4 | GPIO_PIN_5);
+//
+//    /* SSI2 */
+//    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
+//
+//    GPIOPinConfigure(GPIO_PB4_SSI2CLK);
+//    GPIOPinConfigure(GPIO_PB5_SSI2FSS);
+//    GPIOPinConfigure(GPIO_PB6_SSI2RX);
+//    GPIOPinConfigure(GPIO_PB7_SSI2TX);
+//
+//    GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5 |
+//                                    GPIO_PIN_6 | GPIO_PIN_7);
+//
+//    /* SSI3 */
+//    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI3);
+//
+//    GPIOPinConfigure(GPIO_PD0_SSI3CLK);
+//    GPIOPinConfigure(GPIO_PD1_SSI3FSS);
+//    GPIOPinConfigure(GPIO_PD2_SSI3RX);
+//    GPIOPinConfigure(GPIO_PD3_SSI3TX);
+//
+//    GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1 |
+//                                    GPIO_PIN_2 | GPIO_PIN_3);
+//
+//    EK_TM4C123GXL_initDMA();
     SPI_init();
 }
 #endif /* TI_DRIVERS_SPI_INCLUDED */
@@ -467,8 +502,8 @@ UARTTiva_Object uartTivaObjects[EK_TM4C123GXL_UARTCOUNT];
 /* UART configuration structure */
 const UARTTiva_HWAttrs uartTivaHWAttrs[EK_TM4C123GXL_UARTCOUNT] = {
     {UART0_BASE, INT_UART0}, /* EK_TM4C123GXL_UART0 */
-    {UART1_BASE, INT_UART1}, /* EK_TM4C123GXL_UART1 */
-    {UART5_BASE, INT_UART5}, /* EK_TM4C123GXL_UART5 */
+    {INEEDMD_RADIO_UART, INT_UART1}, /* EK_TM4C123GXL_UART1 */
+    {DEBUG_UART, INT_UART5}, /* EK_TM4C123GXL_UART5 */
 };
 
 const UART_Config UART_config[] = {
@@ -498,10 +533,9 @@ const UART_Config UART_config[] = {
  */
 void EK_TM4C123GXL_initUART(void)
 {
-  // Enable and configure the peripherals used by the uart
-  //RADIO_CONFIG
+  // Enable and configure the peripherals used by the radio uart
   //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART1);
+  MAP_SysCtlPeripheralEnable(INEEDMD_RADIO_SYSCTL_PERIPH_UART);
 
   // Configure the alternate function for UART RTS pin
   MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRTS);
@@ -516,7 +550,6 @@ void EK_TM4C123GXL_initUART(void)
   MAP_GPIOPinConfigure(INEEDMD_GPIO_UARTRX);
 
   // Set the TX and RX pin type for the radio uart
-  //
   MAP_GPIOPinTypeUART(INEEDMD_GPIO_TX_PORT, INEEDMD_GPIO_TX_PIN);
   MAP_GPIOPinTypeUART(INEEDMD_GPIO_RX_PORT, INEEDMD_GPIO_RX_PIN);
 
@@ -528,7 +561,7 @@ void EK_TM4C123GXL_initUART(void)
   //
 //  MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
 
-  //DEBUG UART
+  //Enable and configure the peripherals used by the debug uart
   //
   MAP_SysCtlPeripheralEnable(DEBUG_SYSCTL_PERIPH_UART);
 

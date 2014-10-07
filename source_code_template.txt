@@ -66,8 +66,9 @@ int example_function(param_1, param_2); //short function declaration description
 /******************************************************************************
 * name:
 * description:
-* param description:
-* return value description:
+* param description: type - value: value description (in order from left to right)
+*                    bool - true: do action when set to true  
+* return value description: type - value: value description
 ******************************************************************************/
 int example_PrivateFunction(param_1, param_2)
 {
@@ -78,12 +79,13 @@ int example_PrivateFunction(param_1, param_2)
 ******************************************************************************/
 
 /******************************************************************************
-* name:
+* name: Filename_or_abreviation_funciton
 * description:
-* param description:
-* return value description:
+* param description: type - value: value description (in order from left to right)
+*                    bool - true: do action when set to true  
+* return value description: type - value: value description
 ******************************************************************************/
-int example_function(param_1, param_2)
+int iFilename_or_abreviation_funciton(param_1, param_2)
 {
 }
 

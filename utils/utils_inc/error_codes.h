@@ -70,7 +70,14 @@ typedef enum
     ER_INVALID_RESPONSE,
     ER_CONNECTED,
     ER_NOT_CONNECTED,
-    ER_SPEED
+    ER_SPEED,
+    ER_UNKNOWN,
+    ER_UNKNOWN_PARAM,
+    ER_UNKNOWN_INTERFACE,
+    ER_UNKNOWN_SETTING,
+    ER_UNKNOWN_VALUE,
+    ER_READY,
+    ER_NOT_READY
 }ERROR_CODE;
 
 //*****************************************************************************

@@ -27,6 +27,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>application</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>drivers</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
@@ -40,6 +45,41 @@
 			<name>utils</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>application/ineedmd_UI.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_UI.c</locationURI>
+		</link>
+		<link>
+			<name>application/ineedmd_command_protocol.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_command_protocol.c</locationURI>
+		</link>
+		<link>
+			<name>application/ineedmd_power_modes.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_power_modes.c</locationURI>
+		</link>
+		<link>
+			<name>application/ineedmd_test_waveforms.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_test_waveforms.c</locationURI>
+		</link>
+		<link>
+			<name>application/ineedmd_watchdog.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_watchdog.c</locationURI>
+		</link>
+		<link>
+			<name>application/ineedmd_waveform.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_waveform.c</locationURI>
+		</link>
+		<link>
+			<name>application/main.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/application/main.c</locationURI>
 		</link>
 		<link>
 			<name>drivers/LED.c</name>

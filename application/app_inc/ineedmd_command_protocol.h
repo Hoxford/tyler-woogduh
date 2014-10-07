@@ -98,6 +98,6 @@ typedef enum
 //*****************************************************************************
 int iIneedmd_Rcv_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
 int iIneedmd_Send_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
-int iIneedmd_command_process(void);
+//int iIneedmd_command_process(void);
 
 #endif //__INEEDMD_COMMAND_PROTOCOL_H__

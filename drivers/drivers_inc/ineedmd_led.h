@@ -188,10 +188,40 @@ typedef enum
   ACTUAL_DFU_OFF
 }LED_MODE;
 
+typedef enum NO_UI_ELELMENT
+{
+        UI_ALL_OFF,
+        HEART_LED_OFF,
+        HEART_LED_RED,
+        HEART_LED_GREEN,
+        HEART_LED_BLUE,
+        HEART_LED_ORANGE,
+        HEART_LED_PURPLE,
+        HEART_LED_PINK,
+        COMMS_LED_OFF,
+        COMMS_LED_RED,
+        COMMS_LED_GREEN,
+        COMMS_LED_BLUE,
+        COMMS_LED_ORANGE,
+        COMMS_LED_PURPLE,
+        COMMS_LED_PINK,
+        POWER_LED_OFF,
+        POWER_LED_RED,
+        POWER_LED_GREEN,
+        POWER_LED_BLUE,
+        POWER_LED_ORANGE,
+        POWER_LED_PURPLE,
+        POWER_LED_PINK,
+        ALERT_SOUND_ON,
+        ALERT_SOUND_OFF
+} NO_UI_ELELMENT;
+
 /******************************************************************************
 * public functions
 ******************************************************************************/
-void ineedmd_led_pattern(LED_MODE led_pattern);
+
+ERROR_CODE eIneedmd_LED_driver_setup(void);
+ERROR_CODE eIneedmd_LED_pattern(LED_MODE led_pattern);
 extern void led_test(void);  //runs the gamut of LED patters
 
 

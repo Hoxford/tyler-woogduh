@@ -420,454 +420,453 @@ Types_FreqHz sCPU_freq;
 extern void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count);
 extern void vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count);
 
-#ifndef USING_TIRTOS
-
-//*****************************************************************************
-// private function declarations
-//*****************************************************************************
-ERROR_CODE Radio_UART_DMA_Config(void); //configures the DMA tied to the radio UART
-void vRadio_interface_DMA_tx_service(void);
-void vRadio_interface_DMA_rcv_service(void);
-ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff);
-ERROR_CODE eBSP_Set_System_Timers(void);
-
-//*****************************************************************************
-// private functions
-//*****************************************************************************
-/******************************************************************************
-* name: Radio_UART_DMA_Config
-* description: configures the DMA for the radio uart
-* param description:
-* return value description:
-******************************************************************************/
-ERROR_CODE Radio_UART_DMA_Config(void)
-{
-  ERROR_CODE  eEC = ER_OK;
-#if USE_RADIO_UART_DMA == true
-  int i;
-  bool bDMA_is_enabled = false;
-  uint32_t  uiDMA_mode = 0;
-
-  tDMA_RX_struct * ptFirst_DMA_RX_struct;
-
-  //init the UART DMA rcv buffers
-  for(i = 0; i < NUM_DMA_RDIO_RCV_BUFFS; i++)
-  {
-    tDMA_RX_struct_array[i].eApp_Buff_Dest = RB_NONE;
-    tDMA_RX_struct_array[i].bBuff_free       = true;
-    tDMA_RX_struct_array[i].uiRcv_data_len   = 0;
-    memset(&tDMA_RX_struct_array[i].uiRcv_Buff, 0x00, DMA_RDIO_RCV_BUFFSZ);
-  }
-
-  //init the UART DMA tx buffers
-  for(i = 0; i < NUM_DMA_RDIO_TX_BUFFS; i++)
-  {
-    tDMA_TX_struct_array[i].bBuff_free     = true;
-    tDMA_TX_struct_array[i].uiTx_data_len  = 0;
-    tDMA_TX_struct_array[i].bTx_done  = true;
-    memset(&tDMA_TX_struct_array[i].uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
-  }
-
-  //keep track of the first buffer to use
-  ptFirst_DMA_RX_struct = &tDMA_RX_struct_array[0];
-
-  // Enable the uDMA controller at the system level.  Enable it to continue
-  // to run while the processor is in sleep.
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UDMA);
-  MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
-
-  // Enable the uDMA controller error interrupt.  This interrupt will occur
-  // if there is a bus error during a transfer.
-  MAP_IntEnable(INT_UDMAERR);
-
-  // Enable the uDMA controller.
-  MAP_uDMAEnable();
-
-  // Point at the control table to use for channel control structures.
-  MAP_uDMAControlBaseSet(ui8ControlTable);
-
-  //
-  // Set both the TX and RX trigger thresholds to 4.  This will be used by
-  // the uDMA controller to signal when more data should be transferred.  The
-  // uDMA TX and RX channels will be configured so that it can transfer 4
-  // bytes in a burst when the UART is ready to transfer more data.
-  //
-//  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
-  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX7_8, UART_FIFO_RX1_8);
-
-  // Enable the uDMA interface for both TX and RX channels.
-  MAP_UARTDMAEnable(INEEDMD_RADIO_UART, UART_DMA_RX | UART_DMA_TX);
-
-  // Enable the UART peripheral interrupts.  Note that no UART interrupts
-  // were enabled, but the uDMA controller will cause an interrupt on the
-  // UART interrupt signal when a uDMA transfer is complete.
-  //
-//  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
-//  MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
-  iRadio_interface_int_enable();
-
-  //
-  //configure the Radio UART receive DMA
-  //
-
-  // Put the attributes in a known state for the uDMA RADIO UART RX channel.  These
-  // should already be disabled by default.
-  //
-  MAP_uDMAChannelAttributeDisable(UDMA_CHANNEL_RADIO_RX,
-                                  UDMA_ATTR_USEBURST |
-                                  UDMA_ATTR_HIGH_PRIORITY |
-                                  UDMA_ATTR_REQMASK);
-
-  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_RX, UDMA_ATTR_HIGH_PRIORITY);
-
-  // Configure the control parameters for the primary control structure for
-  // the UART RX channel.  The transfer data size is 8 bits, the
-  // source address does not increment since it will be reading from a
-  // register.  The destination address increment is byte 8-bit bytes.  The
-  // arbitration size is set to 4 to match the RX FIFO trigger threshold.
-  // The uDMA controller will use a 4 byte burst transfer if possible.
-  MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
-                            UDMA_SIZE_8 | UDMA_SRC_INC_NONE | UDMA_DST_INC_8 |
-                            UDMA_ARB_1);
-
-  // Set up the transfer parameters for the UART RX primary control
-  // structure.
-  MAP_uDMAChannelTransferSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
-                             UDMA_MODE_BASIC,
-                             (void *)(INEEDMD_RADIO_UART + UART_O_DR),
-                             ptFirst_DMA_RX_struct->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
-
-  ptFirst_DMA_RX_struct->bBuff_free = false;
-
-  //Enable the Radio DMA UART receive channel
-  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
-
-  //
-  //configure the Radio UART transmit DMA
-  //
-
-  // Put the attributes in a known state for the uDMA Radio UART TX channel.  These
-  // should already be disabled by default.
-  MAP_uDMAChannelAttributeDisable(UDMA_CHANNEL_RADIO_TX,
-                                  UDMA_ATTR_HIGH_PRIORITY |
-                                  UDMA_ATTR_REQMASK);
-
-  // Set the USEBURST attribute for the uDMA UART TX channel.  This will
-  // force the controller to always use a burst when transferring data from
-  // the TX buffer to the UART.
-//  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_USEBURST);
-  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_HIGH_PRIORITY);
-
-  // Configure the control parameters for the Radio UART TX.  The uDMA UART TX
-  // channel is used to transfer a block of data from a buffer to the UART.
-  // The data size is 8 bits.  The source address increment is 8-bit bytes
-  // since the data is coming from a buffer.  The destination increment is
-  // none since the data is to be written to the UART data register.  The
-  // arbitration size is set to 4, which matches the UART TX FIFO trigger
-  // threshold.
-  MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT,
-                            UDMA_SIZE_8 | UDMA_SRC_INC_8 | UDMA_DST_INC_NONE |
-                            UDMA_ARB_1);
-
-  //Performing setup checks
-  //
-  //check if the DMA's are enabled
-  if(eEC == ER_OK)
-  {
-    //check if RX DMA is enabled
-    bDMA_is_enabled = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_RX);
-    if(bDMA_is_enabled == false)
-    {
-      eEC = ER_NOT_ENABLED;
-    }
-    else
-    {
-      //todo: this check may not be needed since we have nothing to send yet
-//      //check if the TX DMA is enabled
-//      bDMA_is_enabled = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_TX);
-//      if(bDMA_is_enabled == false)
-//      {
-//        eEC = ER_NOT_ENABLED;
-//      }
-//      else
-//      {
-        eEC = ER_OK;
-//      }
-    }
-  }
-
-  //check the DMA's mode
-  if(eEC == ER_OK)
-  {
-    //check RX DMA mode
-    uiDMA_mode = ROM_uDMAChannelModeGet((UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT));
-    if((uiDMA_mode && UDMA_MODE_BASIC) != UDMA_MODE_BASIC)
-    {
-      eEC = ER_MODE;
-    }
-    else
-    {
-      //todo: this check may not be needed since we have nothing to send yet
-//      //check if the TX DMA mode
-//      uiDMA_mode = ROM_uDMAChannelModeGet((UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT));
-//      if((uiDMA_mode && UDMA_MODE_BASIC) != UDMA_MODE_BASIC)
-//      {
-//        eEC = ER_MODE;
-//      }
-//      else
-//      {
-        eEC = ER_OK;
-//      }
-    }
-  }
-
-  if(eEC == ER_OK)
-  {
-    //set the UART using dma control variable
-    bIs_Radio_UART_using_dma = true;
-  }
-#elif  USE_RADIO_UART_DMA == false
-  eEC = ER_NOT_ENABLED;
-#endif //USE_RADIO_UART_DMA
-  return eEC;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void vRadio_interface_DMA_tx_service(void)
-{
-#if USE_RADIO_UART_DMA == true
-  int index;
-  tDMA_TX_struct * ptDMA_tx_buff = NULL;
-
-  //cycle through the buffers and find the one that was transmitted
-  for(index = 0; index < NUM_DMA_RDIO_TX_BUFFS; index++)
-  {
-    ptDMA_tx_buff = &tDMA_TX_struct_array[index];
-
-    //check if the buffer is NOT free, therefore filled for TX
-    if(ptDMA_tx_buff->bBuff_free == false)
-    {
-      ptDMA_tx_buff->bBuff_free = true;
-      memset(ptDMA_tx_buff->uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
-    }else{/*nothing*/}
-  }
-#endif
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void vRadio_interface_DMA_rcv_service(void)
-{
-#define DEBUG_vRadio_interface_DMA_rcv_service
-#ifdef DEBUG_vRadio_interface_DMA_rcv_service
-  #define  vDEBUG_DMA_RCV_SRVC  vDEBUG
-#else
-  #define vDEBUG_DMA_RCV_SRVC(a)
-#endif
-#if USE_RADIO_UART_DMA == true
-  ERROR_CODE eEC = ER_FAIL;
-  int index;
-  tDMA_RX_struct * ptDMA_que_buff = NULL;
-
-  //cycle through the buffers and find the one that was filled
-  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
-  {
-    ptDMA_que_buff = &tDMA_RX_struct_array[index];
-
-    //check if the buffer is NOT free, therefore potentially was filled via DMA
-    if(ptDMA_que_buff->bBuff_free == false)
-    {
-      //check if the buffer was NOT already queued for an app to review
-      if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
-      {
-        eEC = eIs_radio_in_cmnd_mode();
-        if(eEC == ER_TRUE)
-        {
-          ptDMA_que_buff->eApp_Buff_Dest = RB_IWRAP_CMND;
-          eEC = ER_OK;
-          continue;
-        }
-        else
-        {
-          eEC = ER_OK;
-        }
-
-        if(ptDMA_que_buff->uiRcv_Buff[0] == 0x9C)
-        {
-          ptDMA_que_buff->eApp_Buff_Dest = RB_INEEDMD_CMND;
-          continue;
-        }
-      }else{/*nothing*/}
-    }else{/*nothing*/}
-  }
-
-  //check the error code to determine if none of the buffers were serviced
-  if(eEC == ER_FAIL)
-  {
-    //There is no data to send to the application
-    eEC = ER_NODATA;
-  }else{/*nothing*/}
-
-  //check the error status and proceed accordingly
-  if(eEC == ER_OK)
-  {
-//    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
-
-    //preset the error code
-    eEC = ER_FAIL;
-
-    //cycle the buffers and fine a free one to assign to the DMA
-    for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
-    {
-      ptDMA_que_buff = &tDMA_RX_struct_array[index];
-
-      //check if the buffer is free to fill via DMA
-      if(ptDMA_que_buff->bBuff_free == true)
-      {
-        //check if the buffer was NOT already queued for an app to review
-        if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
-        {
-          //set the DMA RX to the next rcv buffer
-          ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT,
-                                     UDMA_MODE_BASIC,
-                                     (void *)(INEEDMD_RADIO_UART + UART_O_DR),
-                                     ptDMA_que_buff->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
-
-          //mark the buffer as in use
-          ptDMA_que_buff->bBuff_free = false;
-          MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
-          eEC = ER_OK;
-          break;
-
-        }else{/*nothing*/}
-      }else{/*nothing*/}
-    }
-  }else{/*nothing*/}
-
-  //check if a free buffer was not allocated
-  if(eEC == ER_FAIL)
-  {
-    eEC = ER_NO_BUFF_AVAILABLE;
-  }else{/*nothing*/}
-
-
-  //check for errors
-  if(eEC == ER_NO_BUFF_AVAILABLE)
-  {
-#ifdef DEBUG
-    // Catch no buffers available
-    vDEBUG_DMA_RCV_SRVC("Dma rcv srvc SYS HALT, no buff available");
-    while(1){};
-#else
-    //todo: perform a system reset maybe?
-#endif
-  }
-  else if(eEC == ER_NODATA)
-  {
-    //todo: need a nodata counter maybe?
-#ifdef DEBUG
-    // Catch no data available
-    vDEBUG_DMA_RCV_SRVC("Dma rcv srvc SYS HALT, no data available");
-    while(1){};
-#else
-    //todo: need a nodata counter maybe?
-#endif
-  }
-  else{/*nothing*/}
-#endif //USE_RADIO_UART_DMA
-  return;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff)
-{
-  ERROR_CODE eEC = ER_FAIL;
-#if USE_RADIO_UART_DMA == true
-  int index = 0;
-  tDMA_RX_struct * ptDMA_rx_buff = NULL;
-
-  //cycle through the buffers and find the one that was filled
-  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
-  {
-    ptDMA_rx_buff = &tDMA_RX_struct_array[index];
-
-    //check if the buffer is NOT free, therefore potentially was filled via DMA
-    if(ptDMA_rx_buff->bBuff_free == false)
-    {
-      //check if the buffer was NOT already queued for an app to review
-      if(ptDMA_rx_buff->eApp_Buff_Dest == RB_NONE)
-      {
-        *ptDMA_curr_rx_buff = ptDMA_rx_buff;
-        eEC = ER_OK;
-      }else{/*nothing*/}
-    }else{/*nothing*/}
-  }
-#endif
-  return eEC;
-}
-
-
-/******************************************************************************
-* name: eBSP_Set_System_Timers
-* description: private function that sets all the timer values. It should be
-*   used during system initalization and when ever the sys speed changes.
-* param description: none
-* return value description:
-******************************************************************************/
-ERROR_CODE eBSP_Set_System_Timers(void)
-{
-  ERROR_CODE eEC = ER_OK;
-
-  eBSP_Systick_Init();
-
-  //todo: add more functions that require the current sys clock value
-
-  return eEC;
-}
-//*****************************************************************************
-
-// external functions
-//*****************************************************************************
 //
-//a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
+////*****************************************************************************
+//// private function declarations
+////*****************************************************************************
+//ERROR_CODE Radio_UART_DMA_Config(void); //configures the DMA tied to the radio UART
+//void vRadio_interface_DMA_tx_service(void);
+//void vRadio_interface_DMA_rcv_service(void);
+//ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff);
+//ERROR_CODE eBSP_Set_System_Timers(void);
 //
-void wait_time (unsigned int tenths_of_seconds)
-{
-	MAP_SysCtlDelay(( MAP_SysCtlClockGet() / 30  )*tenths_of_seconds );
-}
-
-
+////*****************************************************************************
+//// private functions
+////*****************************************************************************
+///******************************************************************************
+//* name: Radio_UART_DMA_Config
+//* description: configures the DMA for the radio uart
+//* param description:
+//* return value description:
+//******************************************************************************/
+//ERROR_CODE Radio_UART_DMA_Config(void)
+//{
+//  ERROR_CODE  eEC = ER_OK;
+//#if USE_RADIO_UART_DMA == true
+//  int i;
+//  bool bDMA_is_enabled = false;
+//  uint32_t  uiDMA_mode = 0;
 //
-//a 2 BYTE i2C WRITE ROUTINE.  No error checking is implemented
+//  tDMA_RX_struct * ptFirst_DMA_RX_struct;
 //
-void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsigned char second_byte)
+//  //init the UART DMA rcv buffers
+//  for(i = 0; i < NUM_DMA_RDIO_RCV_BUFFS; i++)
+//  {
+//    tDMA_RX_struct_array[i].eApp_Buff_Dest = RB_NONE;
+//    tDMA_RX_struct_array[i].bBuff_free       = true;
+//    tDMA_RX_struct_array[i].uiRcv_data_len   = 0;
+//    memset(&tDMA_RX_struct_array[i].uiRcv_Buff, 0x00, DMA_RDIO_RCV_BUFFSZ);
+//  }
+//
+//  //init the UART DMA tx buffers
+//  for(i = 0; i < NUM_DMA_RDIO_TX_BUFFS; i++)
+//  {
+//    tDMA_TX_struct_array[i].bBuff_free     = true;
+//    tDMA_TX_struct_array[i].uiTx_data_len  = 0;
+//    tDMA_TX_struct_array[i].bTx_done  = true;
+//    memset(&tDMA_TX_struct_array[i].uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
+//  }
+//
+//  //keep track of the first buffer to use
+//  ptFirst_DMA_RX_struct = &tDMA_RX_struct_array[0];
+//
+//  // Enable the uDMA controller at the system level.  Enable it to continue
+//  // to run while the processor is in sleep.
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UDMA);
+//  MAP_SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
+//
+//  // Enable the uDMA controller error interrupt.  This interrupt will occur
+//  // if there is a bus error during a transfer.
+//  MAP_IntEnable(INT_UDMAERR);
+//
+//  // Enable the uDMA controller.
+//  MAP_uDMAEnable();
+//
+//  // Point at the control table to use for channel control structures.
+//  MAP_uDMAControlBaseSet(ui8ControlTable);
+//
+//  //
+//  // Set both the TX and RX trigger thresholds to 4.  This will be used by
+//  // the uDMA controller to signal when more data should be transferred.  The
+//  // uDMA TX and RX channels will be configured so that it can transfer 4
+//  // bytes in a burst when the UART is ready to transfer more data.
+//  //
+////  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
+//  MAP_UARTFIFOLevelSet(INEEDMD_RADIO_UART, UART_FIFO_TX7_8, UART_FIFO_RX1_8);
+//
+//  // Enable the uDMA interface for both TX and RX channels.
+//  MAP_UARTDMAEnable(INEEDMD_RADIO_UART, UART_DMA_RX | UART_DMA_TX);
+//
+//  // Enable the UART peripheral interrupts.  Note that no UART interrupts
+//  // were enabled, but the uDMA controller will cause an interrupt on the
+//  // UART interrupt signal when a uDMA transfer is complete.
+//  //
+////  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
+////  MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+//  iRadio_interface_int_enable();
+//
+//  //
+//  //configure the Radio UART receive DMA
+//  //
+//
+//  // Put the attributes in a known state for the uDMA RADIO UART RX channel.  These
+//  // should already be disabled by default.
+//  //
+//  MAP_uDMAChannelAttributeDisable(UDMA_CHANNEL_RADIO_RX,
+//                                  UDMA_ATTR_USEBURST |
+//                                  UDMA_ATTR_HIGH_PRIORITY |
+//                                  UDMA_ATTR_REQMASK);
+//
+//  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_RX, UDMA_ATTR_HIGH_PRIORITY);
+//
+//  // Configure the control parameters for the primary control structure for
+//  // the UART RX channel.  The transfer data size is 8 bits, the
+//  // source address does not increment since it will be reading from a
+//  // register.  The destination address increment is byte 8-bit bytes.  The
+//  // arbitration size is set to 4 to match the RX FIFO trigger threshold.
+//  // The uDMA controller will use a 4 byte burst transfer if possible.
+//  MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
+//                            UDMA_SIZE_8 | UDMA_SRC_INC_NONE | UDMA_DST_INC_8 |
+//                            UDMA_ARB_1);
+//
+//  // Set up the transfer parameters for the UART RX primary control
+//  // structure.
+//  MAP_uDMAChannelTransferSet(UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT,
+//                             UDMA_MODE_BASIC,
+//                             (void *)(INEEDMD_RADIO_UART + UART_O_DR),
+//                             ptFirst_DMA_RX_struct->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
+//
+//  ptFirst_DMA_RX_struct->bBuff_free = false;
+//
+//  //Enable the Radio DMA UART receive channel
+//  MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
+//
+//  //
+//  //configure the Radio UART transmit DMA
+//  //
+//
+//  // Put the attributes in a known state for the uDMA Radio UART TX channel.  These
+//  // should already be disabled by default.
+//  MAP_uDMAChannelAttributeDisable(UDMA_CHANNEL_RADIO_TX,
+//                                  UDMA_ATTR_HIGH_PRIORITY |
+//                                  UDMA_ATTR_REQMASK);
+//
+//  // Set the USEBURST attribute for the uDMA UART TX channel.  This will
+//  // force the controller to always use a burst when transferring data from
+//  // the TX buffer to the UART.
+////  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_USEBURST);
+//  MAP_uDMAChannelAttributeEnable(UDMA_CHANNEL_RADIO_TX, UDMA_ATTR_HIGH_PRIORITY);
+//
+//  // Configure the control parameters for the Radio UART TX.  The uDMA UART TX
+//  // channel is used to transfer a block of data from a buffer to the UART.
+//  // The data size is 8 bits.  The source address increment is 8-bit bytes
+//  // since the data is coming from a buffer.  The destination increment is
+//  // none since the data is to be written to the UART data register.  The
+//  // arbitration size is set to 4, which matches the UART TX FIFO trigger
+//  // threshold.
+//  MAP_uDMAChannelControlSet(UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT,
+//                            UDMA_SIZE_8 | UDMA_SRC_INC_8 | UDMA_DST_INC_NONE |
+//                            UDMA_ARB_1);
+//
+//  //Performing setup checks
+//  //
+//  //check if the DMA's are enabled
+//  if(eEC == ER_OK)
+//  {
+//    //check if RX DMA is enabled
+//    bDMA_is_enabled = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_RX);
+//    if(bDMA_is_enabled == false)
+//    {
+//      eEC = ER_NOT_ENABLED;
+//    }
+//    else
+//    {
+//      //todo: this check may not be needed since we have nothing to send yet
+////      //check if the TX DMA is enabled
+////      bDMA_is_enabled = MAP_uDMAChannelIsEnabled(UDMA_CHANNEL_RADIO_TX);
+////      if(bDMA_is_enabled == false)
+////      {
+////        eEC = ER_NOT_ENABLED;
+////      }
+////      else
+////      {
+//        eEC = ER_OK;
+////      }
+//    }
+//  }
+//
+//  //check the DMA's mode
+//  if(eEC == ER_OK)
+//  {
+//    //check RX DMA mode
+//    uiDMA_mode = ROM_uDMAChannelModeGet((UDMA_CHANNEL_RADIO_RX | UDMA_PRI_SELECT));
+//    if((uiDMA_mode && UDMA_MODE_BASIC) != UDMA_MODE_BASIC)
+//    {
+//      eEC = ER_MODE;
+//    }
+//    else
+//    {
+//      //todo: this check may not be needed since we have nothing to send yet
+////      //check if the TX DMA mode
+////      uiDMA_mode = ROM_uDMAChannelModeGet((UDMA_CHANNEL_RADIO_TX | UDMA_PRI_SELECT));
+////      if((uiDMA_mode && UDMA_MODE_BASIC) != UDMA_MODE_BASIC)
+////      {
+////        eEC = ER_MODE;
+////      }
+////      else
+////      {
+//        eEC = ER_OK;
+////      }
+//    }
+//  }
+//
+//  if(eEC == ER_OK)
+//  {
+//    //set the UART using dma control variable
+//    bIs_Radio_UART_using_dma = true;
+//  }
+//#elif  USE_RADIO_UART_DMA == false
+//  eEC = ER_NOT_ENABLED;
+//#endif //USE_RADIO_UART_DMA
+//  return eEC;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void vRadio_interface_DMA_tx_service(void)
+//{
+//#if USE_RADIO_UART_DMA == true
+//  int index;
+//  tDMA_TX_struct * ptDMA_tx_buff = NULL;
+//
+//  //cycle through the buffers and find the one that was transmitted
+//  for(index = 0; index < NUM_DMA_RDIO_TX_BUFFS; index++)
+//  {
+//    ptDMA_tx_buff = &tDMA_TX_struct_array[index];
+//
+//    //check if the buffer is NOT free, therefore filled for TX
+//    if(ptDMA_tx_buff->bBuff_free == false)
+//    {
+//      ptDMA_tx_buff->bBuff_free = true;
+//      memset(ptDMA_tx_buff->uiTx_Buff, 0x00, DMA_RDIO_TX_BUFFSZ);
+//    }else{/*nothing*/}
+//  }
+//#endif
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void vRadio_interface_DMA_rcv_service(void)
+//{
+//#define DEBUG_vRadio_interface_DMA_rcv_service
+//#ifdef DEBUG_vRadio_interface_DMA_rcv_service
+//  #define  vDEBUG_DMA_RCV_SRVC  vDEBUG
+//#else
+//  #define vDEBUG_DMA_RCV_SRVC(a)
+//#endif
+//#if USE_RADIO_UART_DMA == true
+//  ERROR_CODE eEC = ER_FAIL;
+//  int index;
+//  tDMA_RX_struct * ptDMA_que_buff = NULL;
+//
+//  //cycle through the buffers and find the one that was filled
+//  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+//  {
+//    ptDMA_que_buff = &tDMA_RX_struct_array[index];
+//
+//    //check if the buffer is NOT free, therefore potentially was filled via DMA
+//    if(ptDMA_que_buff->bBuff_free == false)
+//    {
+//      //check if the buffer was NOT already queued for an app to review
+//      if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
+//      {
+//        eEC = eIs_radio_in_cmnd_mode();
+//        if(eEC == ER_TRUE)
+//        {
+//          ptDMA_que_buff->eApp_Buff_Dest = RB_IWRAP_CMND;
+//          eEC = ER_OK;
+//          continue;
+//        }
+//        else
+//        {
+//          eEC = ER_OK;
+//        }
+//
+//        if(ptDMA_que_buff->uiRcv_Buff[0] == 0x9C)
+//        {
+//          ptDMA_que_buff->eApp_Buff_Dest = RB_INEEDMD_CMND;
+//          continue;
+//        }
+//      }else{/*nothing*/}
+//    }else{/*nothing*/}
+//  }
+//
+//  //check the error code to determine if none of the buffers were serviced
+//  if(eEC == ER_FAIL)
+//  {
+//    //There is no data to send to the application
+//    eEC = ER_NODATA;
+//  }else{/*nothing*/}
+//
+//  //check the error status and proceed accordingly
+//  if(eEC == ER_OK)
+//  {
+////    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_RX);
+//
+//    //preset the error code
+//    eEC = ER_FAIL;
+//
+//    //cycle the buffers and fine a free one to assign to the DMA
+//    for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+//    {
+//      ptDMA_que_buff = &tDMA_RX_struct_array[index];
+//
+//      //check if the buffer is free to fill via DMA
+//      if(ptDMA_que_buff->bBuff_free == true)
+//      {
+//        //check if the buffer was NOT already queued for an app to review
+//        if(ptDMA_que_buff->eApp_Buff_Dest == RB_NONE)
+//        {
+//          //set the DMA RX to the next rcv buffer
+//          ROM_uDMAChannelTransferSet(UDMA_CHANNEL_UART1RX | UDMA_PRI_SELECT,
+//                                     UDMA_MODE_BASIC,
+//                                     (void *)(INEEDMD_RADIO_UART + UART_O_DR),
+//                                     ptDMA_que_buff->uiRcv_Buff, DMA_RDIO_RCV_BUFFSZ);
+//
+//          //mark the buffer as in use
+//          ptDMA_que_buff->bBuff_free = false;
+//          MAP_uDMAChannelEnable(UDMA_CHANNEL_RADIO_RX);
+//          eEC = ER_OK;
+//          break;
+//
+//        }else{/*nothing*/}
+//      }else{/*nothing*/}
+//    }
+//  }else{/*nothing*/}
+//
+//  //check if a free buffer was not allocated
+//  if(eEC == ER_FAIL)
+//  {
+//    eEC = ER_NO_BUFF_AVAILABLE;
+//  }else{/*nothing*/}
+//
+//
+//  //check for errors
+//  if(eEC == ER_NO_BUFF_AVAILABLE)
+//  {
+//#ifdef DEBUG
+//    // Catch no buffers available
+//    vDEBUG_DMA_RCV_SRVC("Dma rcv srvc SYS HALT, no buff available");
+//    while(1){};
+//#else
+//    //todo: perform a system reset maybe?
+//#endif
+//  }
+//  else if(eEC == ER_NODATA)
+//  {
+//    //todo: need a nodata counter maybe?
+//#ifdef DEBUG
+//    // Catch no data available
+//    vDEBUG_DMA_RCV_SRVC("Dma rcv srvc SYS HALT, no data available");
+//    while(1){};
+//#else
+//    //todo: need a nodata counter maybe?
+//#endif
+//  }
+//  else{/*nothing*/}
+//#endif //USE_RADIO_UART_DMA
+//  return;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//ERROR_CODE eGet_curr_DMA_fill_buff(tDMA_RX_struct ** ptDMA_curr_rx_buff)
+//{
+//  ERROR_CODE eEC = ER_FAIL;
+//#if USE_RADIO_UART_DMA == true
+//  int index = 0;
+//  tDMA_RX_struct * ptDMA_rx_buff = NULL;
+//
+//  //cycle through the buffers and find the one that was filled
+//  for(index = 0; index < NUM_DMA_RDIO_RCV_BUFFS; index++)
+//  {
+//    ptDMA_rx_buff = &tDMA_RX_struct_array[index];
+//
+//    //check if the buffer is NOT free, therefore potentially was filled via DMA
+//    if(ptDMA_rx_buff->bBuff_free == false)
+//    {
+//      //check if the buffer was NOT already queued for an app to review
+//      if(ptDMA_rx_buff->eApp_Buff_Dest == RB_NONE)
+//      {
+//        *ptDMA_curr_rx_buff = ptDMA_rx_buff;
+//        eEC = ER_OK;
+//      }else{/*nothing*/}
+//    }else{/*nothing*/}
+//  }
+//#endif
+//  return eEC;
+//}
+//
+//
+///******************************************************************************
+//* name: eBSP_Set_System_Timers
+//* description: private function that sets all the timer values. It should be
+//*   used during system initalization and when ever the sys speed changes.
+//* param description: none
+//* return value description:
+//******************************************************************************/
+//ERROR_CODE eBSP_Set_System_Timers(void)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//
+//  eBSP_Systick_Init();
+//
+//  //todo: add more functions that require the current sys clock value
+//
+//  return eEC;
+//}
+////*****************************************************************************
+//
+//// external functions
+////*****************************************************************************
+////
+////a processor loop wait timer.  The number of cycles are calculated from the frequency of the main clock.
+////
+//void wait_time (unsigned int tenths_of_seconds)
+//{
+//	MAP_SysCtlDelay(( MAP_SysCtlClockGet() / 30  )*tenths_of_seconds );
+//}
+//
+//
+////
+////a 2 BYTE i2C WRITE ROUTINE.  No error checking is implemented
+////
+//void write_2_byte_i2c (unsigned char device_id, unsigned char first_byte, unsigned char second_byte)
+//
+//{
+//
+//  I2CMasterSlaveAddrSet(I2C0_BASE, device_id, false);
+//    I2CMasterDataPut(I2C0_BASE, first_byte);
+//    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_START);
+//    while(I2CMasterBusy(I2C0_BASE));
+//    I2CMasterDataPut(I2C0_BASE, second_byte);
+//    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
+//    while(I2CMasterBusy(I2C0_BASE));
+//
+//}
 
-{
-
-  I2CMasterSlaveAddrSet(I2C0_BASE, device_id, false);
-    I2CMasterDataPut(I2C0_BASE, first_byte);
-    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_START);
-    while(I2CMasterBusy(I2C0_BASE));
-    I2CMasterDataPut(I2C0_BASE, second_byte);
-    I2CMasterControl(I2C0_BASE, I2C_MASTER_CMD_BURST_SEND_FINISH);
-    while(I2CMasterBusy(I2C0_BASE));
-
-}
-#endif //#ifndef USING_TIRTOS
 //*****************************************************************************
 // name:
 // description: sets the system speed according to the passed in parameter
@@ -1113,518 +1112,518 @@ ERROR_CODE set_system_speed (eSYSTEM_SPEED_INDEX eHow_Fast)
 #undef vDEBUG_SET_SYS_SPEED
 }
 
-#ifndef USING_TIRTOS
-ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed)
-{
-  ERROR_CODE eEC = ER_OK;
+//
+//ERROR_CODE  eGet_system_speed(uint16_t * uiSys_speed)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//
+//  if(uiCurrent_sys_speed == INEEDMD_CPU_SPEED_NOT_SET)
+//  {
+//    *uiSys_speed = INEEDMD_CPU_SPEED_NOT_SET;
+//    eEC = ER_NOT_SET;
+//  }
+//  else
+//  {
+//    *uiSys_speed = uiCurrent_sys_speed;
+//    eEC = ER_OK;
+//  }
+//
+//  return eEC;
+//}
+//
+//void
+//Set_Timer0_Sleep()
+//{
+//    //
+//    // The Timer0 peripheral must be enabled for use.
+//    //
+//    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+//    //
+//    // The Timer0 peripheral must be enabled for use.
+//    //
+////    TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_ONE_SHOT);
+//    TimerConfigure(TIMER0_BASE, TIMER_CFG_A_ONE_SHOT);
+//
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//ERROR_CODE  eBSP_Timer0_Int_Serivce(uint32_t uiInt_Status)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//  if((uiInt_Status & TIMER_TIMA_TIMEOUT) == TIMER_TIMA_TIMEOUT)
+//  {
+//    bSystem_sleep_timer_expired = true;
+//  }
+//
+//  return eEC;
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//ERROR_CODE  eBSP_Did_Timer0_Expire(bool bClear_status)
+//{
+//  ERROR_CODE eEC = ER_FAIL;
+//  bool bPrevious_System_sleep_timer_expired = bSystem_sleep_timer_expired;
+//
+//  if(bClear_status == true)
+//  {
+//    bSystem_sleep_timer_expired = false;
+//  }
+//
+//  if(bPrevious_System_sleep_timer_expired == true)
+//  {
+//    eEC = ER_TRUE;
+//  }
+//  else
+//  {
+//    eEC = ER_FALSE;
+//  }
+//
+//  return eEC;
+//}
+//
+///******************************************************************************
+//* name:
+//* description: services the sys tick interrupt that is proced every ms
+//* param description:
+//* return value description:
+//******************************************************************************/
+//void vSystick_int_service(void)
+//{
+//  bWaveform_timer_tick = true;
+//
+//  if(bRdio_track_timeout_tick == true)
+//  {
+//    uiRdio_timeout_tick++;
+//  }
+//
+//  uiRunClock_Sys_ms_count++;
+//
+//  uiRunClock_Sys_ms++;
+//  if(uiRunClock_Sys_ms >= 1000)
+//  {
+//    uiRunClock_Sys_ms = 0;
+//    uiRunClock_Sys_sec++;
+//
+//    if(uiRunClock_Sys_sec >= 60)
+//    {
+//      uiRunClock_Sys_sec = 0;
+//      uiRunClock_Sys_min++;
+//
+//      if(uiRunClock_Sys_min >= 60)
+//      {
+//        uiRunClock_Sys_min = 0;
+//        uiRunClock_Sys_hour++;
+//
+//        if(uiRunClock_Sys_hour >= 24)
+//        {
+//          uiRunClock_Sys_hour = 0;
+//          uiRunClock_Sys_days++;
+//
+//          if(uiRunClock_Sys_days >= 365)
+//          {
+//            uiRunClock_Sys_days = 0;
+//            uiRunClock_Sys_years++;
+//          }else{/*do nothing*/}
+//        }else{/*do nothing*/}
+//      }else{/*do nothing*/}
+//    }else{/*do nothing*/}
+//  }else{/*do nothing*/}
+//
+//  //todo: add other tick variables here
+//}
+//
+///******************************************************************************
+//* name: eBSP_Get_Current_ms_count
+//* description: returns in the pointer parameter the current run clock system
+//*   milisecond count value. This value is the total number of milisecond ticks
+//*   the system had since it was first turned on. The value can be between 0 and
+//*   1.84467440737E+19 or 0x0 and 0xFFFFFFFFFFFFFFFF. The counter will reset to
+//*   0 in approximatly 584,555,012 years, give or take a few millenia.
+//* param description: pointer to an unsigned long long variable
+//* return value description: ERROR_CODE
+//******************************************************************************/
+//ERROR_CODE eBSP_Get_Current_ms_count(uintmax_t * uiCurrent_ms_count)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//
+//  *uiCurrent_ms_count = uiRunClock_Sys_ms_count;
+//
+//  return eEC;
+//}
+//
+///******************************************************************************
+//* name: eBSP_Get_Current_ms
+//* description: returns in the pointer parameter the current run clock system
+//*   milisecond value. The run clock milisecond is a real time clock type
+//*   value. This value runs between 0 and 999 ms.
+//* param description:
+//* return value description:
+//******************************************************************************/
+//ERROR_CODE eBSP_Get_Current_ms(uint16_t * uiCurrent_ms)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//
+//  *uiCurrent_ms = uiRunClock_Sys_ms;
+//
+//  return eEC;
+//}
+//
+///******************************************************************************
+//* name: bWaveform_did_timer_tick
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//bool bWaveform_did_timer_tick(void)
+//{
+//  bool bDid_waveform_timer_tick = false;
+//  bDid_waveform_timer_tick = bWaveform_timer_tick;
+//
+//  //todo: disable interrupts
+//  bWaveform_timer_tick = false;
+//  //todo: enable interrupts
+//
+//  return bDid_waveform_timer_tick;
+//}
+//
+//void
+//PowerInitFunction(void)
+//{
+//  // set the brown out detection registers
+//
+//  HWREG(SYSCTL_PBORCTL_R)=SYSCTL_PBORCTL_BOR0;
+//
+//  // set the LDO in sleep and deep sleep...
+//
+//  SysCtlLDODeepSleepSet(SYSCTL_LDO_0_90V);
+//  SysCtlLDOSleepSet(SYSCTL_LDO_0_90V);
+//
+//  SysCtlDeepSleepPowerSet (SYSCTL_FLASH_LOW_POWER |  SYSCTL_TEMP_LOW_POWER | SYSCTL_SRAM_LOW_POWER );
+//
+//}
+//
+//void
+//GPIOEnable(void)
+//{
+//    //
+//    // Enable Peripheral Clocks
+//    // These have to be switched on in order... who knew!
+//    //
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+//
+//}
+//
+//void
+//GPIODisable(void)
+//{
+//    //
+//    // Enable Peripheral Clocks
+//    // These have to be switched on in order... who knew!
+//    //
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOA);
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOB);
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOC);
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOD);
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOE);
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOF);
+//
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//ERROR_CODE BatMeasureADCEnable(void)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//  uint32_t uiData = 0;
+//
+//  if(bIs_Batt_measACD_enabled == false)
+//  {
+//    //Enable the ADC Clock
+//    MAP_SysCtlPeripheralEnable(BATTERY_SYSCTL_PERIPH_ADC);
+//
+//    MAP_GPIOPinTypeADC(INEEDMD_BATTERY_PORT, INEEDMD_BATTERY_MEASUREMENT_IN_PIN);
+//
+//
+//
+//    MAP_ADCSequenceDisable(BATTERY_ADC, 3);
+//    MAP_ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+//    MAP_ADCSequenceStepConfigure(BATTERY_ADC, 3, 0, BATTERY_ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END );
+//    MAP_ADCIntClear(BATTERY_ADC, 3);
+//
+//    MAP_ADCSequenceEnable(BATTERY_ADC, 3);
+//
+//    //measure the ADC to verify it was enabled
+//    ADCProcessorTrigger(BATTERY_ADC, 3);
+//    //
+//    // Wait for conversion to be completed.
+//    //
+//    while(!ADCIntStatus(BATTERY_ADC, 3, false))
+//    {
+//      uiData++;
+//    }
+//    //
+//    // Clear the ADC interrupt flag.
+//    //
+//    ADCIntClear(BATTERY_ADC, 3);
+//
+//    uiData = 0;
+//    MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+//
+//    //check returned data to determine if the batt ADC is enabled and working
+//    if(uiData != 0)
+//    {
+//      //batt ADC working, set control and error variables
+//      eEC = ER_OK;
+//      bIs_Batt_measACD_enabled = true;
+//    }
+//    else
+//    {
+//      //batt ADC not working, set control and error variables
+//      eEC = ER_FAIL;
+//      bIs_Batt_measACD_enabled = false;
+//    }
+//  }
+//  else
+//  {
+//    //batt measurement ADC alread enabled, set error code
+//    eEC = ER_OK;
+//  }
+//
+//  return eEC;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//int BatMeasureADCDisable(void)
+//{
+//  if(bIs_Batt_measACD_enabled == true)
+//  {
+//    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
+//   //Disable the ADC Clock
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
+//    bIs_Batt_measACD_enabled = false;
+//  }
+//  else
+//  {
+//    bIs_Batt_measACD_enabled = false;
+//  }
+//  return 1;
+//}
+//
+///******************************************************************************
+//* name: eBSP_ADCMeasureBatt
+//* description: Performs the measurement of the system battery. The measurement
+//*  is interrupt based so they must be enabled before calling this function.
+//* param description:  uint32_t * - pointer to the variable to store the measured voltage
+//* return value description:
+//*   ERROR_CODE - error code return value for error compensation
+//*     ER_OK - battery successfully measured
+//*     ER_FAIL - battery not successfully measured
+//*     ER_NOT_ENABLED - the ADC to measure the battery is not enabled
+//******************************************************************************/
+//ERROR_CODE eBSP_ADCMeasureBatt(uint32_t * puiBatt_voltage)
+//{
+//  ERROR_CODE eEC = ER_FAIL;
+//  uint32_t uiData = 0;
+//
+//  if(bIs_Batt_measACD_enabled == true)
+//  {
+//    ADCProcessorTrigger(BATTERY_ADC, 3);
+//    //
+//    // Wait for conversion to be completed.
+//    //
+//    while(!ADCIntStatus(BATTERY_ADC, 3, false))
+//    {
+//    }
+//    //
+//    // Clear the ADC interrupt flag.
+//    //
+//    ADCIntClear(BATTERY_ADC, 3);
+//    //
+//    // Read ADC Value.
+//    //
+//    ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+//
+//    if(uiData != 0)
+//    {
+//      *puiBatt_voltage = uiData;
+//      eEC = ER_OK;
+//    }
+//    else
+//    {
+//      *puiBatt_voltage = 0;
+//      eEC = ER_FAIL;
+//    }
+//  }
+//  else
+//  {
+//    eEC = ER_NOT_ENABLED;
+//    *puiBatt_voltage = 0;
+//  }
+//
+//  return eEC;
+//}
+//
+//
+//ERROR_CODE
+//TemperatureMeasureADCEnable(void)
+//{
+//
+//    //uint32_t uiData;
+//
+//    //Enable the ADC Clock
+//    MAP_SysCtlPeripheralEnable(TEMPERATURE_SYSCTL_PERIPH_ADC);
+//
+//    MAP_ADCSequenceDisable(TEMPERATURE_ADC, 3);
+//    MAP_ADCSequenceConfigure(TEMPERATURE_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+//    MAP_ADCSequenceStepConfigure(TEMPERATURE_ADC, 3, 0, TEMPERATURE_ADC_CTL | ADC_CTL_IE | ADC_CTL_END );
+//    MAP_ADCIntClear(TEMPERATURE_ADC, 3);
+//
+//    MAP_ADCSequenceEnable(TEMPERATURE_ADC, 3);
+//
+//    //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+//
+//
+//    return ER_OK;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//ERROR_CODE
+//TemperatureMeasureADCDisable(void)
+//{
+//    while(!SysCtlPeripheralReady(TEMPERATURE_SYSCTL_PERIPH_ADC));
+//   //Disable the ADC Clock
+//    MAP_SysCtlPeripheralDisable(TEMPERATURE_SYSCTL_PERIPH_ADC);
+//    return ER_OK;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//bool bIs_battery_low(void)
+//{
+////#define DEBUG_bIs_battery_low
+//#ifdef DEBUG_bIs_battery_low
+//  #define  vDEBUG_IS_BATT_LOW  vDEBUG
+//#else
+//  #define vDEBUG_IS_BATT_LOW(a)
+//#endif
+//  #ifdef INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN
+//    uint8_t uiLow_batt;
+//    bool bIs_batt_low = false;
+//
+//    uiLow_batt = GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN);
+//
+//    if(uiLow_batt == INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN)
+//    {
+//      bIs_batt_low = true;
+//    }
+//
+//    return bIs_batt_low;
+//  #else
+//    //INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN no longer supported on board 03
+//    vDEBUG_IS_BATT_LOW("Is Batt low SYS HALTED, LOW_BATT_INTERUPT_PIN no longer supported on board 03");
+//    while(1){};
+//  #endif //INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN
+//#undef vDEBUG_IS_BATT_LOW
+//}
+//
+//int
+//EKGSPIEnable(void)
+//{
+//  //
+//  // Configuring the SPI port and pins to talk to the analog front end
+//  // SPI0_BASE is mapped to INEEDMD_ADC_SPI
+//  //
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
+//  //no need for a majik delay as we are configuring the GPIO pins as well...
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+//  // power UP the ADC
+//  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+//  // Enable pin PA6 for GPIOOutput
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
+//  // Enable pin PA0 for GPIOInput
+//  MAP_GPIOPinTypeGPIOInput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_INTERUPT_PIN);
+//  // Enable pin PA1 for GPIOOutput
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN);
+//  //set the nCS pin as a GPIO
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN);
+//  // Enable pin PA2 for SSI0 SSI0CLK
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_2);
+//  //
+//  // Enable pin PA5 for SSI0 SSI0TX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PA5_SSI0TX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_5);
+//  //
+//  // Enable pin PA3 for SSI0 SSI0FSS
+//  //
+//  //MAP_GPIOPinConfigure(GPIO_PA3_SSI0FSS);
+//  //MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_3);
+//  //
+//  // Enable pin PA4 for SSI0 SSI0RX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PA4_SSI0RX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_4);
+//
+//  MAP_SSIClockSourceSet(INEEDMD_ADC_SPI, SSI_CLOCK_PIOSC);
+//
+//  //set SSI for 1MHz clock and 8 bit data, master mode
+//  SSIConfigSetExpClk(INEEDMD_ADC_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+//  SSIEnable(INEEDMD_ADC_SPI);
+////  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
+//
+//
+//   return 1;
+//
+//}
+//
+//int
+//EKGSPIDisable(void)
+//{
+////  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
+//  SSIDisable(INEEDMD_ADC_SPI);
+//  MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
+//  // power down the ADC
+//  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
+//
+//  return 1;
+//
+//}
 
-  if(uiCurrent_sys_speed == INEEDMD_CPU_SPEED_NOT_SET)
-  {
-    *uiSys_speed = INEEDMD_CPU_SPEED_NOT_SET;
-    eEC = ER_NOT_SET;
-  }
-  else
-  {
-    *uiSys_speed = uiCurrent_sys_speed;
-    eEC = ER_OK;
-  }
-
-  return eEC;
-}
-
-void
-Set_Timer0_Sleep()
-{
-    //
-    // The Timer0 peripheral must be enabled for use.
-    //
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-    //
-    // The Timer0 peripheral must be enabled for use.
-    //
-//    TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_ONE_SHOT);
-    TimerConfigure(TIMER0_BASE, TIMER_CFG_A_ONE_SHOT);
-	
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-ERROR_CODE  eBSP_Timer0_Int_Serivce(uint32_t uiInt_Status)
-{
-  ERROR_CODE eEC = ER_OK;
-  if((uiInt_Status & TIMER_TIMA_TIMEOUT) == TIMER_TIMA_TIMEOUT)
-  {
-    bSystem_sleep_timer_expired = true;
-  }
-
-  return eEC;
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-ERROR_CODE  eBSP_Did_Timer0_Expire(bool bClear_status)
-{
-  ERROR_CODE eEC = ER_FAIL;
-  bool bPrevious_System_sleep_timer_expired = bSystem_sleep_timer_expired;
-
-  if(bClear_status == true)
-  {
-    bSystem_sleep_timer_expired = false;
-  }
-
-  if(bPrevious_System_sleep_timer_expired == true)
-  {
-    eEC = ER_TRUE;
-  }
-  else
-  {
-    eEC = ER_FALSE;
-  }
-
-  return eEC;
-}
-
-/******************************************************************************
-* name:
-* description: services the sys tick interrupt that is proced every ms
-* param description:
-* return value description:
-******************************************************************************/
-void vSystick_int_service(void)
-{
-  bWaveform_timer_tick = true;
-
-  if(bRdio_track_timeout_tick == true)
-  {
-    uiRdio_timeout_tick++;
-  }
-
-  uiRunClock_Sys_ms_count++;
-
-  uiRunClock_Sys_ms++;
-  if(uiRunClock_Sys_ms >= 1000)
-  {
-    uiRunClock_Sys_ms = 0;
-    uiRunClock_Sys_sec++;
-
-    if(uiRunClock_Sys_sec >= 60)
-    {
-      uiRunClock_Sys_sec = 0;
-      uiRunClock_Sys_min++;
-
-      if(uiRunClock_Sys_min >= 60)
-      {
-        uiRunClock_Sys_min = 0;
-        uiRunClock_Sys_hour++;
-
-        if(uiRunClock_Sys_hour >= 24)
-        {
-          uiRunClock_Sys_hour = 0;
-          uiRunClock_Sys_days++;
-
-          if(uiRunClock_Sys_days >= 365)
-          {
-            uiRunClock_Sys_days = 0;
-            uiRunClock_Sys_years++;
-          }else{/*do nothing*/}
-        }else{/*do nothing*/}
-      }else{/*do nothing*/}
-    }else{/*do nothing*/}
-  }else{/*do nothing*/}
-
-  //todo: add other tick variables here
-}
-
-/******************************************************************************
-* name: eBSP_Get_Current_ms_count
-* description: returns in the pointer parameter the current run clock system
-*   milisecond count value. This value is the total number of milisecond ticks
-*   the system had since it was first turned on. The value can be between 0 and
-*   1.84467440737E+19 or 0x0 and 0xFFFFFFFFFFFFFFFF. The counter will reset to
-*   0 in approximatly 584,555,012 years, give or take a few millenia.
-* param description: pointer to an unsigned long long variable
-* return value description: ERROR_CODE
-******************************************************************************/
-ERROR_CODE eBSP_Get_Current_ms_count(uintmax_t * uiCurrent_ms_count)
-{
-  ERROR_CODE eEC = ER_OK;
-
-  *uiCurrent_ms_count = uiRunClock_Sys_ms_count;
-
-  return eEC;
-}
-
-/******************************************************************************
-* name: eBSP_Get_Current_ms
-* description: returns in the pointer parameter the current run clock system
-*   milisecond value. The run clock milisecond is a real time clock type
-*   value. This value runs between 0 and 999 ms.
-* param description:
-* return value description:
-******************************************************************************/
-ERROR_CODE eBSP_Get_Current_ms(uint16_t * uiCurrent_ms)
-{
-  ERROR_CODE eEC = ER_OK;
-
-  *uiCurrent_ms = uiRunClock_Sys_ms;
-
-  return eEC;
-}
-
-/******************************************************************************
-* name: bWaveform_did_timer_tick
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-bool bWaveform_did_timer_tick(void)
-{
-  bool bDid_waveform_timer_tick = false;
-  bDid_waveform_timer_tick = bWaveform_timer_tick;
-
-  //todo: disable interrupts
-  bWaveform_timer_tick = false;
-  //todo: enable interrupts
-
-  return bDid_waveform_timer_tick;
-}
-
-void
-PowerInitFunction(void)
-{
-  // set the brown out detection registers
-
-  HWREG(SYSCTL_PBORCTL_R)=SYSCTL_PBORCTL_BOR0;
-
-  // set the LDO in sleep and deep sleep...
-
-  SysCtlLDODeepSleepSet(SYSCTL_LDO_0_90V);
-  SysCtlLDOSleepSet(SYSCTL_LDO_0_90V);
-
-  SysCtlDeepSleepPowerSet (SYSCTL_FLASH_LOW_POWER |  SYSCTL_TEMP_LOW_POWER | SYSCTL_SRAM_LOW_POWER );
-
-}
-
-void
-GPIOEnable(void)
-{
-    //
-    // Enable Peripheral Clocks 
-    // These have to be switched on in order... who knew!
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-
-}
-
-void
-GPIODisable(void)
-{
-    //
-    // Enable Peripheral Clocks
-    // These have to be switched on in order... who knew!
-    //
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOA);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOB);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOC);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOD);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOE);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_GPIOF);
-
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE BatMeasureADCEnable(void)
-{
-  ERROR_CODE eEC = ER_OK;
-  uint32_t uiData = 0;
-
-  if(bIs_Batt_measACD_enabled == false)
-  {
-    //Enable the ADC Clock
-    MAP_SysCtlPeripheralEnable(BATTERY_SYSCTL_PERIPH_ADC);
-
-    MAP_GPIOPinTypeADC(INEEDMD_BATTERY_PORT, INEEDMD_BATTERY_MEASUREMENT_IN_PIN);
-
-
-
-    MAP_ADCSequenceDisable(BATTERY_ADC, 3);
-    MAP_ADCSequenceConfigure(BATTERY_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
-    MAP_ADCSequenceStepConfigure(BATTERY_ADC, 3, 0, BATTERY_ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END );
-    MAP_ADCIntClear(BATTERY_ADC, 3);
-
-    MAP_ADCSequenceEnable(BATTERY_ADC, 3);
-
-    //measure the ADC to verify it was enabled
-    ADCProcessorTrigger(BATTERY_ADC, 3);
-    //
-    // Wait for conversion to be completed.
-    //
-    while(!ADCIntStatus(BATTERY_ADC, 3, false))
-    {
-      uiData++;
-    }
-    //
-    // Clear the ADC interrupt flag.
-    //
-    ADCIntClear(BATTERY_ADC, 3);
-
-    uiData = 0;
-    MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
-
-    //check returned data to determine if the batt ADC is enabled and working
-    if(uiData != 0)
-    {
-      //batt ADC working, set control and error variables
-      eEC = ER_OK;
-      bIs_Batt_measACD_enabled = true;
-    }
-    else
-    {
-      //batt ADC not working, set control and error variables
-      eEC = ER_FAIL;
-      bIs_Batt_measACD_enabled = false;
-    }
-  }
-  else
-  {
-    //batt measurement ADC alread enabled, set error code
-    eEC = ER_OK;
-  }
-
-  return eEC;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-int BatMeasureADCDisable(void)
-{
-  if(bIs_Batt_measACD_enabled == true)
-  {
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0));
-   //Disable the ADC Clock
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_ADC0);
-    bIs_Batt_measACD_enabled = false;
-  }
-  else
-  {
-    bIs_Batt_measACD_enabled = false;
-  }
-  return 1;
-}
-
-/******************************************************************************
-* name: eBSP_ADCMeasureBatt
-* description: Performs the measurement of the system battery. The measurement
-*  is interrupt based so they must be enabled before calling this function.
-* param description:  uint32_t * - pointer to the variable to store the measured voltage
-* return value description:
-*   ERROR_CODE - error code return value for error compensation
-*     ER_OK - battery successfully measured
-*     ER_FAIL - battery not successfully measured
-*     ER_NOT_ENABLED - the ADC to measure the battery is not enabled
-******************************************************************************/
-ERROR_CODE eBSP_ADCMeasureBatt(uint32_t * puiBatt_voltage)
-{
-  ERROR_CODE eEC = ER_FAIL;
-  uint32_t uiData = 0;
-
-  if(bIs_Batt_measACD_enabled == true)
-  {
-    ADCProcessorTrigger(BATTERY_ADC, 3);
-    //
-    // Wait for conversion to be completed.
-    //
-    while(!ADCIntStatus(BATTERY_ADC, 3, false))
-    {
-    }
-    //
-    // Clear the ADC interrupt flag.
-    //
-    ADCIntClear(BATTERY_ADC, 3);
-    //
-    // Read ADC Value.
-    //
-    ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
-
-    if(uiData != 0)
-    {
-      *puiBatt_voltage = uiData;
-      eEC = ER_OK;
-    }
-    else
-    {
-      *puiBatt_voltage = 0;
-      eEC = ER_FAIL;
-    }
-  }
-  else
-  {
-    eEC = ER_NOT_ENABLED;
-    *puiBatt_voltage = 0;
-  }
-
-  return eEC;
-}
-
-
-ERROR_CODE
-TemperatureMeasureADCEnable(void)
-{
-
-    //uint32_t uiData;
-
-    //Enable the ADC Clock
-    MAP_SysCtlPeripheralEnable(TEMPERATURE_SYSCTL_PERIPH_ADC);
-
-    MAP_ADCSequenceDisable(TEMPERATURE_ADC, 3);
-    MAP_ADCSequenceConfigure(TEMPERATURE_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
-    MAP_ADCSequenceStepConfigure(TEMPERATURE_ADC, 3, 0, TEMPERATURE_ADC_CTL | ADC_CTL_IE | ADC_CTL_END );
-    MAP_ADCIntClear(TEMPERATURE_ADC, 3);
-
-    MAP_ADCSequenceEnable(TEMPERATURE_ADC, 3);
-
-    //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
-
-
-    return ER_OK;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE
-TemperatureMeasureADCDisable(void)
-{
-    while(!SysCtlPeripheralReady(TEMPERATURE_SYSCTL_PERIPH_ADC));
-   //Disable the ADC Clock
-    MAP_SysCtlPeripheralDisable(TEMPERATURE_SYSCTL_PERIPH_ADC);
-    return ER_OK;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-bool bIs_battery_low(void)
-{
-//#define DEBUG_bIs_battery_low
-#ifdef DEBUG_bIs_battery_low
-  #define  vDEBUG_IS_BATT_LOW  vDEBUG
-#else
-  #define vDEBUG_IS_BATT_LOW(a)
-#endif
-  #ifdef INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN
-    uint8_t uiLow_batt;
-    bool bIs_batt_low = false;
-
-    uiLow_batt = GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN);
-
-    if(uiLow_batt == INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN)
-    {
-      bIs_batt_low = true;
-    }
-
-    return bIs_batt_low;
-  #else
-    //INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN no longer supported on board 03
-    vDEBUG_IS_BATT_LOW("Is Batt low SYS HALTED, LOW_BATT_INTERUPT_PIN no longer supported on board 03");
-    while(1){};
-  #endif //INEEDMD_RADIO_LOW_BATT_INTERUPT_PIN
-#undef vDEBUG_IS_BATT_LOW
-}
-
-int
-EKGSPIEnable(void)
-{
-  //
-  // Configuring the SPI port and pins to talk to the analog front end
-  // SPI0_BASE is mapped to INEEDMD_ADC_SPI
-  //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
-  //no need for a majik delay as we are configuring the GPIO pins as well...
-  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-  // power UP the ADC
-  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-  // Enable pin PA6 for GPIOOutput
-  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-  // Enable pin PA0 for GPIOInput
-  MAP_GPIOPinTypeGPIOInput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_INTERUPT_PIN);
-  // Enable pin PA1 for GPIOOutput
-  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN);
-  //set the nCS pin as a GPIO
-  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN);
-  // Enable pin PA2 for SSI0 SSI0CLK
-  //
-  MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK);
-  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_2);
-  //
-  // Enable pin PA5 for SSI0 SSI0TX
-  //
-  MAP_GPIOPinConfigure(GPIO_PA5_SSI0TX);
-  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_5);
-  //
-  // Enable pin PA3 for SSI0 SSI0FSS
-  //
-  //MAP_GPIOPinConfigure(GPIO_PA3_SSI0FSS);
-  //MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_3);
-  //
-  // Enable pin PA4 for SSI0 SSI0RX
-  //
-  MAP_GPIOPinConfigure(GPIO_PA4_SSI0RX);
-  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_4);
-
-  MAP_SSIClockSourceSet(INEEDMD_ADC_SPI, SSI_CLOCK_PIOSC);
-
-  //set SSI for 1MHz clock and 8 bit data, master mode
-  SSIConfigSetExpClk(INEEDMD_ADC_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
-  SSIEnable(INEEDMD_ADC_SPI);
-//  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
-
-
-   return 1;
-
-}
-
-int
-EKGSPIDisable(void)
-{
-//  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
-  SSIDisable(INEEDMD_ADC_SPI);
-  MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI0);
-  // power down the ADC
-  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
-
-  return 1;
-
-}
-#endif
 /******************************************************************************
 * name:
 * description:
@@ -1633,7 +1632,7 @@ EKGSPIDisable(void)
 ******************************************************************************/
 ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
 {
-//#define DEBUG_eBSP_Set_radio_uart_baud
+#define DEBUG_eBSP_Set_radio_uart_baud
 #ifdef DEBUG_eBSP_Set_radio_uart_baud
   #define  vDEBUG_BSB_UART_BAUD  vDEBUG
 #else
@@ -1661,16 +1660,21 @@ ERROR_CODE eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set)
     UART_close(sRadio_UART_handle);
   }else{/*do nothing*/}
 
-  sRadio_UART_params.readMode       = UART_MODE_CALLBACK;              /*!< Mode for all read calls */
-  sRadio_UART_params.writeMode      = UART_MODE_CALLBACK;              /*!< Mode for all write calls */
+//  sRadio_UART_params.readMode       = UART_MODE_CALLBACK;              /*!< Mode for all read calls */
+//  sRadio_UART_params.writeMode      = UART_MODE_CALLBACK;              /*!< Mode for all write calls */
+  sRadio_UART_params.readMode       = UART_MODE_BLOCKING;              /*!< Mode for all read calls */
+  sRadio_UART_params.writeMode      = UART_MODE_BLOCKING;              /*!< Mode for all write calls */
   sRadio_UART_params.readTimeout    = 1000;                            /*!< Timeout for read semaphore */
   sRadio_UART_params.writeTimeout   = 1000;                            /*!< Timeout for write semaphore */
-  sRadio_UART_params.readCallback   = vIneedMD_radio_read_cb;          /*!< Pointer to read callback */
-  sRadio_UART_params.writeCallback  = vIneedMD_radio_write_cb;         /*!< Pointer to write callback */
-  sRadio_UART_params.readReturnMode = UART_RETURN_NEWLINE;             /*!< Receive return mode */
-  sRadio_UART_params.readDataMode   = UART_DATA_TEXT;                  /*!< Type of data being read */
-  sRadio_UART_params.writeDataMode  = UART_DATA_TEXT;                  /*!< Type of data being written */
-  sRadio_UART_params.readEcho       = UART_ECHO_OFF;                    /*!< Echo received data back */
+//  sRadio_UART_params.readCallback   = vIneedMD_radio_read_cb;          /*!< Pointer to read callback */
+//  sRadio_UART_params.writeCallback  = vIneedMD_radio_write_cb;         /*!< Pointer to write callback */
+  sRadio_UART_params.readCallback   = NULL;          /*!< Pointer to read callback */
+  sRadio_UART_params.writeCallback  = NULL;         /*!< Pointer to write callback */
+//  sRadio_UART_params.readReturnMode = UART_RETURN_NEWLINE;             /*!< Receive return mode */
+  sRadio_UART_params.readReturnMode = UART_RETURN_FULL;             /*!< Receive return mode */
+  sRadio_UART_params.readDataMode   = UART_DATA_BINARY;                /*!< Type of data being read */
+  sRadio_UART_params.writeDataMode  = UART_DATA_BINARY;                /*!< Type of data being written */
+  sRadio_UART_params.readEcho       = UART_ECHO_OFF;                   /*!< Echo received data back */
   sRadio_UART_params.baudRate       = uiBaud_rate_to_set;              /*!< Baud rate for UART */
   sRadio_UART_params.dataLength     = UART_LEN_8;                      /*!< Data length for UART */
   sRadio_UART_params.stopBits       = UART_STOP_ONE;                   /*!< Stop bits for UART */
@@ -1736,58 +1740,59 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
   uint32_t uiCurrent_Baud_rate = 0;
   uint32_t uiCurrent_uart_settings = 0;
 
-  MAP_UARTConfigGetExpClk(INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, &uiCurrent_Baud_rate, &uiCurrent_uart_settings);
+//  MAP_UARTConfigGetExpClk(INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, &uiCurrent_Baud_rate, &uiCurrent_uart_settings);
+//
+//  if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_57600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_57600u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_57600;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_76800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_76800u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_76800;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_115200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_115200u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_115200;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_230400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_230400u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_230400;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_460800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_460800u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_460800;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_921600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_921600u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_921600;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1382400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1382400u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1382400;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1843200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1843200u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1843200;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_2764800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_2764800u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_2764800;
+//  }
+//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_3686400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_3686400u10))
+//  {
+//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_3686400;
+//  }
+//  else
+//  {
+//#ifdef DEBUG
+//    vDEBUG_BSB_GET_BAUD("Get baud SYS HALT, unknown baud rate");
+//    while(1){};
+//#endif
+//  }
 
-  if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_57600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_57600u10))
+  if(sRadio_UART_handle == NULL)
   {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_57600;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_76800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_76800u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_76800;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_115200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_115200u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_115200;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_230400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_230400u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_230400;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_460800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_460800u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_460800;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_921600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_921600u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_921600;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1382400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1382400u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1382400;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1843200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1843200u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1843200;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_2764800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_2764800u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_2764800;
-  }
-  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_3686400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_3686400u10))
-  {
-    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_3686400;
-  }
-  else
-  {
-#ifdef DEBUG
-    vDEBUG_BSB_GET_BAUD("Get baud SYS HALT, unknown baud rate");
-    while(1){};
-#endif
-  }
-
-  if(uiCurrent_Baud_rate == 0)
-  {
+    eEC = ER_FAIL;
 #ifdef DEBUG
     vDEBUG_BSB_GET_BAUD("Get baud SYS HALT, baud not set");
     while(1){};
@@ -1795,7 +1800,12 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
   }
   else
   {
+    if(uiCurrent_Baud_rate != sRadio_UART_params.baudRate)
+    {
+      uiCurrent_Baud_rate = sRadio_UART_params.baudRate;
+    }
     *uiBaud_rate_to_get = uiCurrent_Baud_rate;
+    eEC = ER_OK;
   }
 
   return eEC;
@@ -1819,11 +1829,11 @@ ERROR_CODE  eBSP_RadioUARTEnable(void)
   {
     //Config the uart speed, len, stop bits and parity
     //
-    MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
+//    MAP_UARTConfigSetExpClk( INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, INEEDMD_RADIO_UART_BAUD, ( UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE ));
 
     //Config the uart flow control
     //
-    MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
+//    MAP_UARTFlowControlSet(INEEDMD_RADIO_UART, (UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX));
   }
   else
   {
@@ -1925,41 +1935,40 @@ int iRadio_Power_Off(void)
   return 1;
 }
 
-#ifndef USING_TIRTOS
-/******************************************************************************
-* name: eBSP_Radio_Power_Cycle
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-ERROR_CODE  eBSP_Radio_Power_Cycle(void)
-{
-  ERROR_CODE eEC = ER_OK;
-  uint32_t uiPin_State = 0;
+///******************************************************************************
+//* name: eBSP_Radio_Power_Cycle
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//ERROR_CODE  eBSP_Radio_Power_Cycle(void)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//  uint32_t uiPin_State = 0;
+//
+//  //turn the radio power off
+//  iRadio_Power_Off();
+//
+//  //delay for 100ms
+//  iHW_delay(100);
+//
+//  //turn the radio power on
+//  iRadio_Power_On();
+//
+//  //Check to make sure th radio power pin is "on"
+//  uiPin_State = MAP_GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN);
+//  if(uiPin_State == INEEDMD_RADIO_ENABLE_PIN)
+//  {
+//    eEC = ER_OK;
+//  }
+//  else
+//  {
+//    eEC = ER_FAIL;
+//  }
+//
+//  return eEC;
+//}
 
-  //turn the radio power off
-  iRadio_Power_Off();
-
-  //delay for 100ms
-  iHW_delay(100);
-
-  //turn the radio power on
-  iRadio_Power_On();
-
-  //Check to make sure th radio power pin is "on"
-  uiPin_State = MAP_GPIOPinRead(GPIO_PORTE_BASE, INEEDMD_RADIO_ENABLE_PIN);
-  if(uiPin_State == INEEDMD_RADIO_ENABLE_PIN)
-  {
-    eEC = ER_OK;
-  }
-  else
-  {
-    eEC = ER_FAIL;
-  }
-
-  return eEC;
-}
-#endif
 /******************************************************************************
 * name:
 * description:
@@ -2208,42 +2217,42 @@ ERROR_CODE eRadio_interface_enable(void)
 
   return eEC;
 }
-#ifndef USING_TIRTOS
-int iRadio_gpio_set(uint16_t uiMask)
-{
-#ifdef DEBUG
-  vDEBUG("iRadio_gpio_set() not defined yet SYS HALT");
-  while(1){}; //todo: fcn not defined yet
-#endif
-  return 1;
-}
 
-int iRadio_gpio_clear(uint16_t uiMask)
-{
-#ifdef DEBUG
-  vDEBUG("iRadio_gpio_clear() not defined yet SYS HALT");
-  while(1){}; //todo: fcn not defined yet
-#endif
-  return 1;
-}
+//int iRadio_gpio_set(uint16_t uiMask)
+//{
+//#ifdef DEBUG
+//  vDEBUG("iRadio_gpio_set() not defined yet SYS HALT");
+//  while(1){}; //todo: fcn not defined yet
+//#endif
+//  return 1;
+//}
+//
+//int iRadio_gpio_clear(uint16_t uiMask)
+//{
+//#ifdef DEBUG
+//  vDEBUG("iRadio_gpio_clear() not defined yet SYS HALT");
+//  while(1){}; //todo: fcn not defined yet
+//#endif
+//  return 1;
+//}
+//
+//int iRadio_gpio_read(uint16_t uiMask)
+//{
+//#ifdef DEBUG
+//  vDEBUG("iRadio_gpio_read() not defined yet SYS HALT");
+//  while(1){}; //todo: fcn not defined yet
+//#endif
+//  return 1;
+//}
+//
+//int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask)
+//{
+//  MAP_GPIODirModeSet(uiRadio_Pin_Port, uiPIN_Out_Mask, GPIO_DIR_MODE_OUT);
+//
+//  //todo: read the register and verify settings took hold
+//  return 1;
+//}
 
-int iRadio_gpio_read(uint16_t uiMask)
-{
-#ifdef DEBUG
-  vDEBUG("iRadio_gpio_read() not defined yet SYS HALT");
-  while(1){}; //todo: fcn not defined yet
-#endif
-  return 1;
-}
-
-int iRadio_gpio_config(uint32_t uiRadio_Pin_Port, uint8_t uiPIN_Out_Mask)
-{
-  MAP_GPIODirModeSet(uiRadio_Pin_Port, uiPIN_Out_Mask, GPIO_DIR_MODE_OUT);
-
-  //todo: read the register and verify settings took hold
-  return 1;
-}
-#endif
 //*****************************************************************************
 // name:
 // description:
@@ -2396,30 +2405,43 @@ int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size)
 // param description:
 // return value description:
 //*****************************************************************************
-int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
+ERROR_CODE eRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 {
-  int i;
+  ERROR_CODE eEC = ER_FAIL;
+  int i = 0;
 
-  for(i = 0; i < uiBuff_size; i++)
+  i = UART_read(sRadio_UART_handle, cRcv_string, uiBuff_size);
+
+  if(i == UART_ERROR)
   {
-    //receive a character from the USART
-    cRcv_string[i] = UARTCharGet(INEEDMD_RADIO_UART);
-
-    //check if the end of the radio frame is received
-    if(cRcv_string[i] == '\n')
-    {
-      if(i < 2)
-      {
-        i = -1;
-        continue;
-      }
-      else
-      {
-        break;
-      }
-    }
+    eEC = ER_FAIL;
   }
-  return i;
+  else
+  {
+    eEC = ER_OK;
+  }
+  return eEC;
+
+//  for(i = 0; i < uiBuff_size; i++)
+//  {
+//    //receive a character from the USART
+//    cRcv_string[i] = UARTCharGet(INEEDMD_RADIO_UART);
+//
+//    //check if the end of the radio frame is received
+//    if(cRcv_string[i] == '\n')
+//    {
+//      if(i < 2)
+//      {
+//        i = -1;
+//        continue;
+//      }
+//      else
+//      {
+//        break;
+//      }
+//    }
+//  }
+//  return i;
 }
 
 //*****************************************************************************
@@ -2430,11 +2452,12 @@ int iRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 //*****************************************************************************
 ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 {
-  ERROR_CODE eEC = ER_OK;
+  ERROR_CODE eEC = ER_FAIL;
   bool bChar_avail = false;
   uint16_t uiTimeout = 0;
-  uint16_t i = 0;
+  int i = 0;
 
+  //WARNING: this code is untested and my not work properly with the RTOS
   i = UART_read(sRadio_UART_handle, cRcv_char, 1);
 
 //  bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
@@ -2458,23 +2481,35 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 //    *cRcv_char = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
 //  }else{/*do nothing */}
 
+  if(i == UART_ERROR)
+  {
+    eEC = ER_FAIL;
+  }
+  else if(i == 0)
+  {
+    eEC = ER_NODATA;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
   return eEC;
 }
-#ifndef USING_TIRTOS
-//*****************************************************************************
-// name: iRadio_rcv_byte
-// description: calls the uart char get function.
-// param description:
-// return value description: returns int error code
-//*****************************************************************************
-int iRadio_rcv_byte(uint8_t *uiRcv_byte)
-{
-  *uiRcv_byte = UARTCharGet(INEEDMD_RADIO_UART);
-//  *uiRcv_byte = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
 
-  return 1;
-}
-#endif
+////*****************************************************************************
+//// name: iRadio_rcv_byte
+//// description: calls the uart char get function.
+//// param description:
+//// return value description: returns int error code
+////*****************************************************************************
+//int iRadio_rcv_byte(uint8_t *uiRcv_byte)
+//{
+//  *uiRcv_byte = UARTCharGet(INEEDMD_RADIO_UART);
+////  *uiRcv_byte = UARTCharGetNonBlocking(INEEDMD_RADIO_UART);
+//
+//  return 1;
+//}
+
 //*****************************************************************************
 // name: eRadio_clear_rcv_buffer
 // description: performs a non-blocking receive on the radio UART untill there
@@ -2858,165 +2893,165 @@ ERROR_CODE eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size)
 #undef vDEBUG_DMARCV_BOOTFRM
 }
 
-#ifndef USING_TIRTOS
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-int iRadio_interface_int_enable(void)
-{
-  uint32_t ui32Status;
 
-  // Get the interrrupt status.
-  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
-  //clear any asserted interrupts
-  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
-
-  //disable the uart interrupt first
-  iRadio_interface_int_disable();
-
-  //
-  // Enable the UART interrupt.
-  //
-  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
-  if(USE_RADIO_UART_DMA == true)
-  {
-    MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS | UART_INT_DMATX);
-    MAP_UARTTxIntModeSet(INEEDMD_RADIO_UART, UART_TXINT_MODE_EOT);
-  }
-  else
-  {
-    MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
-  }
-
-  eMaster_int_enable();
-  return 1;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-int iRadio_interface_int_disable(void)
-{
-  //
-  // Disable the radio uart interrupt.
-  //
-  ROM_IntDisable(INEEDMD_RADIO_UART_INT);
-
-  ROM_UARTIntDisable(INEEDMD_RADIO_UART,  UART_INT_DMATX |  UART_INT_DMARX | UART_INT_9BIT |\
-                                          UART_INT_OE    |  UART_INT_BE    | UART_INT_PE   |\
-                                          UART_INT_FE    |  UART_INT_RT    | UART_INT_TX   |\
-                                          UART_INT_RX    |  UART_INT_DSR   | UART_INT_DCD  |\
-                                          UART_INT_CTS   |  UART_INT_RI);
-
-  return 1;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void vRadio_interface_int_service(uint32_t uiInt_id)
-{
-//  char cRcv_string[256];
-//  memset(cRcv_string, 0x00, 256);
-
-  if(uiInt_id == UART_INT_RX)
-  {
-    bIs_usart_data = true;
-
-//    iRadio_rcv_string(cRcv_string, 256);
-  }
-  else if(uiInt_id == UART_INT_CTS)  //CTS interrupt id, signalling data was received
-  {
-    //check if the radio uart is using DMA
-    if(bIs_Radio_UART_using_dma == true)
-    {
-      iNum_cts_procs++;
-      //service the DMA receive
-      vRadio_interface_DMA_rcv_service();
-    }
-    //else just set the usart data control variable
-    else
-    {
-      bIs_uart_done = true;
-    }
-  }
-  else{/* do nothing */}
-}
-
-//*****************************************************************************
-// name: vRadio_UARTTx_int_service
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void vRadio_UARTTx_int_service(uint32_t ui32Status)
-{
-  bIs_DMA_transmit_in_process = false;
-  return;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status)
-{
-  int i = 0;
-  bool     bIsUART_TX_DMA_Enabled = false;
-
-  if((ui32DMA_int_status & RADIO_TX_UDMA_CHANNEL_BITMASK) == RADIO_TX_UDMA_CHANNEL_BITMASK)
-  {
-    // If the UART1 DMA TX channel is disabled, that means the TX DMA transfer is done.
-    bIsUART_TX_DMA_Enabled = ROM_uDMAChannelIsEnabled(UDMA_CHANNEL_UART1TX);  //todo set to a MAP_ fcn and re-define UDMA_CHANNEL_UART1TX
-    if(bIsUART_TX_DMA_Enabled == false)
-    {
-//      bIs_DMA_transmit_in_process = false;
-      //    MAP_UARTModemControlClear(INEEDMD_RADIO_UART, UART_OUTPUT_RTS);
-      //    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_TX);
-      //    vRadio_interface_DMA_tx_service();
-
-      //uart dma TX interrupt servie () check if another send needs to be setup
-
-    }
-  }
-
-  if((ui32DMA_int_status & RADIO_RX_UDMA_CHANNEL_BITMASK) == RADIO_RX_UDMA_CHANNEL_BITMASK)
-  {
-    i++;
-  }
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
-{
-  if((uiInt_id & UART_INT_RT) == UART_INT_RT)
-  {
-    bIs_usart_timeout = true;
-
-//    iRadio_rcv_string(cRcv_string, 256);
-  }
-  else
-  {
-    bIs_usart_timeout = false;
-  }
-}
-
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//int iRadio_interface_int_enable(void)
+//{
+//  uint32_t ui32Status;
+//
+//  // Get the interrrupt status.
+//  ui32Status = MAP_UARTIntStatus(INEEDMD_RADIO_UART, false);
+//  //clear any asserted interrupts
+//  MAP_UARTIntClear(INEEDMD_RADIO_UART, ui32Status);
+//
+//  //disable the uart interrupt first
+//  iRadio_interface_int_disable();
+//
+//  //
+//  // Enable the UART interrupt.
+//  //
+//  MAP_IntEnable(INEEDMD_RADIO_UART_INT);
+//  if(USE_RADIO_UART_DMA == true)
+//  {
+//    MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS | UART_INT_DMATX);
+//    MAP_UARTTxIntModeSet(INEEDMD_RADIO_UART, UART_TXINT_MODE_EOT);
+//  }
+//  else
+//  {
+//    MAP_UARTIntEnable(INEEDMD_RADIO_UART, UART_INT_RX | UART_INT_RT | UART_INT_CTS);
+//  }
+//
+//  eMaster_int_enable();
+//  return 1;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//int iRadio_interface_int_disable(void)
+//{
+//  //
+//  // Disable the radio uart interrupt.
+//  //
+//  ROM_IntDisable(INEEDMD_RADIO_UART_INT);
+//
+//  ROM_UARTIntDisable(INEEDMD_RADIO_UART,  UART_INT_DMATX |  UART_INT_DMARX | UART_INT_9BIT |\
+//                                          UART_INT_OE    |  UART_INT_BE    | UART_INT_PE   |\
+//                                          UART_INT_FE    |  UART_INT_RT    | UART_INT_TX   |\
+//                                          UART_INT_RX    |  UART_INT_DSR   | UART_INT_DCD  |\
+//                                          UART_INT_CTS   |  UART_INT_RI);
+//
+//  return 1;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void vRadio_interface_int_service(uint32_t uiInt_id)
+//{
+////  char cRcv_string[256];
+////  memset(cRcv_string, 0x00, 256);
+//
+//  if(uiInt_id == UART_INT_RX)
+//  {
+//    bIs_usart_data = true;
+//
+////    iRadio_rcv_string(cRcv_string, 256);
+//  }
+//  else if(uiInt_id == UART_INT_CTS)  //CTS interrupt id, signalling data was received
+//  {
+//    //check if the radio uart is using DMA
+//    if(bIs_Radio_UART_using_dma == true)
+//    {
+//      iNum_cts_procs++;
+//      //service the DMA receive
+//      vRadio_interface_DMA_rcv_service();
+//    }
+//    //else just set the usart data control variable
+//    else
+//    {
+//      bIs_uart_done = true;
+//    }
+//  }
+//  else{/* do nothing */}
+//}
+//
+////*****************************************************************************
+//// name: vRadio_UARTTx_int_service
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void vRadio_UARTTx_int_service(uint32_t ui32Status)
+//{
+//  bIs_DMA_transmit_in_process = false;
+//  return;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status)
+//{
+//  int i = 0;
+//  bool     bIsUART_TX_DMA_Enabled = false;
+//
+//  if((ui32DMA_int_status & RADIO_TX_UDMA_CHANNEL_BITMASK) == RADIO_TX_UDMA_CHANNEL_BITMASK)
+//  {
+//    // If the UART1 DMA TX channel is disabled, that means the TX DMA transfer is done.
+//    bIsUART_TX_DMA_Enabled = ROM_uDMAChannelIsEnabled(UDMA_CHANNEL_UART1TX);  //todo set to a MAP_ fcn and re-define UDMA_CHANNEL_UART1TX
+//    if(bIsUART_TX_DMA_Enabled == false)
+//    {
+////      bIs_DMA_transmit_in_process = false;
+//      //    MAP_UARTModemControlClear(INEEDMD_RADIO_UART, UART_OUTPUT_RTS);
+//      //    MAP_uDMAChannelDisable(UDMA_CHANNEL_RADIO_TX);
+//      //    vRadio_interface_DMA_tx_service();
+//
+//      //uart dma TX interrupt servie () check if another send needs to be setup
+//
+//    }
+//  }
+//
+//  if((ui32DMA_int_status & RADIO_RX_UDMA_CHANNEL_BITMASK) == RADIO_RX_UDMA_CHANNEL_BITMASK)
+//  {
+//    i++;
+//  }
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void vRadio_interface_int_service_timeout(uint16_t uiInt_id)
+//{
+//  if((uiInt_id & UART_INT_RT) == UART_INT_RT)
+//  {
+//    bIs_usart_timeout = true;
+//
+////    iRadio_rcv_string(cRcv_string, 256);
+//  }
+//  else
+//  {
+//    bIs_usart_timeout = false;
+//  }
+//}
+//
 //*****************************************************************************
 // name:
 // description:
@@ -3032,7 +3067,7 @@ bool bRadio_is_data(void)
 //todo: enable interrupts
   return bWas_usart_data;
 }
-#endif
+
 //*****************************************************************************
 // name: eGet_Radio_CTS_status
 // description:
@@ -3060,741 +3095,741 @@ ERROR_CODE  eGet_Radio_CTS_status(void)
   return eEC;
 }
 
-#ifndef USING_TIRTOS
-//*****************************************************************************
-// name: eGet_Radio_CTS_INT_status
-// description:
-// param description:
-// return value description: returns an error code
-//                           ER_FAIL    - unknown return value, should not occure
-//                           ER_SET     - CTS Interrupt was set
-//                           ER_NOT_SET - CTS Interrupt was not set
-//*****************************************************************************
-ERROR_CODE  eGet_Radio_CTS_INT_status(void)
-{
-  ERROR_CODE eEC = ER_FAIL;
-  uint32_t uiWas_cts_set = 0;
 
-  uiWas_cts_set = uiCTS_int_status;
-  uiCTS_int_status = 0;
-
-  if((uiWas_cts_set & UART_INT_CTS) == UART_INT_CTS)
-  {
-    eEC = ER_SET;
-  }
-  else
-  {
-    eEC = ER_NOT_SET;
-  }
-
-  return eEC;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void
-SDCardSPIInit(void)
-{
-  //
-  //SPI 1 is used for the FLASH
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
-  //
-  // Enable pin PD2 for SSI1 SSI1RX
-  //
-  MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
-  //
-  // Enable pin PD3 for SSI1 SSI1TX
-  //
-  MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
-  //
-  // Enable pin PD0 for SSI1 SSI1CLK
-  //
-  MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
-  //
-  // Enable pin PD1 for SSI1 SSI1FSS
-  //
-  MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
-
-
-  MAP_SSIClockSourceSet(INEEDMD_FLASH_SPI, SSI_CLOCK_PIOSC);
-
-  SSIEnable(INEEDMD_FLASH_SPI);
-  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
-  SSIEnable(INEEDMD_FLASH_SPI);
-  /*  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
-
-  //
-  //SPI 1 is used for the FLASH
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
-  //
-  // Enable pin PD2 for SSI1 SSI1RX
-  //
-  MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
-  //
-  // Enable pin PD3 for SSI1 SSI1TX
-  //
-  MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
-  //
-  // Enable pin PD0 for SSI1 SSI1CLK
-  //
-  MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
-  //
-  // Enable pin PD1 for SSI1 SSI1FSS
-  //
-  MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
-  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
-  SSIEnable(INEEDMD_FLASH_SPI);
-  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, INEEDMD_RADIO_UART_CLK(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
-  SSIEnable(INEEDMD_FLASH_SPI);
-  //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
-
-*/
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-void
-SDCardSPIDisable(void)
-{
-  //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
-  SSIDisable(INEEDMD_FLASH_SPI);
-    //
-    //SPI 1 is used for the FLASH
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI1);
-
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-void
-LEDI2CEnable(void)
-{
-  if(bIs_LEDI2D_Enabled == false)
-  {
-    //
-    // Enable pin PB2 for I2C0 I2C0SCL
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
-    // majik delay as there are things that need to settle.  Because the I2C is very low speed block this is twice as long as the other delays
-    MAP_SysCtlDelay(200);
-    //
-    // I2C Clk is on portB pin 2
-    //
-    MAP_GPIOPinTypeI2CSCL(GPIO_PORTB_BASE, GPIO_PIN_2);
-    MAP_GPIOPinConfigure(GPIO_PB2_I2C0SCL);
-    //
-    // I2C SDA is on portB pin 3
-    //
-    MAP_GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_3);
-    MAP_GPIOPinConfigure(GPIO_PB3_I2C0SDA);
-    I2CMasterInitExpClk(INEEDMD_LED_I2C, MAP_SysCtlClockGet(), true);
-    I2CMasterEnable(INEEDMD_LED_I2C);
-      //  while(!SysCtlPeripheralReady(INEEDMD_LED_I2C));
-
-    bIs_LEDI2D_Enabled = true;
-  }
-  else
-  {
-    bIs_LEDI2D_Enabled = true;
-  }
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-void
-LEDI2CDisable(void)
-{
-  if(bIs_LEDI2D_Enabled == true)
-  {
-    //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_I2C0));
-    I2CMasterDisable(INEEDMD_LED_I2C);
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_I2C0);
-    bIs_LEDI2D_Enabled = false;
-  }
-  else
-  {
-    bIs_LEDI2D_Enabled = false;
-  }
-}
-
-/******************************************************************************
-* name: eBSP_LEDI2C_clock_set
-* description: sets the LED I2C clock speed to the current system speed
-* param description:
-* return value description:
-******************************************************************************/
-ERROR_CODE eBSP_LEDI2C_clock_set(void)
-{
-  ERROR_CODE eEC = ER_OK;
-
-  if(bIs_LEDI2D_Enabled == true)
-  {
-    I2CMasterDisable(INEEDMD_LED_I2C);
-    I2CMasterInitExpClk(INEEDMD_LED_I2C, MAP_SysCtlClockGet(), true);
-    I2CMasterEnable(INEEDMD_LED_I2C);
-  }else{/*do nothing*/}
-
-  return eEC;
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-void
-XTALControlPin(void)
-{
-    //
-    // set up the crystal control pin...
-    //
-    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE);
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void USBPortEnable(void)
-{
-#ifdef USE_USBLIB
-  // Enable lazy stacking for interrupt handlers.
-  //
-  MAP_FPULazyStackingEnable();
-
-  // Enable the GPIO peripheral used for USB, and configure the USB
-  // pins.
-  //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-  MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_4 | GPIO_PIN_5);
-
-  // Initialize the transmit and receive buffers.
-  //
-  USBBufferInit(&g_sTxBuffer);
-  USBBufferInit(&g_sRxBuffer);
-
-  // Set the USB stack mode to Device mode with VBUS monitoring.
-  //
-  USBStackModeSet(0, eUSBModeForceDevice, 0);
-#else //!USE_USBLIB
-  bool bUSB_plugged_in = false;
-  uint16_t i = 0;
-
-//  if(bIs_USB_Enabled == false)
+////*****************************************************************************
+//// name: eGet_Radio_CTS_INT_status
+//// description:
+//// param description:
+//// return value description: returns an error code
+////                           ER_FAIL    - unknown return value, should not occure
+////                           ER_SET     - CTS Interrupt was set
+////                           ER_NOT_SET - CTS Interrupt was not set
+////*****************************************************************************
+//ERROR_CODE  eGet_Radio_CTS_INT_status(void)
+//{
+//  ERROR_CODE eEC = ER_FAIL;
+//  uint32_t uiWas_cts_set = 0;
+//
+//  uiWas_cts_set = uiCTS_int_status;
+//  uiCTS_int_status = 0;
+//
+//  if((uiWas_cts_set & UART_INT_CTS) == UART_INT_CTS)
 //  {
-    // USB block need the processor at full speed to complete the initialization.
-    set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
-
-    //Enable the USB peripheral
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-
-    ROM_FPULazyStackingEnable();
-
-    // Enable pins for USB0 USB0DP and USB0DM
-    //
-    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
-
-    HWREG(NVIC_DIS0) = 0xffffffff;
-    HWREG(NVIC_DIS1) = 0xffffffff;
-
-    // reset the USB
-    //
-    MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
-
-    //Enable USB PLL
-    //
-    MAP_SysCtlUSBPLLEnable();
-
-    // Re-enable interrupts at NVIC level
-    eMaster_int_enable();
-
-    MAP_USBIntEnableControl(USB0_BASE, USB_INTCTRL_ALL);
-  //    MAP_USBIntEnableEndpoint(USB0_BASE, USB_INTEP_ALL);
-
-    MAP_USBDevConnect(USB0_BASE);
-
-    MAP_IntEnable(INT_USB0);
-
-    //Do a delay to potentially allow an external device that is attached attached
-    //to notify the dongle of a data connection. Exit the delay early if a data
-    //connection is detected within the timeout period otherwise continue.
-    bUSB_plugged_in = bIs_usb_physical_data_conn(false);
-    while(bUSB_plugged_in == false)
-    {
-      i += iHW_delay(1);
-      bUSB_plugged_in = bIs_usb_physical_data_conn(false);
-      if(bUSB_plugged_in == true)
-      {
-        break;
-      }else{/*do nothing*/}
-
-      if(i == USB_THREE_SEC_DATA_CONN_DELAY)
-      {
-        break;
-      }else{/*do nothing*/}
-    }
-
+//    eEC = ER_SET;
+//  }
+//  else
+//  {
+//    eEC = ER_NOT_SET;
+//  }
+//
+//  return eEC;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void
+//SDCardSPIInit(void)
+//{
+//  //
+//  //SPI 1 is used for the FLASH
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+//  //
+//  // Enable pin PD2 for SSI1 SSI1RX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
+//  //
+//  // Enable pin PD3 for SSI1 SSI1TX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
+//  //
+//  // Enable pin PD0 for SSI1 SSI1CLK
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
+//  //
+//  // Enable pin PD1 for SSI1 SSI1FSS
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
+//
+//
+//  MAP_SSIClockSourceSet(INEEDMD_FLASH_SPI, SSI_CLOCK_PIOSC);
+//
+//  SSIEnable(INEEDMD_FLASH_SPI);
+//  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+//  SSIEnable(INEEDMD_FLASH_SPI);
+//  /*  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+//
+//  //
+//  //SPI 1 is used for the FLASH
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+//  //
+//  // Enable pin PD2 for SSI1 SSI1RX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD2_SSI1RX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_2);
+//  //
+//  // Enable pin PD3 for SSI1 SSI1TX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD3_SSI1TX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_3);
+//  //
+//  // Enable pin PD0 for SSI1 SSI1CLK
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD0_SSI1CLK);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0);
+//  //
+//  // Enable pin PD1 for SSI1 SSI1FSS
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PD1_SSI1FSS);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_1);
+//  SSIEnable(INEEDMD_FLASH_SPI);
+//  SSIConfigSetExpClk(INEEDMD_FLASH_SPI, INEEDMD_RADIO_UART_CLK(), SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+//  SSIEnable(INEEDMD_FLASH_SPI);
+//  //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+//
+//*/
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//void
+//SDCardSPIDisable(void)
+//{
+//  //  while(!SysCtlPeripheralReady(INEEDMD_FLASH_SPI));
+//  SSIDisable(INEEDMD_FLASH_SPI);
+//    //
+//    //SPI 1 is used for the FLASH
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_SSI1);
+//
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//void
+//LEDI2CEnable(void)
+//{
+//  if(bIs_LEDI2D_Enabled == false)
+//  {
+//    //
+//    // Enable pin PB2 for I2C0 I2C0SCL
+//    //
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_I2C0);
+//    // majik delay as there are things that need to settle.  Because the I2C is very low speed block this is twice as long as the other delays
+//    MAP_SysCtlDelay(200);
+//    //
+//    // I2C Clk is on portB pin 2
+//    //
+//    MAP_GPIOPinTypeI2CSCL(GPIO_PORTB_BASE, GPIO_PIN_2);
+//    MAP_GPIOPinConfigure(GPIO_PB2_I2C0SCL);
+//    //
+//    // I2C SDA is on portB pin 3
+//    //
+//    MAP_GPIOPinTypeI2C(GPIO_PORTB_BASE, GPIO_PIN_3);
+//    MAP_GPIOPinConfigure(GPIO_PB3_I2C0SDA);
+//    I2CMasterInitExpClk(INEEDMD_LED_I2C, MAP_SysCtlClockGet(), true);
+//    I2CMasterEnable(INEEDMD_LED_I2C);
+//      //  while(!SysCtlPeripheralReady(INEEDMD_LED_I2C));
+//
+//    bIs_LEDI2D_Enabled = true;
+//  }
+//  else
+//  {
+//    bIs_LEDI2D_Enabled = true;
+//  }
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//void
+//LEDI2CDisable(void)
+//{
+//  if(bIs_LEDI2D_Enabled == true)
+//  {
+//    //  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_I2C0));
+//    I2CMasterDisable(INEEDMD_LED_I2C);
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_I2C0);
+//    bIs_LEDI2D_Enabled = false;
+//  }
+//  else
+//  {
+//    bIs_LEDI2D_Enabled = false;
+//  }
+//}
+//
+///******************************************************************************
+//* name: eBSP_LEDI2C_clock_set
+//* description: sets the LED I2C clock speed to the current system speed
+//* param description:
+//* return value description:
+//******************************************************************************/
+//ERROR_CODE eBSP_LEDI2C_clock_set(void)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//
+//  if(bIs_LEDI2D_Enabled == true)
+//  {
+//    I2CMasterDisable(INEEDMD_LED_I2C);
+//    I2CMasterInitExpClk(INEEDMD_LED_I2C, MAP_SysCtlClockGet(), true);
+//    I2CMasterEnable(INEEDMD_LED_I2C);
+//  }else{/*do nothing*/}
+//
+//  return eEC;
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//void
+//XTALControlPin(void)
+//{
+//    //
+//    // set up the crystal control pin...
+//    //
+//    MAP_GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, INEEDMD_PORTD_XTAL_ENABLE);
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void USBPortEnable(void)
+//{
+//#ifdef USE_USBLIB
+//  // Enable lazy stacking for interrupt handlers.
+//  //
+//  MAP_FPULazyStackingEnable();
+//
+//  // Enable the GPIO peripheral used for USB, and configure the USB
+//  // pins.
+//  //
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+//  MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+//
+//  // Initialize the transmit and receive buffers.
+//  //
+//  USBBufferInit(&g_sTxBuffer);
+//  USBBufferInit(&g_sRxBuffer);
+//
+//  // Set the USB stack mode to Device mode with VBUS monitoring.
+//  //
+//  USBStackModeSet(0, eUSBModeForceDevice, 0);
+//#else //!USE_USBLIB
+//  bool bUSB_plugged_in = false;
+//  uint16_t i = 0;
+//
+////  if(bIs_USB_Enabled == false)
+////  {
+//    // USB block need the processor at full speed to complete the initialization.
+//    set_system_speed(INEEDMD_CPU_SPEED_FULL_EXTERNAL);
+//
+//    //Enable the USB peripheral
+//    //
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+//
+//    ROM_FPULazyStackingEnable();
+//
+//    // Enable pins for USB0 USB0DP and USB0DM
+//    //
+//    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+//    MAP_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_5 | GPIO_PIN_4);
+//
+//    HWREG(NVIC_DIS0) = 0xffffffff;
+//    HWREG(NVIC_DIS1) = 0xffffffff;
+//
+//    // reset the USB
+//    //
+//    MAP_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+//
+//    //Enable USB PLL
+//    //
+//    MAP_SysCtlUSBPLLEnable();
+//
+//    // Re-enable interrupts at NVIC level
+//    eMaster_int_enable();
+//
+//    MAP_USBIntEnableControl(USB0_BASE, USB_INTCTRL_ALL);
+//  //    MAP_USBIntEnableEndpoint(USB0_BASE, USB_INTEP_ALL);
+//
+//    MAP_USBDevConnect(USB0_BASE);
+//
+//    MAP_IntEnable(INT_USB0);
+//
+//    //Do a delay to potentially allow an external device that is attached attached
+//    //to notify the dongle of a data connection. Exit the delay early if a data
+//    //connection is detected within the timeout period otherwise continue.
+//    bUSB_plugged_in = bIs_usb_physical_data_conn(false);
+//    while(bUSB_plugged_in == false)
+//    {
+//      i += iHW_delay(1);
+//      bUSB_plugged_in = bIs_usb_physical_data_conn(false);
+//      if(bUSB_plugged_in == true)
+//      {
+//        break;
+//      }else{/*do nothing*/}
+//
+//      if(i == USB_THREE_SEC_DATA_CONN_DELAY)
+//      {
+//        break;
+//      }else{/*do nothing*/}
+//    }
+//
+////    //set control variables
+////    bIs_USB_Enabled = true;
+////  }
+////  else
+////  {
+////    return;
+////  }
+//#endif //USE_USBLIB
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//void USBPortDisable(void)
+//{
+////  if(bIs_USB_Enabled == true)
+////  {
+//    //disable all interrupts
+////    eMaster_int_disable();
+//
+//    //disable the USB0 interrupt
+//    ROM_IntDisable(INT_USB0);
+//
+//    //disconnect the USB0 device
+//    MAP_USBDevDisconnect(USB0_BASE);
+//
+//    //disable the interrupt controll
+//    MAP_USBIntDisableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
+//                                        USB_INTCTRL_CONNECT);
+//
+//    //turn off the USB PLL
+//    MAP_SysCtlUSBPLLDisable();
+//
+//    // disable the entier USB0 peripheral
+//    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
+//
+//    set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
+//
+//    //re-enable all interrupts
+//    eMaster_int_enable();
+//
 //    //set control variables
-//    bIs_USB_Enabled = true;
+//    bIs_USB_Enabled = false;
+////  }
+////  else
+////  {
+////    return;
+////  }
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//void vUSBServiceInt(uint32_t uiUSB_int_flags)
+//{
+//
+//  if((uiUSB_int_flags & USB_INTCTRL_SOF) == USB_INTCTRL_SOF)
+//  {
+//    bIs_USB_sof = true;
+//  }
+//
+//  if((uiUSB_int_flags & USB_INTCTRL_DISCONNECT) == USB_INTCTRL_DISCONNECT)
+//  {
+//    bIs_USB_sof = false;
+//  }
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//bool bIs_usb_physical_data_conn(bool bClear_Status)
+//{
+//  bool bWas_physical_data_conn;
+//
+//  eMaster_int_disable();
+//
+//  bWas_physical_data_conn = bIs_USB_sof;
+//  if(bClear_Status == true)
+//  {
+//    bIs_USB_sof = false;
+//  }else{/*do nothing*/}
+//
+//  //re-enable interrupts
+//  eMaster_int_enable();
+//
+//  return bWas_physical_data_conn;
+//}
+//
+////*****************************************************************************
+//// name:
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//ERROR_CODE  ineedmd_usb_connected(void)
+//{
+//  ERROR_CODE eEC = ER_NOT_CONNECTED;
+//
+//  return eEC;
+//}
+//
+////*****************************************************************************
+//// name: eBSP_Systick_Init
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//ERROR_CODE eBSP_Systick_Init(void)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//  uint32_t uiSys_clock_rate = 0;
+//  uint32_t uiSys_clock_check = 0;
+//
+//  //Disable the sys tick
+//  MAP_SysTickIntDisable();
+//  MAP_SysTickDisable();
+//
+//  //get the current clock rate and set it to a 1ms value
+////  if(uiCurrent_sys_speed == INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC)
+////  {
+////    uiSys_clock_rate = 16000000;
+////  }
+////  else
+////  {
+//    uiSys_clock_rate = MAP_SysCtlClockGet();
+////  }
+//  uiSys_clock_rate = uiSys_clock_rate/1000;
+//
+//  //set the systick period
+//  MAP_SysTickPeriodSet(uiSys_clock_rate);
+//
+//  //enable the sys tick
+//  MAP_SysTickEnable();
+//  MAP_SysTickIntEnable();
+//
+//  //verify the sys tick value was set
+//  uiSys_clock_check = MAP_SysTickPeriodGet();
+//  if(uiSys_clock_check == uiSys_clock_rate)
+//  {
+//    eEC = ER_OK;
 //  }
 //  else
 //  {
-//    return;
+//    eEC = ER_FAIL;
 //  }
-#endif //USE_USBLIB
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-void USBPortDisable(void)
-{
-//  if(bIs_USB_Enabled == true)
-//  {
-    //disable all interrupts
-//    eMaster_int_disable();
-
-    //disable the USB0 interrupt
-    ROM_IntDisable(INT_USB0);
-
-    //disconnect the USB0 device
-    MAP_USBDevDisconnect(USB0_BASE);
-
-    //disable the interrupt controll
-    MAP_USBIntDisableControl(USB0_BASE, USB_INTCTRL_DISCONNECT |
-                                        USB_INTCTRL_CONNECT);
-
-    //turn off the USB PLL
-    MAP_SysCtlUSBPLLDisable();
-
-    // disable the entier USB0 peripheral
-    MAP_SysCtlPeripheralDisable(SYSCTL_PERIPH_USB0);
-
-    set_system_speed(INEEDMD_CPU_SPEED_HALF_INTERNAL);
-
-    //re-enable all interrupts
-    eMaster_int_enable();
-
-    //set control variables
-    bIs_USB_Enabled = false;
-//  }
-//  else
-//  {
-//    return;
-//  }
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-void vUSBServiceInt(uint32_t uiUSB_int_flags)
-{
-
-  if((uiUSB_int_flags & USB_INTCTRL_SOF) == USB_INTCTRL_SOF)
-  {
-    bIs_USB_sof = true;
-  }
-
-  if((uiUSB_int_flags & USB_INTCTRL_DISCONNECT) == USB_INTCTRL_DISCONNECT)
-  {
-    bIs_USB_sof = false;
-  }
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-bool bIs_usb_physical_data_conn(bool bClear_Status)
-{
-  bool bWas_physical_data_conn;
-
-  eMaster_int_disable();
-
-  bWas_physical_data_conn = bIs_USB_sof;
-  if(bClear_Status == true)
-  {
-    bIs_USB_sof = false;
-  }else{/*do nothing*/}
-
-  //re-enable interrupts
-  eMaster_int_enable();
-
-  return bWas_physical_data_conn;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE  ineedmd_usb_connected(void)
-{
-  ERROR_CODE eEC = ER_NOT_CONNECTED;
-
-  return eEC;
-}
-
-//*****************************************************************************
-// name: eBSP_Systick_Init
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE eBSP_Systick_Init(void)
-{
-  ERROR_CODE eEC = ER_OK;
-  uint32_t uiSys_clock_rate = 0;
-  uint32_t uiSys_clock_check = 0;
-
-  //Disable the sys tick
-  MAP_SysTickIntDisable();
-  MAP_SysTickDisable();
-
-  //get the current clock rate and set it to a 1ms value
-//  if(uiCurrent_sys_speed == INEEDMD_CPU_SPEED_HALF_INTERNAL_OSC)
-//  {
-//    uiSys_clock_rate = 16000000;
-//  }
-//  else
-//  {
-    uiSys_clock_rate = MAP_SysCtlClockGet();
-//  }
-  uiSys_clock_rate = uiSys_clock_rate/1000;
-
-  //set the systick period
-  MAP_SysTickPeriodSet(uiSys_clock_rate);
-
-  //enable the sys tick
-  MAP_SysTickEnable();
-  MAP_SysTickIntEnable();
-
-  //verify the sys tick value was set
-  uiSys_clock_check = MAP_SysTickPeriodGet();
-  if(uiSys_clock_check == uiSys_clock_rate)
-  {
-    eEC = ER_OK;
-  }
-  else
-  {
-    eEC = ER_FAIL;
-  }
-
-  return eEC;
-}
-
-/*
-* ConfigureSleepleep(void)
-*
-*This function sets up the behaviour of the cpu peripherals in sleep mode
-*
-*/
-void ConfigureSleep(void)
-{
-        //
-        // Which peripherals are enabled in sleep
-        // Peripherals should be enabled OR disabled
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC1);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC1);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_CAN0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_CAN0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_COMP0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_COMP0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOA);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOA);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOB);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOC);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOC);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOD);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOE);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOF);
-        //
-        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_HIBERNATE);
-        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_HIBERNATE);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C1);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C1);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C2);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C2);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C3);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C3);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C4);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C4);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_EEPROM0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_EEPROM0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI1);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI1);
-        //
-        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
-        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER1);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER2);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER3);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER3);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER4);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER5);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER5);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART0);
-        //
-        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
-        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART1);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART2);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART2);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART3);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART3);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART4);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART4);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART5);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART5);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART6);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART6);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART7);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART7);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UDMA);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_USB0);
-        //
-        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG0);
-        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG0);
-        //
-        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG1);
-        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG1);
-        //
-}
-
-/******************************************************************************
-* name:
-* description:
-* param description:
-* return value description:
-******************************************************************************/
-void ConfigureDeepSleep(void)
-{
-	//
-	// Which peripherals are enabled in sleep
-	// Peripherals should be enabled OR disabled
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_ADC0);
-	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_ADC1);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_ADC1);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_CAN0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_CAN0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_COMP0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_COMP0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOA);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOA);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOB);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOB);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOC);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOC);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOD);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOD);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOE);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOE);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOF);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOF);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_HIBERNATE);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_HIBERNATE);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C1);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C1);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C2);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C2);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C3);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C3);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C4);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C4);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_EEPROM0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_EEPROM0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI1);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI1);
-	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER0);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER1);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER1);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER2);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER2);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER3);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER3);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER4);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER4);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER5);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER5);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART1);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART1);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART2);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART2);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART3);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART3);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART4);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART4);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART5);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART5);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART6);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART6);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART7);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART7);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UDMA);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UDMA);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_USB0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_USB0);
-	//
-	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG0);
-	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG0);
-	//
-	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG1);
-	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG1);
-	//
-}
-
-//*****************************************************************************
-// name: eMaster_int_enable
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE eMaster_int_enable(void)
-{
-  ERROR_CODE eEC = ER_OK;
-  MAP_IntMasterEnable();
-  return eEC;
-}
-
-/******************************************************************************
-* name: eMaster_int_disable
-* description:
-* param description:
-* return value description:
-******************************************************************************/
+//
+//  return eEC;
+//}
+//
+///*
+//* ConfigureSleepleep(void)
+//*
+//*This function sets up the behaviour of the cpu peripherals in sleep mode
+//*
+//*/
+//void ConfigureSleep(void)
+//{
+//        //
+//        // Which peripherals are enabled in sleep
+//        // Peripherals should be enabled OR disabled
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_ADC1);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC1);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_CAN0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_CAN0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_COMP0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_COMP0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOA);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOA);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOB);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOB);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOC);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOC);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOD);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOD);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOE);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOE);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_GPIOF);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_GPIOF);
+//        //
+//        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_HIBERNATE);
+//        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_HIBERNATE);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C1);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C1);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C2);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C2);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C3);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C3);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_I2C4);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_I2C4);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_EEPROM0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_EEPROM0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_SSI1);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_SSI1);
+//        //
+//        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER0);
+//        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER1);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER1);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER2);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER2);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER3);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER3);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER4);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER4);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_TIMER5);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_TIMER5);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART0);
+//        //
+//        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART1);
+//        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART1);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART2);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART2);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART3);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART3);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART4);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART4);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART5);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART5);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART6);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART6);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UART7);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UART7);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_UDMA);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_UDMA);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_USB0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_USB0);
+//        //
+//        //SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG0);
+//        SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG0);
+//        //
+//        SysCtlPeripheralSleepEnable(SYSCTL_PERIPH_WDOG1);
+//        //SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_WDOG1);
+//        //
+//}
+//
+///******************************************************************************
+//* name:
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
+//void ConfigureDeepSleep(void)
+//{
+//	//
+//	// Which peripherals are enabled in sleep
+//	// Peripherals should be enabled OR disabled
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_ADC0);
+//	SysCtlPeripheralSleepDisable(SYSCTL_PERIPH_ADC0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_ADC1);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_ADC1);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_CAN0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_CAN0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_COMP0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_COMP0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOA);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOA);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOB);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOB);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOC);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOC);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOD);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOD);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOE);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOE);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_GPIOF);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_GPIOF);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_HIBERNATE);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_HIBERNATE);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C1);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C1);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C2);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C2);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C3);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C3);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_I2C4);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_I2C4);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_EEPROM0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_EEPROM0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_SSI1);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_SSI1);
+//	//
+//	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER0);
+//	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER1);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER1);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER2);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER2);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER3);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER3);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER4);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER4);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_TIMER5);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_TIMER5);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART1);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART1);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART2);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART2);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART3);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART3);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART4);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART4);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART5);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART5);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART6);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART6);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UART7);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UART7);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_UDMA);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_UDMA);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_USB0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_USB0);
+//	//
+//	//SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG0);
+//	SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG0);
+//	//
+//	SysCtlPeripheralDeepSleepEnable(SYSCTL_PERIPH_WDOG1);
+//	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG1);
+//	//
+//}
+//
+////*****************************************************************************
+//// name: eMaster_int_enable
+//// description:
+//// param description:
+//// return value description:
+////*****************************************************************************
+//ERROR_CODE eMaster_int_enable(void)
+//{
+//  ERROR_CODE eEC = ER_OK;
+//  MAP_IntMasterEnable();
+//  return eEC;
+//}
+//
+///******************************************************************************
+//* name: eMaster_int_disable
+//* description:
+//* param description:
+//* return value description:
+//******************************************************************************/
 ERROR_CODE eMaster_int_disable(void)
 {
   ERROR_CODE eEC = ER_OK;
   MAP_IntMasterDisable();
   return eEC;
 }
-#endif //#ifndef USING_TIRTOS
+
 
 /******************************************************************************
 * name: iHW_delay
@@ -3862,6 +3897,8 @@ ERROR_CODE eBSP_Board_init(void)
   Board_initGPIO();
   Board_initWatchdog();
   Board_initUART();
+  Board_initI2C();
+  Board_initSPI();
 
   set_system_speed (INEEDMD_CPU_SPEED_FULL_EXTERNAL);
 
