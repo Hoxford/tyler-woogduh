@@ -81,23 +81,6 @@ int main(void)
 
   vDEBUG_init();
   vDEBUG("Hello World!");
-  //Call driver init functions
-  //
-  //Watchdog
-//  eEC = ineedmd_watchdog_setup();
-//  if(eEC == ER_OK)
-//  {
-//    vDEBUG("ineedmd_watchdog_setup()");
-//  }
-
-  //Wireless radio
-//  eEC = eIneedMD_radio_setup();
-//  if(eEC == ER_OK)
-//  {
-//    vDEBUG("eIneedMD_radio_setup()");
-//  }
-
-//  Error_init(&eb);
 
 //  BIOS_start();    /* does not return */
   eOSAL_OS_start();

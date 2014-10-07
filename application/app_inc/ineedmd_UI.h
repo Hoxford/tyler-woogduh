@@ -125,13 +125,14 @@ typedef enum eALERT_SOUND_UI
 /******************************************************************************
 * structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+//This structure used to pass in a UI change to the UI task
 typedef struct tUI_request
 {
-  uint16_t         uiUI_element;
-  eALERT_SOUND_UI  eAlert_sound;
-  eHEART_LED_UI    eHeart_led_sequence;
-  eCOMMS_LED_UI    eComms_led_sequence;
-  ePOWER_LED_UI    ePower_led_sequence;
+  uint16_t         uiUI_element;  //The element to change, it can be any combination of INMD_UI_ELEMENT_HEART_LED, INMD_UI_ELEMENT_COMMS_LED, INMD_UI_ELEMENT_POWER_LED, & INMD_UI_ELEMENT_SPEAKER
+  eALERT_SOUND_UI  eAlert_sound;  //The sound to play according to the eALERT_SOUND_UI, can be only one value
+  eHEART_LED_UI    eHeart_led_sequence; //Heart LED sequence according to eHEART_LED_UI, can be only one value
+  eCOMMS_LED_UI    eComms_led_sequence; //Comms LED sequence according to eCOMMS_LED_UI, can be only one value
+  ePOWER_LED_UI    ePower_led_sequence; //Comms LED sequence according to ePOWER_LED_UI, can be only one value
   bool             bPerform_Immediatly;
 }tUI_request;
 
@@ -143,7 +144,7 @@ typedef struct tUI_request
 * public functions
 ******************************************************************************/
 ERROR_CODE eIneedmd_UI_task_init(void);  //initalize the UI task
-ERROR_CODE eIneedmd_UI_params_init(tUI_request * ptUI_Request);
-ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request);
+ERROR_CODE eIneedmd_UI_params_init(tUI_request * ptUI_Request); //initalize the UI request params
+ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request);  //request a UI change
 
 #endif //__INEEDMD_UI_H__

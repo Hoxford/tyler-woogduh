@@ -4,8 +4,8 @@
 * Copyright (c) notice
 *
 ******************************************************************************/
-#ifndef __INEEDMD_LED_H__
-#define __INEEDMD_LED_H__
+#ifndef __INEEDMD_LED_C__
+#define __INEEDMD_LED_C__
 
 /******************************************************************************
 * includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +19,7 @@
 #include "utils_inc/proj_debug.h"
 #include "drivers_inc/ineedmd_led.h"
 #include "board.h"
-#include "app_inc/ineedmd_power_modes.h"
+//#include "app_inc/ineedmd_power_modes.h"
 
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/i2c/I2CTiva.h>
@@ -85,6 +85,8 @@ bool bAre_LEDs_on = true;  //led on control variabl, start true to ensure they a
 /******************************************************************************
 * structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+tStruct_UI_State last_UI_state;
+
 I2C_Handle tI2C_handle = NULL;
 I2C_Params tI2C_params;
 
@@ -132,7 +134,8 @@ ERROR_CODE eIneedmd_LED_driver_setup(void)
   return eEC;
 }
 
-ERROR_CODE eIneedmd_LED_pattern(LED_MODE led_pattern)
+//ERROR_CODE eIneedmd_LED_pattern(LED_MODE led_pattern)
+ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
 {
 #define DEBUG_ineedmd_led_pattern
 #ifdef DEBUG_ineedmd_led_pattern
@@ -145,6 +148,21 @@ ERROR_CODE eIneedmd_LED_pattern(LED_MODE led_pattern)
   uint8_t read_byte;
   I2C_Transaction i2cTransaction;
   uint8_t i2c_send_buffer[2];
+  bool bIs_data = false;
+
+  //Read which LEDS are on
+  i2cTransaction.slaveAddress = INEEDMD_I2C_ADDRESS_LED_DRIVER;
+  i2cTransaction.writeBuf = &write_byte;
+  i2cTransaction.writeCount = 1;
+  i2cTransaction.readBuf = &read_byte;
+  //i2cTransaction.readBuf = NULL;
+  i2cTransaction.readCount = 1;
+
+  write_byte =(INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+  while(bIs_data == false)
+  {
+    bIs_data = I2C_transfer (tI2C_handle, &i2cTransaction);
+  }
 
   i2cTransaction.writeBuf = i2c_send_buffer;
   i2cTransaction.writeCount = 2;
@@ -153,39 +171,557 @@ ERROR_CODE eIneedmd_LED_pattern(LED_MODE led_pattern)
 
   switch (led_pattern)
   {
-    case POWER_ON_BATT_GOOD:
+    case UI_ALL_OFF:
+      //all leds_off
+//      if ( last_UI_state.heart_led_on | last_UI_state.comms_led_on | last_UI_state.power_led_on | last_UI_state.sounder_on )
+//      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+        //no sounder shutdown yet
+//      }
+      last_UI_state.heart_led_on = false;
+      last_UI_state.comms_led_on = false;
+      last_UI_state.power_led_on = false;
+      last_UI_state.sounder_on = false;
+      last_UI_state.heart_led_last_state = POWER_LED_OFF;
+      last_UI_state.comms_led_last_state = COMMS_LED_OFF;
+      last_UI_state.power_led_last_state = POWER_LED_OFF;
+      last_UI_state.sounder_last_state = ALERT_SOUND_OFF;
 
-      i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
-      i2c_send_buffer[1] = INEEDMD_LED_OFF;
-      I2C_transfer (tI2C_handle, &i2cTransaction);
+    //spinder off
+    break;
 
-      i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
-      i2c_send_buffer[1] = INEEDMD_LED_OFF;
-      I2C_transfer (tI2C_handle, &i2cTransaction);
+    case HEART_LED_OFF:
+      if ( last_UI_state.heart_led_on != false )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
 
-      i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
-      i2c_send_buffer[1] = 20;
-      I2C_transfer (tI2C_handle, &i2cTransaction);
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
 
-      i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
-      i2c_send_buffer[1] = INEEDMD_LED_OFF;
-      I2C_transfer (tI2C_handle, &i2cTransaction);
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
 
-      i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
-      i2c_send_buffer[1] = INEEDMD_LED_OFF;
-      I2C_transfer (tI2C_handle, &i2cTransaction);
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
 
-      i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
-      i2c_send_buffer[1] = 0x1F;
-      I2C_transfer (tI2C_handle, &i2cTransaction);
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
 
-      //switch off all the LEDS not needed
-      i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
-      i2c_send_buffer[1] = (read_byte & ~(INEEDMD_HEART_RED_ENABLE | INEEDMD_HEART_GREEN_ENABLE )) | INEEDMD_HEART_BLUE_ENABLE;
-      I2C_transfer (tI2C_handle, &i2cTransaction);
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_HEART_RED_ENABLE | INEEDMD_HEART_GREEN_ENABLE|INEEDMD_HEART_BLUE_ENABLE ));
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.heart_led_on = false;
+      last_UI_state.heart_led_last_state = HEART_LED_OFF;
 
       break;
+    case HEART_LED_RED:
+      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_RED) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
+        i2c_send_buffer[1] = 0x16;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~( INEEDMD_HEART_GREEN_ENABLE | INEEDMD_HEART_BLUE_ENABLE )) | INEEDMD_HEART_RED_ENABLE;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+
+      last_UI_state.heart_led_on = true;
+      last_UI_state.heart_led_last_state = HEART_LED_RED;
+      break;
+
+    case HEART_LED_GREEN:
+      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_GREEN) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
+        i2c_send_buffer[1] = 0x20;;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_HEART_RED_ENABLE | INEEDMD_HEART_BLUE_ENABLE )) | INEEDMD_HEART_GREEN_ENABLE;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.heart_led_on = true;
+      last_UI_state.heart_led_last_state = HEART_LED_GREEN;
+      break;
+
+    case HEART_LED_BLUE:
+      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_BLUE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
+        i2c_send_buffer[1] = 20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
+        i2c_send_buffer[1] = 0x1F;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_HEART_RED_ENABLE | INEEDMD_HEART_GREEN_ENABLE )) | INEEDMD_HEART_BLUE_ENABLE;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.heart_led_on = true;
+      last_UI_state.heart_led_last_state = HEART_LED_BLUE;
+      break;
+
+    case HEART_LED_ORANGE:
+      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_ORANGE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x1F;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
+        i2c_send_buffer[1] = 0x10;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_HEART_BLUE_ENABLE)) | INEEDMD_HEART_RED_ENABLE |INEEDMD_HEART_GREEN_ENABLE ;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.heart_led_on = true;
+      last_UI_state.heart_led_last_state = HEART_LED_ORANGE;
+      break;
+
+    case HEART_LED_PURPLE:
+      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_PURPLE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
+        i2c_send_buffer[1] = 0x28;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
+        i2c_send_buffer[1] = 0x0A;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_HEART_GREEN_ENABLE)) | INEEDMD_HEART_RED_ENABLE | INEEDMD_HEART_BLUE_ENABLE ;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.heart_led_on = true;
+      last_UI_state.heart_led_last_state = HEART_LED_PURPLE;
+      break;
+
+    case HEART_LED_PINK:
+      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_PURPLE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x14;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_GREEN_ILEVEL);
+        i2c_send_buffer[1] = 0x08;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_BLUE_ILEVEL);
+        i2c_send_buffer[1] = 0x14;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte | INEEDMD_HEART_RED_ENABLE | INEEDMD_HEART_GREEN_ENABLE | INEEDMD_HEART_BLUE_ENABLE );
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.heart_led_on = true;
+      last_UI_state.heart_led_last_state = HEART_LED_PURPLE;
+      break;
+
+    // end of the heart LED cases
+
+    case COMMS_LED_OFF:
+      if ( last_UI_state.comms_led_on != false )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_COMMS_RED_ENABLE | INEEDMD_COMMS_GREEN_ENABLE|INEEDMD_COMMS_BLUE_ENABLE ));
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.comms_led_on = false;
+      last_UI_state.heart_led_last_state = COMMS_LED_OFF;
+
+      break;
+    case COMMS_LED_RED:
+      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_RED) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
+        i2c_send_buffer[1] = 0x16;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~( INEEDMD_COMMS_GREEN_ENABLE | INEEDMD_COMMS_BLUE_ENABLE )) | INEEDMD_COMMS_RED_ENABLE;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+
+      last_UI_state.comms_led_on = true;
+      last_UI_state.comms_led_last_state = COMMS_LED_RED;
+      break;
+
+    case COMMS_LED_GREEN:
+      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_GREEN) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_PWM);
+        i2c_send_buffer[1] = 0x20;;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_COMMS_RED_ENABLE | INEEDMD_COMMS_BLUE_ENABLE )) | INEEDMD_COMMS_GREEN_ENABLE;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.comms_led_on = true;
+      last_UI_state.comms_led_last_state = COMMS_LED_GREEN;
+      break;
+
+    case COMMS_LED_BLUE:
+      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_BLUE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_PWM);
+        i2c_send_buffer[1] = 20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_ILEVEL);
+        i2c_send_buffer[1] = 0x1F;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_COMMS_RED_ENABLE | INEEDMD_COMMS_GREEN_ENABLE )) | INEEDMD_COMMS_BLUE_ENABLE;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.comms_led_on = true;
+      last_UI_state.comms_led_last_state = COMMS_LED_BLUE;
+      break;
+
+    case COMMS_LED_ORANGE:
+      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_ORANGE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x1F;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_ILEVEL);
+        i2c_send_buffer[1] = 0x10;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_COMMS_BLUE_ENABLE)) | INEEDMD_COMMS_RED_ENABLE |INEEDMD_COMMS_GREEN_ENABLE ;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.comms_led_on = true;
+      last_UI_state.comms_led_last_state = COMMS_LED_ORANGE;
+      break;
+
+    case COMMS_LED_PURPLE:
+      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_PURPLE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
+        i2c_send_buffer[1] = 0x28;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_PWM);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_PWM);
+        i2c_send_buffer[1] = 0x0A;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_ILEVEL);
+        i2c_send_buffer[1] = INEEDMD_LED_OFF;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_ILEVEL);
+        i2c_send_buffer[1] = 0x1f;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte & ~(INEEDMD_COMMS_GREEN_ENABLE)) | INEEDMD_COMMS_RED_ENABLE | INEEDMD_COMMS_BLUE_ENABLE ;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.comms_led_on = true;
+      last_UI_state.comms_led_last_state = COMMS_LED_PURPLE;
+      break;
+
+    case COMMS_LED_PINK:
+      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_PURPLE) )
+      {
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_PWM);
+        i2c_send_buffer[1] = 0x20;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_ILEVEL);
+        i2c_send_buffer[1] = 0x14;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_GREEN_ILEVEL);
+        i2c_send_buffer[1] = 0x08;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_BLUE_ILEVEL);
+        i2c_send_buffer[1] = 0x14;
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+
+        //switch off all the LEDS not needed
+        i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE_ALL_TOGGLE | INEEDMD_LED_OUTPUT_CONTROL);
+        i2c_send_buffer[1] = (read_byte | INEEDMD_COMMS_RED_ENABLE | INEEDMD_COMMS_GREEN_ENABLE | INEEDMD_COMMS_BLUE_ENABLE );
+        I2C_transfer (tI2C_handle, &i2cTransaction);
+      }
+      last_UI_state.comms_led_on = true;
+      last_UI_state.comms_led_last_state = COMMS_LED_PURPLE;
+      break;
+
+//todo, bring these cases in when 3LED pattern is implemented
+//    case POWER_LED_OFF:
+//      break;
+//    case POWER_LED_RED:
+//      break;
+//    case POWER_LED_GREEN:
+//      break;
+//    case POWER_LED_BLUE:
+//      break;
+//    case POWER_LED_ORANGE:
+//      break;
+//    case POWER_LED_PURPLE:
+//      break;
+//    case POWER_LED_PINK:
+      break;
+    case ALERT_SOUND_ON:
+      break;
+    case ALERT_SOUND_OFF:
+      break;
     default:
+      //all leds off
+      //sounder off
       break;
   }
 //        case LED_OFF:
@@ -1592,4 +2128,4 @@ void led_test(void)
 }
 #endif //DEBUG
 
-#endif //__INEEDMD_LED_H__
+#endif //__INEEDMD_LED_C__

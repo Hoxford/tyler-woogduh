@@ -286,20 +286,25 @@ const I2C_Config I2C_config[] = {
  */
 void EK_TM4C123GXL_initI2C(void)
 {
-    // Enable and configure the peripheral used by the I2C
-    //
-    MAP_SysCtlPeripheralEnable(INEEDMD_LED_SYSCTL_PRIPH_I2C);
+  //Enable the peripheral funcitonality for the GPIO port
+  //
+  MAP_SysCtlPeripheralEnable(INEEDMD_LED_SYSCTL_PRIPH_GPIO);
 
-    // Configure the alternate function for the I2C SCL pin and tie it to the I2C
-    MAP_GPIOPinConfigure(INEEDMD_LED_GPIO_I2CSCL);
-    MAP_GPIOPinTypeI2CSCL(INEEDMD_LED_GPIO_PORT, INEEDMD_LED_I2CSCL_PIN);
+  // Enable the I2C peripheral
+  //
+  MAP_SysCtlPeripheralEnable(INEEDMD_LED_SYSCTL_PRIPH_I2C);
 
-    //Configure the alternate function for the I2C SDA pin and tie it to the I2C
-    MAP_GPIOPinConfigure(INEEDMD_LED_GPIO_I2CSDA);
-    MAP_GPIOPinTypeI2C(INEEDMD_LED_GPIO_PORT, INEEDMD_LED_I2CSDA_PIN);
+  // Configure the alternate function for the I2C SCL pin and tie it to the I2C
+  MAP_GPIOPinTypeI2CSCL(INEEDMD_LED_GPIO_PORT, INEEDMD_LED_I2CSCL_PIN);
+  MAP_GPIOPinConfigure(INEEDMD_LED_GPIO_I2CSCL);
 
+  //Configure the alternate function for the I2C SDA pin and tie it to the I2C
+  MAP_GPIOPinTypeI2C(INEEDMD_LED_GPIO_PORT, INEEDMD_LED_I2CSDA_PIN);
+  MAP_GPIOPinConfigure(INEEDMD_LED_GPIO_I2CSDA);
 
-    I2C_init();
+  I2C_init();
+
+  return;
 }
 #endif /* TI_DRIVERS_I2C_INCLUDED */
 

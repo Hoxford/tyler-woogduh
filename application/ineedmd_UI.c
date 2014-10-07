@@ -14,10 +14,12 @@
 #include "utils_inc/error_codes.h"
 #include "utils_inc/proj_debug.h"
 #include "utils_inc/clock.h"
+
+#include "drivers_inc/ineedmd_led.h"
 #include "app_inc/ineedmd_UI.h"
 
 #include "driverlib/systick.h"
-#include "drivers_inc/ineedmd_led.h"
+
 
 //#include <ti/drivers/I2C.h>
 //#include <ti/drivers/i2c/I2CTiva.h>
@@ -89,12 +91,12 @@
 #define LED_2_SEC                       2000
 #define LED_0_5_SEC                     500
 
-/////////////////////////////////////////////////////////////
-// SPI setup
-
-#define INEEDMD_ADC_SPI     SSI0_BASE
-#define INEEDMD_FLASH_SPI   SSI1_BASE
-#define INEEDMD_SPI_CLK     16000000
+#define UI_TIMER_PERIOD_10SEC           10000000
+#define UI_TIMER_PERIOD_1SEC            1000000
+#define UI_TIMER_PERIOD_500mSEC         500000
+#define UI_TIMER_PERIOD_100mSEC         100000
+#define UI_TIMER_PERIOD_1mSEC           1000
+#define UI_TIMER_PERIOD_NONE            0
 
 /******************************************************************************
 * variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,23 +139,22 @@ typedef enum
         FIELD_SERVICE_LED_SEQ_POWER_UP_GOOD
 } FIELD_SERVICE_UI;
 
-
 eUser_Interface_task_state eUI_Task_State = UI_TASK_STATE_UNKNOWN;
 
 /******************************************************************************
 * structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-typedef struct tStruct_UI_State
-{
-  bool heart_led_on;
-  bool comms_led_on;
-  bool power_led_on;
-  bool sounder_on;
-  NO_UI_ELELMENT heart_led_last_state;
-  NO_UI_ELELMENT comms_led_last_state;
-  NO_UI_ELELMENT power_led_last_state;
-  NO_UI_ELELMENT sounder_last_state;
-}tStruct_UI_State;
+//typedef struct tStruct_UI_State
+//{
+//  bool heart_led_on;
+//  bool comms_led_on;
+//  bool power_led_on;
+//  bool sounder_on;
+//  NO_UI_ELELMENT heart_led_last_state;
+//  NO_UI_ELELMENT comms_led_last_state;
+//  NO_UI_ELELMENT power_led_last_state;
+//  NO_UI_ELELMENT sounder_last_state;
+//}tStruct_UI_State;
 
 typedef struct tStruct_UI_Process
 {
@@ -178,6 +179,9 @@ typedef struct tStruct_UI_Command_Request
   FIELD_SERVICE_UI service_UI_request;
 }tStruct_UI_Command_Request;
 
+extern Timer_Handle tUI_comms_led_timer;
+extern Timer_Handle tUI_heart_led_timer;
+extern Timer_Handle tUI_power_led_timer;
 
 /******************************************************************************
 * external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,15 +190,15 @@ typedef struct tStruct_UI_Command_Request
 /******************************************************************************
 * private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-uint8_t ineedmd_do_ui_element(NO_UI_ELELMENT ui_element);
+//uint8_t ineedmd_do_ui_element(NO_UI_ELELMENT ui_element);
 
 /******************************************************************************
 * private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-uint8_t ineedmd_do_ui_element(NO_UI_ELELMENT ui_element)
-{
-  return 0;
-}
+//uint8_t ineedmd_do_ui_element(NO_UI_ELELMENT ui_element)
+//{
+//  return 0;
+//}
 
 /******************************************************************************
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -252,6 +256,7 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
         vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
         while(1){};
     }
+    Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
   }else{/*do nothing*/}
 
   // Comms LED sequence request
@@ -264,6 +269,7 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
         vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
         while(1){};
     }
+    Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
   }else{/*do nothing*/}
 
   // Power LED sequence request
@@ -311,16 +317,23 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
 
 void vIneedmd_UI_Comms_led_timer_INT_Service(UArg a0)
 {
+//  eIneedmd_LED_pattern(COMMS_LED_OFF);
   return;
 }
 
 void vIneedmd_UI_Heart_led_timer_INT_Service(UArg a0)
 {
+//  eIneedmd_LED_pattern(HEART_LED_OFF);
   return;
 }
 
 void vIneedmd_UI_Power_led_timer_INT_Service(UArg a0)
 {
+  tUI_request tUI_task_msg;
+  eIneedmd_UI_params_init(&tUI_task_msg);
+  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+  tUI_task_msg.ePower_led_sequence = POWER_LED_UI_OFF;
+  eIneedmd_UI_request(&tUI_task_msg);
   return;
 }
 
@@ -345,6 +358,7 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
   tStruct_UI_Process          tUI_Process;
   tStruct_UI_Command_Request  tUI_requested_feature;
   tUI_request tUI_task_msg;
+  uint32_t uiTimer_period = 0;
 
   eUI_Task_State = UI_TASK_SETUP_NOT_STARTED;
 
@@ -382,959 +396,128 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
   {
     if(Mailbox_pend(tUI_mailbox, &tUI_task_msg, BIOS_WAIT_FOREVER) == true)
     {
-//      if (tUI_requested_feature.heart_led_UI_request != HEART_LED_NO_UI )
-//      {
-//        tUI_Process.heart_led_last_UI_request = tUI_requested_feature.heart_led_UI_request;
-//        tUI_Process.heart_led_ui_start_time = SysTickValueGet();
-//        tUI_requested_feature.heart_led_UI_request = HEART_LED_NO_UI;
-//      }
-//
-//      if (tUI_requested_feature.comms_led_UI_request != COMMS_LED_NO_UI )
-//      {
-//        tUI_Process.comms_led_last_UI_request = tUI_requested_feature.comms_led_UI_request;
-//        tUI_Process.comms_led_ui_start_time = SysTickValueGet();
-//        tUI_requested_feature.comms_led_UI_request = COMMS_LED_NO_UI;
-//      }
-
-//      if (tUI_requested_feature.power_led_UI_request != POWER_LED_NO_UI )
-      if (tUI_task_msg.uiUI_element == INMD_UI_ELEMENT_POWER_LED)
+      //Power LED UI
+      //
+      if ((tUI_task_msg.uiUI_element & INMD_UI_ELEMENT_POWER_LED) == INMD_UI_ELEMENT_POWER_LED)
       {
+        //init control variables
+        uiTimer_period = UI_TIMER_PERIOD_NONE;
+
         switch(tUI_task_msg.ePower_led_sequence)
         {
           case POWER_LED_NO_UI:
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-            eIneedmd_LED_pattern(POWER_ON_BATT_GOOD);
             tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
             break;
           case POWER_LED_UI_OFF:
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-            tUI_Process.power_led_last_UI_request = POWER_LED_NO_UI;
+            eIneedmd_LED_pattern(POWER_LED_OFF);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
             break;
           case POWER_LED_POWER_ON_90to100:
-            eIneedmd_LED_pattern(POWER_ON_BATT_GOOD);
+            eIneedmd_LED_pattern(POWER_LED_GREEN);
+            uiTimer_period = UI_TIMER_PERIOD_10SEC;
             break;
           case POWER_LED_POWER_ON_50to90:
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
+            eIneedmd_LED_pattern(POWER_LED_YELLOW);
             break;
           case POWER_LED_POWER_ON_25to50:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//            if(uiTick_diff >= 2000)
-//            {
-//                tUI_Process.comms_led_ui_start_time = uiCurrent_tick;
-//            }
-//            else if(uiTick_diff >= 1000)
-//            {
-//                        ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//                        ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//            }
-//            else
-//            {
-//                        ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//                        ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//            }
+            eIneedmd_LED_pattern(POWER_LED_ORANGE);
             break;
           case POWER_LED_POWER_ON_0to25:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//            if(uiTick_diff >= 2000)
-//            {
-//                tUI_Process.comms_led_ui_start_time = uiCurrent_tick;
-//            }
-//            else if(uiTick_diff >= 1000)
-//            {
-//                        ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//                        ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//            }
-//            else
-//            {
-//                        ineedmd_do_ui_element( tI2C_handle, COMMS_LED_RED );
-//                        ineedmd_do_ui_element( tI2C_handle, COMMS_LED_RED );
-//            }
+            eIneedmd_LED_pattern(POWER_LED_RED);
             break;
           case POWER_LED_POWER_ON_BLIP_90to100:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.power_led_ui_start_time;
-//            if(uiTick_diff >= 500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//              tUI_Process.power_led_last_UI_request = POWER_LED_NO_UI;
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_GREEN );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_GREEN );
-//            }
             break;
           case POWER_LED_POWER_ON_BLIP_50to90:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.power_led_ui_start_time;
-//            if(uiTick_diff >= 1500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//              tUI_Process.power_led_last_UI_request = POWER_LED_NO_UI;
-//            }
-//            else if(uiTick_diff >= 1000)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//            }
-//            else if(uiTick_diff >= 500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//            }
             break;
           case POWER_LED_POWER_ON_BLIP_25to50:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.power_led_ui_start_time;
-//            if(uiTick_diff >= 500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//              tUI_Process.power_led_last_UI_request = POWER_LED_NO_UI;
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//            }
             break;
           case POWER_LED_POWER_ON_BLIP_0to25:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.power_led_ui_start_time;
-//            if(uiTick_diff >= 500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//              tUI_Process.power_led_last_UI_request = POWER_LED_NO_UI;
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_RED );
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_RED );
-//            }
             break;
           default:
-//            ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
+            eIneedmd_LED_pattern(UI_ALL_OFF);
             break;
+        }
+
+        //Check if the timer should be stopped
+        if(uiTimer_period == UI_TIMER_PERIOD_NONE)
+        {
+          //stop the timer
+          Timer_stop(tUI_power_led_timer);
+        }
+        else
+        {
+          //set the timer to the new period and start it
+          Timer_stop(tUI_power_led_timer);
+          Timer_setPeriodMicroSecs(tUI_power_led_timer, uiTimer_period);
+          Timer_start(tUI_power_led_timer);
         }
       }
 
-//      if (tUI_requested_feature.sounder_UI_request != ALERT_SOUND_NO_UI )
-//      {
-//        tUI_Process.sounder_last_UI_request = tUI_requested_feature.sounder_UI_request;
-//        tUI_Process.sounder_ui_start_time = SysTickValueGet();
-//        tUI_requested_feature.sounder_UI_request = ALERT_SOUND_NO_UI;
-//      }
-//
-//      if (tUI_requested_feature.service_UI_request != FIELD_SERVICE_NO_FIELD_SERVICE )
-//      {
-//        tUI_Process.service_last_UI_request = tUI_requested_feature.service_UI_request;
-//        tUI_Process.service_ui_start_time = SysTickValueGet();
-//        tUI_requested_feature.service_UI_request = FIELD_SERVICE_NO_FIELD_SERVICE;
-//      }
-
-      if (tUI_Process.service_last_UI_request != FIELD_SERVICE_NO_FIELD_SERVICE)
+      //Comm LED UI
+      //
+      if ((tUI_task_msg.uiUI_element & INMD_UI_ELEMENT_COMMS_LED) == INMD_UI_ELEMENT_COMMS_LED)
       {
-//        //clear all other ui
-//        tUI_Process.sounder_last_UI_request=ALERT_SOUND_NO_UI;
-//        tUI_Process.power_led_last_UI_request=POWER_LED_NO_UI;
-//        tUI_Process.comms_led_last_UI_request=COMMS_LED_NO_UI;
-//        tUI_Process.heart_led_last_UI_request=HEART_LED_NO_UI;
-//        switch (tUI_Process.service_last_UI_request)
-//        {
-//          case FIELD_SERVICE_OFF_FIELD_SERVICE:
-//            ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//
-//            break;
-//          case FIELD_SERVICE_DFU:
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_PURPLE );
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_PURPLE );
-//            break;
-//          case FIELD_SERVICE_ONE_MV_CAL:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.service_ui_start_time;
-//            if(uiTick_diff >= 1000)
-//            {
-//              tUI_Process.service_ui_start_time = uiCurrent_tick;
-//            }
-//            else if(uiTick_diff >= 500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//              tUI_Process.service_last_UI_request = FIELD_SERVICE_NO_FIELD_SERVICE;
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_PURPLE );
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_PURPLE );
-//            }
-//          case FIELD_SERVICE_TRIANGLE_WAVE:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.service_ui_start_time;
-//            if(uiTick_diff >= 1000)
-//            {
-//              tUI_Process.service_ui_start_time = uiCurrent_tick;
-//            }
-//            else if(uiTick_diff >= 500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//            }
-//            break;
-//          case FIELD_SERVICE_REBOOT:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.service_ui_start_time;
-//            if(uiTick_diff >= 1000)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//              tUI_Process.service_last_UI_request = FIELD_SERVICE_NO_FIELD_SERVICE;
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_RED );
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_RED );
-//            }
-//            break;
-//          case FIELD_SERVICE_LED_SEQ_POWER_UP_GOOD:
-//            uiTick_diff = uiCurrent_tick - tUI_Process.service_ui_start_time;
-//            if(uiTick_diff >= 2500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//              tUI_Process.service_last_UI_request = FIELD_SERVICE_NO_FIELD_SERVICE;
-//            }
-//            else if(uiTick_diff >= 2000)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_GREEN );
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_GREEN );
-//            }
-//            else if(uiTick_diff >= 1500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//            }
-//            else if(uiTick_diff >= 1000)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_GREEN );
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_GREEN );
-//            }
-//            else if(uiTick_diff >= 500)
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//            }
-//            else
-//            {
-//              ineedmd_do_ui_element( tI2C_handle, HEART_LED_GREEN );
-//              ineedmd_do_ui_element( tI2C_handle, COMMS_LED_GREEN );
-//            }
-//
-//            break;
-//          default:
-//            ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//            break;
-//        }
+        //init control variables
+        uiTimer_period = UI_TIMER_PERIOD_NONE;
+
+        switch(tUI_task_msg.eComms_led_sequence)
+        {
+          default:
+            eIneedmd_LED_pattern(UI_ALL_OFF);
+            break;
+        }
+
+        //Check if the timer should be stopped
+        if(uiTimer_period == UI_TIMER_PERIOD_NONE)
+        {
+          //stop the timer
+          Timer_stop(tUI_comms_led_timer);
+        }
+        else
+        {
+          //set the timer to the new period and start it
+          Timer_stop(tUI_comms_led_timer);
+          Timer_setPeriodMicroSecs(tUI_comms_led_timer, uiTimer_period);
+          Timer_start(tUI_comms_led_timer);
+        }
       }
-      else
+
+      //Heart LED UI
+      //
+      if((tUI_task_msg.uiUI_element & INMD_UI_ELEMENT_HEART_LED) == INMD_UI_ELEMENT_HEART_LED)
       {
-//        switch(tUI_Process.heart_led_last_UI_request)
-//        {
-//        case HEART_LED_UI_OFF:
-//          ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          tUI_Process.heart_led_last_UI_request = HEART_LED_NO_UI;
-//          break;
-//        case LEAD_OFF_NO_DATA:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.heart_led_ui_start_time;
-//          if(uiTick_diff >= 10000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//            tUI_Process.heart_led_last_UI_request = HEART_LED_NO_UI;
-//          }
-//          else if(uiTick_diff >= 8000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//          }
-//          else if(uiTick_diff >= 6000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          }
-//          else if(uiTick_diff >= 4000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//          }
-//          else if(uiTick_diff >= 2000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_ORANGE );
-//          }
-//          break;
-//        case LEAD_ON:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.heart_led_ui_start_time;
-//          if(uiTick_diff >= 10000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//            tUI_Process.heart_led_last_UI_request = HEART_LED_NO_UI;
-//          }
-//          else if(uiTick_diff >= 8000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_GREEN );
-//          }
-//          else if(uiTick_diff >= 6000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          }
-//          else if(uiTick_diff >= 4000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_GREEN );
-//          }
-//          else if(uiTick_diff >= 2000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_GREEN );
-//          }
-//          break;
-//        case DIGITAL_FLATLINE:
-//          uiTick_diff = uiCurrent_tick -  tUI_Process.heart_led_ui_start_time;
-//          if(uiTick_diff >= 1000)
-//          {
-//            tUI_Process.heart_led_ui_start_time = uiCurrent_tick;
-//          }
-//          else if(uiTick_diff >= 500)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_RED );
-//          }
-//          break;
-//        case HEART_LED_NO_UI:
-//          ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          tUI_Process.heart_led_last_UI_request = HEART_LED_NO_UI;
-//          break;
-//        default:
-//          ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//
-//          break;
-      } //end of the heart LED section
+        //init control variables
+        uiTimer_period = UI_TIMER_PERIOD_NONE;
 
+        switch(tUI_task_msg.eHeart_led_sequence)
+        {
+          default:
+            eIneedmd_LED_pattern(UI_ALL_OFF);
+            break;
+        }
 
-      switch (tUI_Process.comms_led_last_UI_request)
+        //Check if the timer should be stopped
+        if(uiTimer_period == UI_TIMER_PERIOD_NONE)
+        {
+          //stop the timer
+          Timer_stop(tUI_heart_led_timer);
+        }
+        else
+        {
+          //set the timer to the new period and start it
+          Timer_stop(tUI_heart_led_timer);
+          Timer_setPeriodMicroSecs(tUI_heart_led_timer, uiTimer_period);
+          Timer_start(tUI_heart_led_timer);
+        }
+      }
+
+      if((tUI_task_msg.uiUI_element & INMD_UI_ELEMENT_SPEAKER) == INMD_UI_ELEMENT_SPEAKER)
       {
-//        case COMMS_LED_NO_UI:
-//          ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//          tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          break;
-//        case COMMS_LED_UI_OFF:
-//          ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//          tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          break;
-//        case BLOOTHOOTH_CONNECTION_SUCESSFUL:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 5000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_BLUE );
-//          }
-//          break;
-//        case BLUETOOTH_PAIRING:
-//          uiTick_diff = uiCurrent_tick -  tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 2000)
-//          {
-//            tUI_Process.comms_led_ui_start_time = uiCurrent_tick;
-//          }
-//          else if(uiTick_diff >= 1000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, HEART_LED_OFF );
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_BLUE );
-//          }
-//          break;
-//        case BLUETOOTH_PAIRING_FAILIED:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 5000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//          }
-//          break;
-//        case USB_CONNECTION_SUCESSFUL:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 5000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_BLUE );
-//          }
-//          break;
-//        case USB_CONNECTION_FAILED:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 5000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//          }
-//          break;
-//        case DATA_TANSFERING_FROM_DONGLE:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 10000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else if(uiTick_diff >= 8000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_PURPLE );
-//          }
-//          else if(uiTick_diff >= 6000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//          }
-//          else if(uiTick_diff >= 4000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_PURPLE );
-//          }
-//          else if(uiTick_diff >= 2000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_PURPLE );
-//          }
-//          break;
-//        case DATA_TRANSFER_SUCESSFUL:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 5000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_PURPLE );
-//          }
-//          break;
-//        case DONGLE_STORAGE_WARNING:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 10000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//          }
-//          break;
-//        case ERASING_STORED_DATA:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 6000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else if(uiTick_diff >= 4000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//          }
-//          else if(uiTick_diff >= 2000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_ORANGE );
-//          }
-//              break;
-//        case ERASE_COMPLETE:
-//          uiTick_diff = uiCurrent_tick - tUI_Process.comms_led_ui_start_time;
-//          if(uiTick_diff >= 2000)
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_OFF );
-//            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
-//          }
-//          else
-//          {
-//            ineedmd_do_ui_element( tI2C_handle, COMMS_LED_GREEN );
-//          }
-//          break;
-//        default:
-//          ineedmd_do_ui_element( tI2C_handle, UI_ALL_OFF );
-//          break;
-      } //end of the comms led section
+        //Not implemented yet
+      }
 
-
-
-#ifdef UI_DEBUG
-
-      vDEBUG("exit UI function - this is an OF point\n");
-#endif
-      Task_exit();
     }else{/*do nothing*/}//end mailbox
   }//end while(1)
-//  switch(eUI_LED_Seq)
-//  {
-//    case LED_SEQ_NONE:
-//      ineedmd_led_pattern(LED_OFF);
-//      bIsSeqRunning = false;
-//      break;
-//    case LED_SEQ_OFF:
-//      ineedmd_led_pattern(LED_OFF);
-//      bIsSeqRunning = true;
-//      break;
-//    case LED_SEQ_POWER_ON_BATT_LOW:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 2000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//      else if(uiTick_diff >= 1000)
-//      {
-//        ineedmd_led_pattern(POWER_ON_BATT_LOW_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(POWER_ON_BATT_LOW_ON);
-//      }
-//      break;
-//    case LED_SEQ_POWER_ON_BATT_GOOD:
-//      bIsSeqRunning = true;
-//      ineedmd_led_pattern(POWER_ON_BATT_GOOD_ON);
-//      break;
-//    case LED_SEQ_BATT_CHARGING:
-//      bIsSeqRunning = true;
-//      ineedmd_led_pattern(BATT_CHARGING_ON);
-//      break;
-//    case LED_SEQ_BATT_CHARGING_LOW:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 2000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//        else if(uiTick_diff >= 1000)
-//      {
-//          ineedmd_led_pattern(BATT_CHARGING_LOW_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(BATT_CHARGING_LOW_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_LEAD_LOOSE:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 4000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//        else if(uiTick_diff >= 2000)
-//      {
-//          ineedmd_led_pattern(LEAD_LOOSE_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(LEAD_LOOSE_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_LEAD_GOOD_UPLOADING:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 4000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//        else if(uiTick_diff >= 2000)
-//      {
-//          ineedmd_led_pattern(LEAD_GOOD_UPLOADING_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(LEAD_GOOD_UPLOADING_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_DIG_FLATLINE:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 1000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//        else if(uiTick_diff >= 500)
-//      {
-//          ineedmd_led_pattern(DIG_FLATLINE_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(DIG_FLATLINE_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_BT_CONNECTED:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 5000)
-//      {
-//        ineedmd_led_pattern(BT_CONNECTED_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(BT_CONNECTED_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_BT_ATTEMPTING:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 10000)
-//      {
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else if(uiTick_diff >= 9000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
-//        }
-//      else if(uiTick_diff >= 8000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_ON);
-//        }
-//      else if(uiTick_diff >= 7000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
-//        }
-//      else if(uiTick_diff >= 6000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_ON);
-//        }
-//      else if(uiTick_diff >= 5000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
-//        }
-//      else if(uiTick_diff >= 4000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_ON);
-//        }
-//      else if(uiTick_diff >= 3000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
-//        }
-//      else if(uiTick_diff >= 2000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_ON);
-//        }
-//      else if(uiTick_diff >= 1000)
-//        {
-//            ineedmd_led_pattern(BT_ATTEMPTING_OFF);
-//        }
-//      else
-//      {
-//        ineedmd_led_pattern(BT_ATTEMPTING_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_BT_FAILED:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 5000)
-//      {
-//        ineedmd_led_pattern(BT_FAILED_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(BT_FAILED_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_USB_CONNECTED:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 5000)
-//      {
-//        ineedmd_led_pattern(USB_CONNECTED_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(USB_CONNECTED_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_USB_FAILED:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 5000)
-//      {
-//        ineedmd_led_pattern(USB_FAILED_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(USB_FAILED_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_DATA_TRANSFER:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 5000)
-//      {
-//        ineedmd_led_pattern(DATA_TRANSFER_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else if(uiTick_diff >= 4000)
-//      {
-//        ineedmd_led_pattern(DATA_TRANSFER_ON);
-//      }
-//      else if(uiTick_diff >= 3000)
-//      {
-//        ineedmd_led_pattern(DATA_TRANSFER_OFF);
-//      }
-//      else if(uiTick_diff >= 2000)
-//      {
-//        ineedmd_led_pattern(DATA_TRANSFER_ON);
-//      }
-//      else if(uiTick_diff >= 1000)
-//      {
-//        ineedmd_led_pattern(DATA_TRANSFER_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(DATA_TRANSFER_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_TRANSFER_DONE:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 5000)
-//      {
-//        ineedmd_led_pattern(TRANSFER_DONE_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(TRANSFER_DONE_ON);
-//      }
-//      break;
-//    case LED_SEQ_STORAGE_WARNING:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 10000)
-//      {
-//        ineedmd_led_pattern(STORAGE_WARNING_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(STORAGE_WARNING_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_ERASING:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 4000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//      else if(uiTick_diff >= 2000)
-//      {
-//        ineedmd_led_pattern(ERASING_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(ERASING_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_ERASE_DONE:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 2000)
-//      {
-//        ineedmd_led_pattern(ERASE_DONE_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(ERASE_DONE_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_DFU_MODE:
-//      ineedmd_led_pattern(DFU_MODE_ON);
-//      break;
-//
-//    case LED_SEQ_MV_CAL:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 1000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//      else if(uiTick_diff >= 500)
-//      {
-//        ineedmd_led_pattern(MV_CAL_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(MV_CAL_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_TRI_WVFRM:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 1000)
-//      {
-//        uiTimer = uiCurrent_tick;
-//      }
-//      else if(uiTick_diff >= 500)
-//      {
-//        ineedmd_led_pattern(TRI_WVFRM_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(TRI_WVFRM_ON);
-//      }
-//      break;
-//
-//    case LED_SEQ_REBOOT:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 1000)
-//      {
-//        ineedmd_led_pattern(REBOOT_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(REBOOT_ON);
-//      }
-//      break;
-//    case LED_SEQ_HIBERNATE_GOOD:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 500)
-//      {
-//        ineedmd_led_pattern(HIBERNATE_GOOD_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(HIBERNATE_GOOD_ON);
-//      }
-//      break;
-//    case LED_SEQ_HIBERNATE_MEDIUM:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 500)
-//      {
-//        ineedmd_led_pattern(HIBERNATE_MEDIUM_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(HIBERNATE_MEDIUM_ON);
-//      }
-//      break;
-//    case LED_SEQ_HIBERNATE_LOW:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 500)
-//      {
-//        ineedmd_led_pattern(HIBERNATE_LOW_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(HIBERNATE_LOW_ON);
-//      }
-//      break;
-//
-////      break;
-////    case LED_SEQ_LEADS_ON:
-////      break;
-////    case LED_SEQ_MEMORY_TEST:
-////      break;
-////    case LED_SEQ_COM_BUS_TEST:
-////      break;
-////    case LED_SEQ_CPU_CLOCK_TEST:
-////      break;
-//    case LED_SEQ_FLASH_TEST:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 1000)
-//      {
-//        ineedmd_led_pattern(TEST_PASS_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(TEST_PASS_ON);
-//      }
-//      break;
-//    case LED_SEQ_TEST_PASS:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 100)
-//      {
-//        ineedmd_led_pattern(TEST_PASS_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(TEST_PASS_ON);
-//      }
-//
-//      break;
-//    case LED_SEQ_POWER_UP_GOOD:
-//      uiTick_diff = uiCurrent_tick - uiTimer;
-//      if(uiTick_diff >= 2500)
-//      {
-//        ineedmd_led_pattern(POWER_UP_GOOD_OFF);
-//        eUI_LED_Seq = LED_SEQ_NONE;
-//      }
-//      else if(uiTick_diff >= 2000)
-//      {
-//         ineedmd_led_pattern(POWER_UP_GOOD_ON);
-//      }
-//      else if(uiTick_diff >= 1500)
-//      {
-//        ineedmd_led_pattern(POWER_UP_GOOD_OFF);
-//      }
-//      else if(uiTick_diff >= 1000)
-//      {
-//        ineedmd_led_pattern(POWER_UP_GOOD_ON);
-//      }
-//      else if(uiTick_diff >= 500)
-//      {
-//        ineedmd_led_pattern(POWER_UP_GOOD_OFF);
-//      }
-//      else
-//      {
-//        ineedmd_led_pattern(POWER_UP_GOOD_ON);
-//      }
-//
-//      break;
-//    case LED_SEQ_ACTUAL_DFU:
-//      break;
-//
-//    default:
-//      vDEBUG_INMD_UI_PROC("INMD ui proc SYS HALT, unknown LED sequence");
-//      while(1){};
-//      break;
-//  }
-
 }
 
 #endif //__INEEDMD_UI_C__
