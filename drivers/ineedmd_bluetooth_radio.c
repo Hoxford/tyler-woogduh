@@ -210,7 +210,7 @@
     #define SET_CONTROL_CONFIG_OPT_BLK_3   SET_CONTROL_CONFIG_OPT_BITNULL
     #define SET_CONTROL_CONFIG_OPT_BLK_2   SET_CONTROL_CONFIG_OPT_BITNULL
     #define SET_CONTROL_CONFIG_OPT_BLK_1   SET_CONTROL_CONFIG_OPT_BITNULL
-    #define SET_CONTROL_CONFIG_CFG_BLK     SET_CONTROL_CONFIG_OPT_BIT05
+    #define SET_CONTROL_CONFIG_CFG_BLK    (SET_CONTROL_CONFIG_OPT_BIT05 | SET_CONTROL_CONFIG_OPT_BIT07)
 
 #define SET_CONTROL_CONFIG_LIST  "SET CONTROL CONFIG LIST\r\n"
 #define SET_CONTROL_ECHO  "SET CONTROL ECHO %d\r\n"
@@ -224,7 +224,7 @@
   #define SET_CONTROL_ECHO_SYNTAX_ERR_OFF 0x08
     #define SET_CONTROL_ECHO_SETTING  ( SET_CONTROL_ECHO_BANNER_OFF    \
                                       | SET_CONTROL_ECHO_COMMAND_OFF   \
-                                      | SET_CONTROL_ECHO_SET_EVENT_OFF \
+                                      | SET_CONTROL_ECHO_SET_EVENT_ON  \
                                       | SET_CONTROL_ECHO_SYNTAX_ERR_ON)
 #define SET_CONTROL_ESCAPE "SET CONTROL ESCAPE %c %.2x %d\r\n"
   #define SET_CONTROL_ESCAPE_ESC_CHAR_DISABLE  '-'
@@ -256,7 +256,10 @@
 #define SET_RESET         "SET RESET\r\n"  //sets and returns the factory settings of the module.
 #define READY             "READY.\r\n"
 #define READY_STRLEN      8
-#define RING              "\r\nRING 0 %x:%x:%x:%x:%x:%x 1 RFCOMM\r\n"
+#define RING              "RING "
+#define RING_RFCOMM       "RFCOMM \r\n"
+#define RING_PARSE        "%s %n %x%c%x%c%x%c%x%c%x%c%x %n %s"
+#define RING_CONNECTION_BUFF_SIZE    36
 
 #define BT_MACADDR_NUM_BYTES  6
 #define BG_SIZE              1024
@@ -264,7 +267,8 @@
 #define BG_SEND_SIZE_SMALL   32
 
 //Delay times
-#define TIMEOUT_RFD_CTS_HL   2000
+#define TIMEOUT_RFD_CTS_HL         2000
+#define TIMEOUT_CONN_WAIT_FOREVER  0
 
 /******************************************************************************
 * variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -314,28 +318,13 @@ typedef enum eRadio_event
     RDIO_EVENT_TBD
 }eRadio_event;
 
-//Radio setup ready
-typedef enum eRadio_setup_state
-{
-    RDIO_SETUP_NOT_STARTED,
-    RDIO_SETUP_ENABLE_INTERFACE,
-    RDIO_SETUP_INTERFACE_ENABLED,
-    RDIO_SETUP_START_POWER,
-    RDIO_SETUP_FINISH_POWER,
-    RDIO_SETUP_START_SOFT_RESET,
-    RDIO_SETUP_FINISH_SOFT_RESET,
-    RDIO_SETUP_START_RFD,
-    RDIO_SETUP_FINISH_RFD,
-    RDIO_SETUP_READY,
-    RDIO_SETUP_ERROR,
-    RDIO_SETUP_UNKNOWN
-}eRadio_setup_state;
-
 eRadio_event       eActive_radio_events       = RDIO_NO_EVENT; //eActive_radio_events, used to keep track of current radio events
 
 eRadio_setup_state eCurrent_radio_setup_state = RDIO_SETUP_NOT_STARTED;/*the current setup state of the radio, it should only be directly written to
                                                                         *via the radio setup funcion. all other reads and writes should be done from
                                                                         *the radio setup state read and write functions.*/
+
+eRadio_connection_state eCurrent_radio_connection_state = RADIO_CONN_UNKNOWN;
 
 typedef enum eRadio_message
 {
@@ -371,9 +360,10 @@ int        iIneed_md_parse_ssp         (char * cBuffer,        uint8_t * uiDev_a
 int        iIneedmd_parse_addr         (char * cString_buffer, uint8_t * uiAddr);
 ERROR_CODE iIneedmd_radio_rcv_boot_msg (char * cRcv_string,    uint16_t uiBuff_size);
 ERROR_CODE eIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size, uint16_t * puiRcvd_str_len);
-eRadio_setup_state eGet_radio_setup_state(void);
 ERROR_CODE iIneedmd_radio_rcv_settings (char * cRcv_string,    uint16_t uiBuff_size);
 ERROR_CODE eIneedmd_radio_rcv_config   (char * cRcv_string,    uint16_t uiBuff_size, uint16_t * uiSetcfg_Param);
+ERROR_CODE eIneedmd_radio_wait_for_conn(tRadio_request * ptConn_request);
+ERROR_CODE eSet_connection_state(eRadio_connection_state eConn_state);
 #ifdef NOT_NOW
 ERROR_CODE eIneedmd_radio_parse_default_settings (char * cSettings_buff);
 ERROR_CODE eIneedmd_radio_chk_event    (char * cEvent_buff);
@@ -1071,6 +1061,173 @@ ERROR_CODE eIneedmd_radio_rcv_config(char * cRcv_string, uint16_t uiBuff_size, u
   return eEC;
 }
 
+/******************************************************************************
+* name:
+* description:
+* param description: type - value: value description (in order from left to right)
+*                    bool - true: do action when set to true
+* return value description: type - value: value description
+******************************************************************************/
+ERROR_CODE eIneedmd_radio_wait_for_conn(tRadio_request * ptConn_request)
+{
+  ERROR_CODE eEC = ER_NOT_CONNECTED;
+  ERROR_CODE eEC_conn_status = ER_NOT_CONNECTED;
+  tRadio_request tConn_request;
+  char * pcRcv_char = NULL;
+  char * pcRing_string = NULL;
+  char * pcRF_comm_string = NULL;
+  char cRing_conn_buff[RING_CONNECTION_BUFF_SIZE];
+  char cINMD_conn_req_buff[5];
+  bool bDo_wait_forever_for_conn = false;
+  uint32_t uiClock_time_conn_start = 0;
+  uint32_t uiClock_time_conn_timeout = 0;
+  uint32_t uiClock_time_current = 0;
+  uint32_t uiClock_time_diff = 0;
+
+  memcpy(&tConn_request, ptConn_request, sizeof(tRadio_request));
+  memset(cRing_conn_buff,0x00, RING_CONNECTION_BUFF_SIZE);
+  pcRcv_char = &cRing_conn_buff[(RING_CONNECTION_BUFF_SIZE - 1)];
+  uiClock_time_conn_timeout = tConn_request.uiTimeout;
+  if(uiClock_time_conn_timeout == TIMEOUT_CONN_WAIT_FOREVER)
+  {
+    bDo_wait_forever_for_conn = true;
+    uiClock_time_conn_timeout = 100;
+  }
+  else
+  {
+    bDo_wait_forever_for_conn = true;
+  }
+  uiClock_time_conn_start = Clock_getTicks();
+
+  while(eEC_conn_status == ER_NOT_CONNECTED)
+  {
+
+    uiClock_time_current = Clock_getTicks();
+    uiClock_time_diff = uiClock_time_current - uiClock_time_conn_start;
+    if(uiClock_time_diff >= uiClock_time_conn_timeout)
+    {
+      //check wait forever control variable
+      if(bDo_wait_forever_for_conn == true)
+      {
+        //the wait for connection is forever
+        //
+        //set the return code so the wait for connection will be called again
+        eEC = ER_NOT_CONNECTED;
+      }
+      else
+      {
+        //the wait for connection has a timeout
+        //
+        //set the return code so the wait for connection will not be called again
+        eEC = ER_TIMEOUT;
+      }
+      break;
+    }else{/*do nothing*/}
+
+    eEC = iRadio_rcv_char(pcRcv_char);
+    //Check if the radio receive character was successful
+    if(eEC == ER_OK)
+    {
+      //Radio data was recieved
+      //
+      //Reset the timeout control variable
+      uiClock_time_conn_start = Clock_getTicks();
+
+      //Check if the end of the ring message was reached
+      if(cRing_conn_buff[(RING_CONNECTION_BUFF_SIZE - 1)] == '\n')
+      {
+        //End of the ring message reached
+        //
+        //Verify presense of the RING string
+        pcRing_string = strstr(cRing_conn_buff, RING);
+        if(pcRing_string != NULL)
+        {
+          //RING string is present
+          //
+          //Verity the presense of the RF COMM string
+          pcRF_comm_string = strstr(cRing_conn_buff, RING_RFCOMM);
+          if(pcRF_comm_string != NULL)
+          {
+            //RF COMM string is present
+            //
+            //set the connection status error code
+            eEC_conn_status = ER_CONNECTED;
+            eEC = ER_CONNECTED;
+            continue;
+          }
+          else
+          {
+            //RF COMM string was not present
+            //
+            //Set the error code to invalid and break from the loop
+            eEC = ER_INVALID;
+            break;
+          }
+        }
+        else
+        {
+          //RING string was not present
+          //
+          //Set the error code to invalid and break from the loop
+          eEC = ER_INVALID;
+          break;
+        }
+      }
+      else
+      {
+        //End of the ring message not reached
+        //
+        //Rotate the ring recieve buffer one byte forward
+        memcpy(cRing_conn_buff, &cRing_conn_buff[1], (RING_CONNECTION_BUFF_SIZE - 1));
+        //Set the last byte in the ring recieve buffer to 0
+        *pcRcv_char = 0x00;
+      }
+    }
+    else if(eEC == ER_NODATA)
+    {
+      //No data was received
+      //
+      //continue with the receive connection loop
+      continue;
+    }
+    else
+    {
+      //Unknown return code from the radio recieve function
+      //
+      //Set the error code and break from the loop
+      eEC = ER_FAIL;
+      break;
+    }
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name:
+* description:
+* param description: type - value: value description (in order from left to right)
+*                    bool - true: do action when set to true
+* return value description: type - value: value description
+******************************************************************************/
+ERROR_CODE eSet_connection_state(eRadio_connection_state eConn_state)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  eCurrent_radio_connection_state = eConn_state;
+
+  if(eCurrent_radio_connection_state != eConn_state)
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
+
+  return eEC;
+}
+
 #ifdef NOT_NOW
 ERROR_CODE eIneedmd_radio_parse_default_settings(char * cSettings_buff)
 {
@@ -1171,10 +1328,6 @@ void vRADIO_ECHO_FRAME(uint8_t * uiFrame, uint16_t uiFrame_len)
 }
 #endif
 
-/******************************************************************************
-* public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-******************************************************************************/
-
 ERROR_CODE eIneedMD_radio_process_init(void)
 {
   ERROR_CODE eEC = ER_OK;
@@ -1183,6 +1336,14 @@ ERROR_CODE eIneedMD_radio_process_init(void)
 }
 
 #endif //#ifdef NOT_NOW
+
+/******************************************************************************
+* public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+eRadio_connection_state eGet_connection_state(void)
+{
+  return eCurrent_radio_connection_state;
+}
 
 /******************************************************************************
 * name: eGet_radio_setup_state
@@ -2075,7 +2236,7 @@ ERROR_CODE eIneedMD_radio_setup(void)
       //
       memset(cSend_buff, 0x00, BG_SIZE);
       iEC = snprintf(cSend_buff, BG_SIZE, SET_PROFILE_SPP, SET_PROFILE_SPP_PARAM);
-      ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
+//      ineedmd_radio_send_string(cSend_buff, strlen(cSend_buff));
       eEC = eSend_Radio_CMND(cSend_buff, strlen(cSend_buff));
       if(eEC == ER_OK)
       {
@@ -2297,16 +2458,6 @@ ERROR_CODE eIneedMD_radio_setup(void)
 //void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count)
 void vIneedMD_radio_read_cb(RADIO_INTERFACE_RXCB_PARAMS)
 {
-  void * vReadBuff = buf;
-  ERROR_CODE eEC;
-  eRadio_setup_state eRSS = RDIO_SETUP_UNKNOWN;
-  eRSS = eGet_radio_setup_state();
-
-  if(eRSS == RDIO_SETUP_START_RFD)
-  {
-    UART_readCancel(sHandle);
-  }
-
   return;
 }
 
@@ -2399,7 +2550,7 @@ void vIneedMD_radio_write_cb(RADIO_INTERFACE_TXCB_PARAMS)
 *                           ERROR_CODE - ER_PARAM: if the pointer passed in to
 *                                        hold the parameters is not valid.
 ******************************************************************************/
-ERROR_CODE eIneedmd_radio_txrx_params_init (tINMD_tx_rx_frame * tParams)
+ERROR_CODE eIneedmd_radio_request_params_init (tRadio_request * tParams)
 {
   ERROR_CODE eEC = ER_FAIL;
 
@@ -2414,14 +2565,24 @@ ERROR_CODE eIneedmd_radio_txrx_params_init (tINMD_tx_rx_frame * tParams)
     //pointer is valid
     //
     //Init params
-    tParams->ePriority = TXRX_PRIORITY_QUEUE;
-    tParams->uiBuff_size = 0;
     tParams->vBuff = NULL;
+    tParams->uiBuff_size = 0;
+    tParams->uiTimeout = 0;
+    tParams->eRequest = RADIO_REQUEST_NONE;
+    tParams->eSetting = RADIO_SETTINGS_NONE;
+    tParams->eTX_Priority = TX_PRIORITY_QUEUE;
+    tParams->vBuff_sent_callback = NULL;
+    tParams->vBuff_receive_callback = NULL;
+    tParams->vChange_setting_callback = NULL;
+    tParams->vConnection_status_callback = NULL;
+
 
     //Check if params were properly set
-    if((tParams->ePriority   == TXRX_PRIORITY_QUEUE) &\
-       (tParams->uiBuff_size == 0)                   &\
-       (tParams->vBuff       == NULL))
+    if((tParams->eRequest == RADIO_REQUEST_NONE)  &\
+       (tParams->uiBuff_size == 0)                &\
+       (tParams->vBuff == NULL)                   &\
+       (tParams->eSetting == RADIO_SETTINGS_NONE) &\
+       (tParams->eTX_Priority == TX_PRIORITY_QUEUE))
     {
       //Params were properly set
       eEC = ER_OK;
@@ -2453,45 +2614,73 @@ ERROR_CODE eIneedmd_radio_txrx_params_init (tINMD_tx_rx_frame * tParams)
 *                           ERROR_CODE - ER_PARAM1: the priority parameter is
 *                                        invalid.
 ******************************************************************************/
-ERROR_CODE eIneedmd_radio_que_frame(tINMD_tx_rx_frame * tParams)
+ERROR_CODE eIneedmd_radio_request(tRadio_request * tRequest)
 {
   ERROR_CODE eEC = ER_FAIL;
 
-  //Check if the passed in parameters are valid
-  if((tParams == NULL)        |\
-     (tParams->vBuff == NULL) |\
-     (tParams->uiBuff_size == 0))
+  eRadio_connection_state eConn_State;
+  eRadio_setup_state  eSetup_state;
+
+  eSetup_state = eGet_radio_setup_state();
+  if(eSetup_state != RDIO_SETUP_READY)
   {
-    //the parameters were not valid
-    eEC = ER_PARAM;
+    eEC = ER_NOT_READY;
   }
   else
   {
-    //the parameters were valid, begin the frame queue
-    //
-    //check the priority
-    if(tParams->ePriority == TXRX_PRIORITY_BLOCKING)
+    //Check if the passed in parameters are valid
+    if(tRequest == NULL)
     {
-      //Perform the transmission blocking procedure
-      //
-    }
-    else if(tParams->ePriority == TXRX_PRIORITY_IMMEDIATE)
-    {
-      //Put the transmission frame to the top of the queue
-      //
-    }
-    else if(tParams->ePriority == TXRX_PRIORITY_QUEUE)
-    {
-      //Put the transmission frame to the back of the queue
-      //
-
+      //the parameters were not valid
+      eEC = ER_PARAM;
     }
     else
     {
-      //The priority value is invalid, set the error code
-      eEC = ER_PARAM1;
+      switch(tRequest->eRequest)
+      {
+        case RADIO_REQUEST_CHANGE_SETTINGS:
+          Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
+          break;
+        case RADIO_REQUEST_SEND_FRAME:
+          Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
+          break;
+        case RADIO_REQUEST_RECEIVE_FRAME:
+          Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
+          break;
+        case RADIO_REQUEST_WAIT_FOR_CONNECTION:
+          eConn_State = eGet_connection_state();
+          if(eConn_State == RADIO_CONN_NONE)
+          {
+            Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
+          }
+          break;
+        case RADIO_REQUEST_HALT_WAIT_FOR_CONNECTION:
+          eConn_State = eGet_connection_state();
+          if(eConn_State == RADIO_CONN_WAITING_FOR_CONNECTION)
+          {
+            eSet_connection_state(RADIO_CONN_HALT);
+          }
+          break;
+        case RADIO_REQUEST_BREAK_CONNECTION:
+          eConn_State = eGet_connection_state();
+          if(eConn_State == RADIO_CONN_CONNECTED)
+          {
+            Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
+          }
+          break;
+        default:
+          break;
+      }
+      eEC = ER_OK;
     }
   }
+  return eEC;
+}
+
+ERROR_CODE  eIneedmd_radio_change_settings_params_init  (eRadio_Settings eRdo_set_request)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
   return eEC;
 }
 
@@ -2564,54 +2753,118 @@ void vIneedMD_radio_task(UArg a0, UArg a1)
   #define vDEBUG_RDIO_TASK(a)
 #endif
   ERROR_CODE eEC = ER_FAIL;
-//  bool bIs_connection = false;
-//  bool bIs_data = false;
-//  int iRadio_conn_status = 0;
-//  char cRcv_buff[128];
 
-  tRadio_message_package * ptRadio_message;
-  eRadio_message eMsg;
+  eRadio_connection_state eConn_State;
+  tRadio_request tRadio_msg;
 
-  tOSAL_Mailbox_Handle tRadio_mailbox;
-//  tINMD_tx_rx_frame * pt_TX_RX_msg = NULL;
-  void * pvBuff = NULL;
+  int i = sizeof(tRadio_request);
+//  tOSAL_Mailbox_Handle tRadio_mailbox;
 
   eEC = eIneedMD_radio_setup();
   if((eEC == ER_OK) | (eEC == ER_DONE))
   {
     vDEBUG_RDIO_TASK("eIneedMD_radio_setup()");
+    eSet_connection_state(RADIO_CONN_NONE);
   }
 
 //  eEC = eOSAL_Mailbox_Params_Init(&tRadio_mailbox);
 
 //  eEC = eOSAL_Mailbox_Create(&tRadio_mailbox);
 
+  eIneedmd_radio_request_params_init(&tRadio_msg);
+  tRadio_msg.eRequest = RADIO_REQUEST_WAIT_FOR_CONNECTION;
+  eIneedmd_radio_request(&tRadio_msg);
+
   while(1)
   {
-    if(Mailbox_pend(tTIRTOS_Radio_mailbox, pvBuff, BIOS_WAIT_FOREVER) == true)
+    if(Mailbox_pend(tTIRTOS_Radio_mailbox, &tRadio_msg, BIOS_WAIT_FOREVER) == true)
 //    if(eOSAL_Mailbox_Get_msg(&tRadio_mailbox) == ER_OK)
     {
-//      ptRadio_message = tRadio_mailbox.pvBuff;
-      ptRadio_message = pvBuff;
-      eMsg = ptRadio_message->eMessage;
 
-      switch(eMsg)
+      switch(tRadio_msg.eRequest)
       {
-        case RADIO_MSG_UNKNOWN:
+        case RADIO_REQUEST_CHANGE_SETTINGS:
           break;
-        case RADIO_MSG_SEND:
+        case RADIO_REQUEST_SEND_FRAME:
           break;
-        case RADIO_MSG_RCV:
+        case RADIO_REQUEST_RECEIVE_FRAME:
           break;
-        case RADIO_MSG_RADIO_RFD:
+        case RADIO_REQUEST_WAIT_FOR_CONNECTION:
+          eConn_State = eGet_connection_state();
+
+          //check the connection state
+          if(eConn_State == RADIO_CONN_HALT)
+          {
+            //A request to halt connection was requested
+            //
+            //check callback and notify connection halted
+            continue;
+          }
+          else if((eConn_State == RADIO_CONN_NONE) |
+                  (eConn_State == RADIO_CONN_WAITING_FOR_CONNECTION))
+          {
+            //No connection or waiting for connection state
+            //
+            //Set the state to waiting for connection
+            eSet_connection_state(RADIO_CONN_WAITING_FOR_CONNECTION);
+
+            eEC = eIneedmd_radio_wait_for_conn(&tRadio_msg);
+
+            //Check the error codes
+            if(eEC == ER_CONNECTED)
+            {
+              //Successfully connected to a remote device
+              //
+              //check callback notify connection established
+
+              //Set the radio connection state to connected
+              eSet_connection_state(RADIO_CONN_CONNECTED);
+
+              vDEBUG_RDIO_TASK("Radio task, radio connected!");
+            }
+            else if(eEC == ER_TIMEOUT)
+            {
+              //Connection timeout exceeded
+              //
+              //check callback and notify connection timed out
+              eSet_connection_state(RADIO_CONN_NONE);
+            }
+            else if(eEC == ER_NOT_CONNECTED)
+            {
+              //No connection detected
+              //
+              eConn_State = eGet_connection_state();
+              if(eConn_State == RADIO_CONN_HALT)
+              {
+                eSet_connection_state(RADIO_CONN_NONE);
+                //check callback and notify connection halted
+              }
+              else
+              {
+                eSet_connection_state(RADIO_CONN_NONE);
+                eIneedmd_radio_request_params_init(&tRadio_msg);
+                tRadio_msg.eRequest = RADIO_REQUEST_WAIT_FOR_CONNECTION;
+                eIneedmd_radio_request(&tRadio_msg);
+                //check callback and notify connection continuing
+              }
+            }
+          }
+          else if(eConn_State == RADIO_CONN_CONNECTED)
+          {
+            //Radio is already connected
+            //
+            //check callback and notfiy connection already established
+            continue;
+          }
+          else
+          {
+            //invalid conn state
+            //
+            continue;
+          }
           break;
-        case RADIO_MSG_RADIO_SETUP:
-          eIneedMD_radio_setup();
-          break;
-        case RADIO_MSG_RADIO_PWR_DOWN:
-          break;
-        case RADIO_MSG_RADIO_PWR_UP:
         default:
+          //error
           break;
       }
     }else{/*do nothing*/}

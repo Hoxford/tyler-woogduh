@@ -543,6 +543,7 @@ int         iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size);
 ERROR_CODE  eRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
 ERROR_CODE  iRadio_rcv_char(char *cRcv_char);
 int         iRadio_rcv_byte(uint8_t *uiRcv_byte);
+ERROR_CODE  eRadio_rcv_frame(uint8_t * cRcv_frame);
 ERROR_CODE  eRadio_clear_rcv_buffer(void);
 ERROR_CODE  eRcv_dma_radio_cmnd_frame(char * cRcv_buff, uint16_t uiMax_buff_size);
 ERROR_CODE  eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size);

@@ -32,21 +32,69 @@
 /******************************************************************************
 *public enums /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-//eExample_enum description
-typedef enum eINMD_tx_rx_priority
+
+typedef enum eRadio_request
 {
-  TXRX_PRIORITY_BLOCKING,  //will send over interface w/o task processing
-  TXRX_PRIORITY_IMMEDIATE, //will post frame to front of task queue
-  TXRX_PRIORITY_QUEUE      //will post frame to back of queue
-}eINMD_tx_rx_priority;
+  RADIO_REQUEST_NONE,
+  RADIO_REQUEST_CHANGE_SETTINGS,
+  RADIO_REQUEST_SEND_FRAME,
+  RADIO_REQUEST_RECEIVE_FRAME,
+  RADIO_REQUEST_WAIT_FOR_CONNECTION,
+  RADIO_REQUEST_HALT_WAIT_FOR_CONNECTION,
+  RADIO_REQUEST_BREAK_CONNECTION
+}eRadio_request;
+
+typedef enum eTransmit_priority
+{
+  TX_PRIORITY_IMMEDIATE, //will post frame to front of task queue
+  TX_PRIORITY_QUEUE      //will post frame to back of queue
+}eTransmit_priority;
 
 typedef enum eRadio_Settings
 {
+  RADIO_SETTINGS_NONE,
   RADIO_SETTINGS_RFD,
   RADIO_SETTINGS_BAUD_115K,
   RADIO_SETTINGS_BAUD_1382K,
-  RADIO_SETTINGS_APPLICATION_DEFAULT
+  RADIO_SETTINGS_APPLICATION_DEFAULT,
+  RADIO_SETTINGS_CHANGE_ERROR
 }eRadio_Settings;
+
+typedef enum eRadio_receieve_state
+{
+  RADIO_RECEIVE_NO_STATE,
+  RADIO_RECEIVE_BUFF_FULL,
+  RADIO_RECEIVE_REQUEST_FAIL,
+  RADIO_RECEIVE_REQUEST_CANCELLED
+}eRadio_receive_state;
+
+typedef enum eRadio_connection_state
+{
+  RADIO_CONN_UNKNOWN,
+  RADIO_CONN_NONE,
+  RADIO_CONN_WAITING_FOR_CONNECTION,
+  RADIO_CONN_VERIFYING_CONNECTION,
+  RADIO_CONN_CONNECTED,
+  RADIO_CONN_HALT,
+  RADIO_CONN_ERROR
+}eRadio_connection_state;
+
+//Radio setup ready
+typedef enum eRadio_setup_state
+{
+    RDIO_SETUP_NOT_STARTED,
+    RDIO_SETUP_ENABLE_INTERFACE,
+    RDIO_SETUP_INTERFACE_ENABLED,
+    RDIO_SETUP_START_POWER,
+    RDIO_SETUP_FINISH_POWER,
+    RDIO_SETUP_START_SOFT_RESET,
+    RDIO_SETUP_FINISH_SOFT_RESET,
+    RDIO_SETUP_START_RFD,
+    RDIO_SETUP_FINISH_RFD,
+    RDIO_SETUP_READY,
+    RDIO_SETUP_ERROR,
+    RDIO_SETUP_UNKNOWN
+}eRadio_setup_state;
 
 /******************************************************************************
 *public structures ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,10 +102,17 @@ typedef enum eRadio_Settings
 //tExample_struct description
 typedef struct
 {
-    void * vBuff;
-    uint32_t uiBuff_size; //in bytes
-    eINMD_tx_rx_priority ePriority;
-}tINMD_tx_rx_frame;
+  void * vBuff;  //pointer to the TX or RX buffer
+  uint32_t uiBuff_size; //size of the buffer in bytes
+  uint32_t uiTimeout;  //timeout for receive and wait for connection
+  eRadio_request eRequest; //radio request type
+  eRadio_Settings eSetting; //radio setting change
+  eTransmit_priority eTX_Priority; //transmit priority
+  void (* vBuff_sent_callback)         (uint32_t uiBytes_sent);
+  void (* vBuff_receive_callback)      (eRadio_receive_state eRcv_state);
+  void (* vChange_setting_callback)    (eRadio_Settings eSetting);
+  void (* vConnection_status_callback) (eRadio_connection_state eRadio_conn);
+}tRadio_request;
 
 /******************************************************************************
 * external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,24 +121,28 @@ typedef struct
 /******************************************************************************
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-ERROR_CODE  eIneedMD_radio_task_init(void); //Function to call to initalize the radio driver task
-void        ineedmd_radio_power     (bool);
-void        ineedmd_radio_reset     (void);
+//ERROR_CODE  eIneedMD_radio_task_init(void); //Function to call to initalize the radio driver task
+//void        ineedmd_radio_power     (bool);
+//void        ineedmd_radio_reset     (void);
 //void ineedmd_radio_soft_reset(void);
-ERROR_CODE  eIneedmd_radio_rfd(void);
-void        ineedmd_radio_send_string(char *send_string, uint16_t uiBuff_size);
-int         ineedmd_radio_send_frame(uint8_t *send_frame, uint16_t uiFrame_size);
+//ERROR_CODE  eIneedmd_radio_rfd(void);
+//void        ineedmd_radio_send_string(char *send_string, uint16_t uiBuff_size);
+//int         ineedmd_radio_send_frame(uint8_t *send_frame, uint16_t uiFrame_size);
 //int         iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
-int         iIneedmd_radio_rcv_byte(uint8_t *uiRcv_byte);
-int         iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size);
-ERROR_CODE  eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size, uint32_t * uiBytes_rcvd);
+//int         iIneedmd_radio_rcv_byte(uint8_t *uiRcv_byte);
+//int         iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size);
+//ERROR_CODE  eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size, uint32_t * uiBytes_rcvd);
 //ERROR_CODE  eIneedMD_radio_setup(void);
 //void        vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count);
 //void        vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count);
+eRadio_connection_state eGet_connection_state(void);
+eRadio_setup_state      eGet_radio_setup_state(void);
 void        vIneedMD_radio_read_cb(RADIO_INTERFACE_RXCB_PARAMS);
 void        vIneedMD_radio_write_cb(RADIO_INTERFACE_TXCB_PARAMS);
 //ERROR_CODE  eIneedMD_radio_check_for_connection(void);
-ERROR_CODE  eIneedmd_radio_txrx_params_init (tINMD_tx_rx_frame * tParams);
-ERROR_CODE  eIneedmd_radio_tx_que_frame     (tINMD_tx_rx_frame * tParams);
+ERROR_CODE  eIneedmd_radio_request_params_init (tRadio_request * tParams);
+ERROR_CODE  eIneedmd_radio_request     (tRadio_request * tParams);
+ERROR_CODE  eIneedmd_radio_change_settings_params_init  (eRadio_Settings eRdo_set_request);
 ERROR_CODE  eIneedmd_radio_change_settings  (eRadio_Settings eRdo_set_request);
+
 #endif /* INEEDMD_BLUETOOTH_RADIO_H_ */

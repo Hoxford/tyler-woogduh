@@ -103,7 +103,6 @@
 ******************************************************************************/
 uintmax_t uiTimer = 0;
 bool      bIsSeqRunning = false;
-
 uint8_t uiMailbox_buff[768];
 
 /******************************************************************************
@@ -284,6 +283,7 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
       case POWER_LED_NO_UI:
         break;
       case POWER_LED_UI_OFF:
+        tUI_Msg.ePower_led_sequence = POWER_LED_UI_OFF;
         break;
       case POWER_LED_POWER_ON_90to100:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_90to100;
@@ -384,11 +384,13 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
   }
 //  eClock_get_total_runtime(&uiCurrent_tick);
 
-  eIneedmd_UI_params_init(&tUI_task_msg);
-  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
-  tUI_task_msg.ePower_led_sequence = POWER_LED_POWER_ON_90to100;
-  eIneedmd_UI_request(&tUI_task_msg);
-  eIneedmd_UI_params_init(&tUI_task_msg);
+//  eIneedmd_UI_params_init(&tUI_task_msg);
+//  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+//  tUI_task_msg.ePower_led_sequence = POWER_LED_UI_OFF;
+//  eIneedmd_UI_request(&tUI_task_msg);
+//  eIneedmd_UI_params_init(&tUI_task_msg);
+
+  eIneedmd_LED_pattern(UI_ALL_OFF);
 
   //Main UI task loop
   //
