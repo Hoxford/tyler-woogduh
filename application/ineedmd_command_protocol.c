@@ -8,9 +8,9 @@
 //*****************************************************************************
 #ifndef __INEEDMD_COMMAND_PROTOCOL_C__
 #define __INEEDMD_COMMAND_PROTOCOL_C__
-//*****************************************************************************
-// includes
-//*****************************************************************************
+/******************************************************************************
+* includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -33,6 +33,15 @@
 
 #include "utils_inc/osal.h"
 
+/******************************************************************************
+* defines /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+//Protocol frame defines
+#define PROTOCOL_FRAME_MAX_LEN   128
+
+//protocol connection defines
+#define PROTOCOL_CONN_TIMEOUT_1MIN    60000
+
 #ifdef DEBUG
   #define printf        vDEBUG
   #define PrintCommand  vCMND_ECHO_FRAME
@@ -45,9 +54,10 @@
   #define debug_out(c,...)
 #endif //DEBUG
 
-////*****************************************************************************
-//// variables
-////*****************************************************************************
+/******************************************************************************
+* variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
 //static uint8_t uiINMD_Protocol_frame[INMD_FRAME_BUFF_SIZE];
 ////static uint16_t uiINMD_Protocol_frame_len = 0;
 //
@@ -60,27 +70,47 @@
 ////static const char status0x13[] = { 0x9C, 0x04, 0x20, 0x21, 0x22,0xC9 };
 ////static const char status0x14[] = { 0x9C, 0x04, 0x20, 0x21, 0x22, 0xC9 };
 ////static const char status0x15[] = { 0x9C, 0x03, 0x0E, 0x16, 0x03, 0x10, 0x0A, 0x9C, 0xC9, 0xC9, 0x0E, 0x2C, 0x9C, 0xC9 };
-//
-////*****************************************************************************
-//// external variables
-////*****************************************************************************
-//extern unsigned char ledState;
-////*****************************************************************************
-//// enums
-////*****************************************************************************
-//
-////*****************************************************************************
-//// structures
-////*****************************************************************************
-//
-////*****************************************************************************
-//// external functions
-////*****************************************************************************
+
+/******************************************************************************
+* external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+/******************************************************************************
+* enums ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+typedef enum eINDM_Cmnd_Proto_msg
+{
+  CMND_MSG_NONE,
+  CMND_MSG_WAKEUP,
+  CMND_MSG_SLEEP,
+  CMND_MSG_PROTOCOL_FRAME,
+  CMND_MSG_INTERFACE_ESTABLISHED,
+  CMND_MSG_PROTOCOL_INTERFACE_ESTABLISHED,
+  CMND_MSG_PROTOCOL_INTERFACE_CLOSED,
+}eINDM_Cmnd_Proto_msg;
+
+/******************************************************************************
+* structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+extern Mailbox_Handle tTIRTOS_cmnd_protocol_mailbox;
+
+typedef struct tProtocol_msg_struct
+{
+  eINDM_Cmnd_Proto_msg eMsg;
+  uint8_t   uiCmnd_Frame[PROTOCOL_FRAME_MAX_LEN];
+  uint32_t  uiCmnd_Frame_len;
+}tProtocol_msg_struct;
+
+/******************************************************************************
+* external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
 //extern void check_for_update(void);
-////*****************************************************************************
-//// function declarations
-////*****************************************************************************
-//
+/******************************************************************************
+* private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+void vRadio_connection_callback(eRadio_connection_state eRadio_conn);
+
 ////int debug_out(char * cOut_buff,...);
 ////int SearchArrCmd(char cArrCmd);
 //void initACKNACK(void);
@@ -93,7 +123,28 @@
 //#ifdef PrintCommand
 //  void vCMND_ECHO_FRAME(const unsigned char * uiFrame, uint16_t uiFrame_len);
 //#endif
-//
+
+/******************************************************************************
+* private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+void vRadio_connection_callback(eRadio_connection_state eRadio_conn)
+{
+  tINMD_protocol_req_notify tCmnd_Req_Notify;
+  ERROR_CODE eEC = ER_FAIL;
+  eIneedmd_cmnd_Proto_ReqNote_params_init(&tCmnd_Req_Notify);
+
+  if(eRadio_conn == RADIO_CONN_NONE)
+  {
+    tCmnd_Req_Notify.eReq_Notify = CMND_REQUEST_WAKEUP;
+    eEC = ER_OK;
+  }
+
+  if(eEC == ER_OK)
+  {
+    eIneedmd_cmnd_Proto_Request_Notify(&tCmnd_Req_Notify);
+  }
+  return;
+}
 ////*****************************************************************************
 //// functions
 ////*****************************************************************************
@@ -855,6 +906,123 @@
 //  return bWas_frame;
 //}
 
+/******************************************************************************
+* public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+/******************************************************************************
+* name: eIneedmd_cmnd_Proto_ReqNote_params_init
+* description: initalizes the tINMD_protocol_request parameters to default values
+* param description: tINMD_protocol_request - pointer: pointer to the structure
+*                      to be initalized that will be passed to the request notify funcion
+*
+* return value description: ERROR_CODE - ER_OK: params initalized
+*                                        ER_FAIL: params failed init
+*                                        ER_PARAM: pointer to parameter
+*                                          stucture passed in is invalid
+******************************************************************************/
+ERROR_CODE eIneedmd_cmnd_Proto_ReqNote_params_init(tINMD_protocol_req_notify * ptParams)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  if(ptParams == NULL)
+  {
+    eEC = ER_PARAM;
+  }
+  else
+  {
+    ptParams->eReq_Notify = CMND_REQUEST_NONE;
+    ptParams->uiCmnd_Frame = NULL;
+    ptParams->uiFrame_Len = 0;
+  }
+
+  if((ptParams->eReq_Notify != CMND_REQUEST_NONE) |\
+     (ptParams->uiCmnd_Frame != NULL)             |\
+     (ptParams->uiFrame_Len != 0))
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
+  return eEC;
+}
+
+/******************************************************************************
+* name: eIneedmd_cmnd_Proto_Request_Notify
+* description:
+* param description: tINMD_protocol_req_notify - pointer pointer to the structure
+*                      that will be passed to the request notify funcion
+* return value description: ERROR_CODE - ER_OK: request/notification accepted
+*                                        ER_FAIL: request/notification not accepted
+*                                        ER_PARAM: pointer to parameter stucture
+*                                         passed in is invalid
+******************************************************************************/
+ERROR_CODE eIneedmd_cmnd_Proto_Request_Notify(tINMD_protocol_req_notify * ptParams)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  tProtocol_msg_struct tProtocol_msg;
+  bool bDid_msg_post = false;
+
+  if(ptParams == NULL)
+  {
+    eEC = ER_PARAM;
+  }
+  else
+  {
+    switch(ptParams->eReq_Notify)
+    {
+      case CMND_REQUEST_WAKEUP:
+        tProtocol_msg.eMsg = CMND_MSG_WAKEUP;
+        eEC = ER_OK;
+        break;
+      case CMND_REQUEST_SLEEP:
+        break;
+      case CMND_REQUEST_RCV_PROTOCOL_FRAME:
+        if(ptParams->uiFrame_Len > PROTOCOL_FRAME_MAX_LEN)
+        {
+          eEC = ER_SIZE;
+#ifdef DEBUG
+          vDEBUG("eIneedmd_cmnd_Proto_Request_Notify SYS_HALT, proto frame size to large");
+          while(1){};
+#endif
+        }
+        else
+        {
+          tProtocol_msg.eMsg = CMND_MSG_PROTOCOL_FRAME;
+          tProtocol_msg.uiCmnd_Frame_len = ptParams->uiFrame_Len;
+          memcpy(&tProtocol_msg.uiCmnd_Frame[0], ptParams->uiCmnd_Frame, ptParams->uiFrame_Len);
+          eEC = ER_OK;
+        }
+        break;
+      case CMND_NOTIFY_INTERFACE_ESTABLISHED:
+        break;
+      case CMND_NOTIFY_PROTOCOL_INTERFACE_ESTABLISHED:
+        break;
+      case CMND_NOTIFY_PROTOCOL_INTERFACE_CLOSED:
+        break;
+      default:
+        break;
+    }
+  }
+
+  if(eEC == ER_OK)
+  {
+    bDid_msg_post = Mailbox_post(tTIRTOS_cmnd_protocol_mailbox, &tProtocol_msg, BIOS_WAIT_FOREVER);
+    if(bDid_msg_post == true)
+    {
+      eEC = ER_OK;
+    }
+    else
+    {
+      eEC = ER_FAIL;
+    }
+  }else{/*do nothing*/}
+
+  return eEC;
+}
+
 //*****************************************************************************
 // name:
 // description:
@@ -864,28 +1032,58 @@
 void vIneedmd_command_task(UArg a0, UArg a1)
 {
   ERROR_CODE eEC = ER_OK;
-  bool bDo_radio_change_settings = true;
+  tProtocol_msg_struct tProtocol_msg;
+  tRadio_request tRadio_request;
+  uint32_t uiMsg_size = sizeof(tProtocol_msg_struct);
+  uint32_t uiMbox_size = 0;
+  tINMD_protocol_req_notify tCmnd_Req_Notify;
+
+  uiMbox_size = Mailbox_getMsgSize(tTIRTOS_cmnd_protocol_mailbox);
+  if(uiMsg_size != uiMbox_size)
+  {
+    vDEBUG("vIneedmd_command_task SYS HALT, invalid mailbox msg size!");
+    while(1){};
+  }else{/*do nothing*/}
+
+  eIneedmd_cmnd_Proto_ReqNote_params_init(&tCmnd_Req_Notify);
+  tCmnd_Req_Notify.eReq_Notify = CMND_REQUEST_WAKEUP;
+  eIneedmd_cmnd_Proto_Request_Notify(&tCmnd_Req_Notify);
+
   while(1)
   {
-    Task_sleep(500);
-//    if(bDo_radio_change_settings == true)
-//    {
-//      eEC = eIneedmd_radio_change_settings(RADIO_SETTINGS_APPLICATION_DEFAULT);
-//      if(eEC == ER_OK)
-//      {
-//        bDo_radio_change_settings = false;
-//      }
-//    }
+    if(Mailbox_pend(tTIRTOS_cmnd_protocol_mailbox, &tProtocol_msg, BIOS_WAIT_FOREVER) == true)
+    {
+      switch(tProtocol_msg.eMsg)
+      {
+        case CMND_MSG_WAKEUP:
+          eIneedmd_radio_request_params_init (&tRadio_request);
+          tRadio_request.eRequest = RADIO_REQUEST_WAIT_FOR_CONNECTION;
+          tRadio_request.uiTimeout = PROTOCOL_CONN_TIMEOUT_1MIN;
+          tRadio_request.vConnection_status_callback = &vRadio_connection_callback;
+          eEC = eIneedmd_radio_request(&tRadio_request);
+          if(eEC == ER_NOT_READY)
+          {
+            Task_sleep(500);
+            eIneedmd_cmnd_Proto_ReqNote_params_init(&tCmnd_Req_Notify);
+            tCmnd_Req_Notify.eReq_Notify = CMND_REQUEST_WAKEUP;
+            eIneedmd_cmnd_Proto_Request_Notify(&tCmnd_Req_Notify);
+          }
+          break;
+        case CMND_MSG_SLEEP:
+          break;
+        case CMND_MSG_PROTOCOL_FRAME:
+          break;
+        case CMND_MSG_INTERFACE_ESTABLISHED:
+          break;
+        case CMND_MSG_PROTOCOL_INTERFACE_ESTABLISHED:
+          break;
+        case CMND_MSG_PROTOCOL_INTERFACE_CLOSED:
+          break;
+        default:
+          break;
+      }
+    }
   }
-//  bool bIs_frame = false;
-//
-//  bIs_frame = iIneedmd_is_protocol_frame();
-//
-//  if(bIs_frame == true)
-//  {
-////    parseCommand(uiINMD_Protocol_frame, uiINMD_Protocol_frame_len);
-//    ParseFrame(uiINMD_Protocol_frame);
-//  }
 }
 
 #ifdef PrintCommand

@@ -218,7 +218,7 @@ ERROR_CODE eOSAL_Mailbox_Get_msg (tOSAL_Mailbox_Handle * ptMailbox_handle)
 *                    bool - true: do action when set to true
 * return value description: type - value: value description
 ******************************************************************************/
-ERROR_CODE eOSAL_Queue_Get_msg   (void * pvQueue_handle)
+ERROR_CODE eOSAL_Queue_Get_msg   (tOSAL_Queue_Handle * ptQueue_handle)
 {
   ERROR_CODE eEC = ER_OK;
 

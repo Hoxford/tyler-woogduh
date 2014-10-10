@@ -71,10 +71,6 @@ void vIdle_Task(UArg a0, UArg a1)
  */
 int main(void)
 {
-  ERROR_CODE eEC = ER_OK;
-
-  Error_Block eb;
-
   //Perform the basic board init functions
   //
   eBSP_Board_init();

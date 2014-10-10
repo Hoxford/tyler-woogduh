@@ -53,6 +53,8 @@ typedef enum
     ER_BUFF_SIZE,
     ER_NO_BUFF,
     ER_NO_BUFF_AVAILABLE,
+    ER_LEN,
+    ER_SIZE,
     ER_NOMEM,
     ER_OVERWRITE,
     ER_CLOSED,

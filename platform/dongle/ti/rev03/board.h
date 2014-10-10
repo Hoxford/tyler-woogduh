@@ -518,6 +518,7 @@ int         EKGSPIEnable(void);
 int         EKGSPIDisable(void);
 ERROR_CODE  eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set);
 ERROR_CODE  eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get);
+ERROR_CODE  eBSP_Set_radio_uart_to_callback(void);
 ERROR_CODE  eBSP_RadioUARTEnable(void);
 int         RadioUARTDisable(void);
 int         iRadio_Power_On(void);
@@ -550,7 +551,8 @@ ERROR_CODE  eRcv_dma_radio_boot_frame(char * cRcv_buff, uint16_t uiMax_buff_size
 ERROR_CODE  eIs_UART_using_DMA(void);
 int         iRadio_interface_int_enable(void);
 int         iRadio_interface_int_disable(void);
-void        vRadio_interface_int_service(uint32_t uiInt_id);
+//void        vRadio_interface_int_service(uint32_t uiInt_id);
+void        vRadio_interface_int_service(UArg arg);
 void        vRadio_UARTTx_int_service(uint32_t ui32Status);
 void        vRadio_interface_DMA_int_service(uint32_t ui32DMA_int_status);
 void        vRadio_interface_int_service_timeout(uint16_t uiInt_id);

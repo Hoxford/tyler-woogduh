@@ -356,9 +356,18 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
 //  I2C_Handle         tI2C_handle;
 //  I2C_Params         tI2C_params;
   tStruct_UI_Process          tUI_Process;
-  tStruct_UI_Command_Request  tUI_requested_feature;
+//  tStruct_UI_Command_Request  tUI_requested_feature;
   tUI_request tUI_task_msg;
   uint32_t uiTimer_period = 0;
+
+  uint32_t uiMsg_size = sizeof(tUI_request);
+  uint32_t uiMbox_size = 0;
+  uiMbox_size = Mailbox_getMsgSize(tUI_mailbox);
+  if(uiMsg_size != uiMbox_size)
+  {
+    vDEBUG("vIneedmd_UI_task SYS HALT, invalid mailbox msg size!");
+    while(1){};
+  }else{/*do nothing*/}
 
   eUI_Task_State = UI_TASK_SETUP_NOT_STARTED;
 

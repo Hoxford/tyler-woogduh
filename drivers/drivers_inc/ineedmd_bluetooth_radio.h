@@ -100,11 +100,11 @@ typedef enum eRadio_setup_state
 *public structures ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 //tExample_struct description
-typedef struct
+typedef struct tRadio_request
 {
   void * vBuff;  //pointer to the TX or RX buffer
   uint32_t uiBuff_size; //size of the buffer in bytes
-  uint32_t uiTimeout;  //timeout for receive and wait for connection
+  uint32_t uiTimeout;  //timeout for receive and wait for connection in milliseconds
   eRadio_request eRequest; //radio request type
   eRadio_Settings eSetting; //radio setting change
   eTransmit_priority eTX_Priority; //transmit priority

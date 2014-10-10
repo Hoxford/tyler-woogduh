@@ -39,10 +39,10 @@
 #include "utils_inc/osal.h"
 
 //todo: the bios includes should all eventually be moved to the osal
-#include <xdc/std.h>
-#include <xdc/runtime/System.h>
-
-#include <ti/sysbios/knl/Clock.h>
+//#include <xdc/std.h>
+//#include <xdc/runtime/System.h>
+//
+//#include <ti/sysbios/knl/Clock.h>
 
 
 /******************************************************************************
@@ -260,6 +260,7 @@
 #define RING_RFCOMM       "RFCOMM \r\n"
 #define RING_PARSE        "%s %n %x%c%x%c%x%c%x%c%x%c%x %n %s"
 #define RING_CONNECTION_BUFF_SIZE    36
+#define RING_CONNECTION_STRING_LEN   36
 
 #define BT_MACADDR_NUM_BYTES  6
 #define BG_SIZE              1024
@@ -1076,7 +1077,7 @@ ERROR_CODE eIneedmd_radio_wait_for_conn(tRadio_request * ptConn_request)
   char * pcRcv_char = NULL;
   char * pcRing_string = NULL;
   char * pcRF_comm_string = NULL;
-  char cRing_conn_buff[RING_CONNECTION_BUFF_SIZE];
+  char * cRing_conn_buff = cRdo_setup_rcv_buff;
   char cINMD_conn_req_buff[5];
   bool bDo_wait_forever_for_conn = false;
   uint32_t uiClock_time_conn_start = 0;
@@ -1095,7 +1096,7 @@ ERROR_CODE eIneedmd_radio_wait_for_conn(tRadio_request * ptConn_request)
   }
   else
   {
-    bDo_wait_forever_for_conn = true;
+    bDo_wait_forever_for_conn = false;
   }
   uiClock_time_conn_start = Clock_getTicks();
 
@@ -1125,6 +1126,7 @@ ERROR_CODE eIneedmd_radio_wait_for_conn(tRadio_request * ptConn_request)
     }else{/*do nothing*/}
 
     eEC = iRadio_rcv_char(pcRcv_char);
+
     //Check if the radio receive character was successful
     if(eEC == ER_OK)
     {
@@ -1200,6 +1202,12 @@ ERROR_CODE eIneedmd_radio_wait_for_conn(tRadio_request * ptConn_request)
     }
   }
 
+
+
+//  eRadio_rcv_string(cRing_conn_buff, RING_CONNECTION_BUFF_SIZE - 1);
+//  iRadio_rcv_char(pcRcv_char);
+//  eRadio_rcv_string(cRing_conn_buff, RING_CONNECTION_BUFF_SIZE);
+//  eEC = ER_OK;
   return eEC;
 }
 
@@ -1879,7 +1887,7 @@ ERROR_CODE iIneedmd_radio_int_rcv_string(char *cRcv_string, uint16_t uiBuff_size
 ******************************************************************************/
 ERROR_CODE eIneedMD_radio_setup(void)
 {
-//#define DEBUG_iIneedMD_radio_setup
+#define DEBUG_iIneedMD_radio_setup
 #ifdef DEBUG_iIneedMD_radio_setup
   #define  vDEBUG_RDIO_SETUP  vDEBUG
 #else
@@ -2455,10 +2463,42 @@ ERROR_CODE eIneedMD_radio_setup(void)
 #undef vDEBUG_RDIO_SETUP
 }
 
-//void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count)
-void vIneedMD_radio_read_cb(RADIO_INTERFACE_RXCB_PARAMS)
+void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count)
+//void vIneedMD_radio_read_cb(RADIO_INTERFACE_RXCB_PARAMS)
 {
-  return;
+  int i = 0;
+  char * c = (char *)buf;
+  eRadio_connection_state eConn_state;
+  if(count > 0)
+  {
+    eConn_state = eGet_connection_state();
+    if(eConn_state == RADIO_CONN_WAITING_FOR_CONNECTION)
+    {
+
+//      i = strlen(cRdo_setup_rcv_buff);
+////      cRdo_setup_rcv_buff[i] = *c;
+////      i = strlen(cRdo_setup_rcv_buff);
+//      if(i == RING_CONNECTION_STRING_LEN)
+//      {
+//        return;
+//      }
+//      else if(i == 0)
+//      {
+//        cRdo_setup_rcv_buff[0] = *c;
+//        iRadio_rcv_char(&cRdo_setup_rcv_buff[1]);
+//      }
+//      else
+//      {
+//        iRadio_rcv_char(&cRdo_setup_rcv_buff[i]);
+//      }
+    }
+
+    return;
+  }
+  else
+  {
+    return;
+  }
 }
 
 //void vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count)
@@ -2599,7 +2639,7 @@ ERROR_CODE eIneedmd_radio_request_params_init (tRadio_request * tParams)
 }
 
 /******************************************************************************
-* name: eIneedmd_radio_que_frame
+* name: eIneedmd_radio_request
 * description: This function queues a data frame defined in the passed in
 *  parameters to be sent out the wireless radio.
 *
@@ -2651,8 +2691,14 @@ ERROR_CODE eIneedmd_radio_request(tRadio_request * tRequest)
           eConn_State = eGet_connection_state();
           if(eConn_State == RADIO_CONN_NONE)
           {
+//            memset(cRdo_setup_rcv_buff,0x00, BG_SIZE);
+//            eBSP_Set_radio_uart_to_callback();
             Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
           }
+//          else if(eConn_State == RADIO_CONN_WAITING_FOR_CONNECTION)
+//          {
+//            Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
+//          }
           break;
         case RADIO_REQUEST_HALT_WAIT_FOR_CONNECTION:
           eConn_State = eGet_connection_state();
@@ -2757,8 +2803,14 @@ void vIneedMD_radio_task(UArg a0, UArg a1)
   eRadio_connection_state eConn_State;
   tRadio_request tRadio_msg;
 
-  int i = sizeof(tRadio_request);
-//  tOSAL_Mailbox_Handle tRadio_mailbox;
+  uint32_t uiMsg_size = sizeof(tRadio_request);
+  uint32_t uiMbox_size = 0;
+  uiMbox_size = Mailbox_getMsgSize(tTIRTOS_Radio_mailbox);
+  if(uiMsg_size != uiMbox_size)
+  {
+    vDEBUG("vIneedMD_radio_task SYS HALT, invalid mailbox msg size!");
+    while(1){};
+  }else{/*do nothing*/}
 
   eEC = eIneedMD_radio_setup();
   if((eEC == ER_OK) | (eEC == ER_DONE))
@@ -2771,9 +2823,9 @@ void vIneedMD_radio_task(UArg a0, UArg a1)
 
 //  eEC = eOSAL_Mailbox_Create(&tRadio_mailbox);
 
-  eIneedmd_radio_request_params_init(&tRadio_msg);
-  tRadio_msg.eRequest = RADIO_REQUEST_WAIT_FOR_CONNECTION;
-  eIneedmd_radio_request(&tRadio_msg);
+//  eIneedmd_radio_request_params_init(&tRadio_msg);
+//  tRadio_msg.eRequest = RADIO_REQUEST_WAIT_FOR_CONNECTION;
+//  eIneedmd_radio_request(&tRadio_msg);
 
   while(1)
   {
@@ -2826,8 +2878,12 @@ void vIneedMD_radio_task(UArg a0, UArg a1)
             {
               //Connection timeout exceeded
               //
-              //check callback and notify connection timed out
               eSet_connection_state(RADIO_CONN_NONE);
+              //check callback and notify connection timed out
+              if(tRadio_msg.vConnection_status_callback != NULL)
+              {
+                tRadio_msg.vConnection_status_callback(RADIO_CONN_NONE);
+              }else{/*do nothing*/}
             }
             else if(eEC == ER_NOT_CONNECTED)
             {
