@@ -82,10 +82,12 @@ ERROR_CODE eIneedmd_UI_request(uint8_t uiUser_Interface, INMD_UI_LED_SEQ eUI_LED
     {
       case LED_SEQ_NONE:
         ineedmd_led_pattern(LED_OFF);
+        eUI_LED_Seq = LED_SEQ_NONE;
         bIsSeqRunning = false;
         break;
       case LED_SEQ_OFF:
         ineedmd_led_pattern(LED_OFF);
+        eUI_LED_Seq = LED_SEQ_OFF;
         bIsSeqRunning = true;
         break;
       case LED_SEQ_POWER_ON_BATT_LOW:

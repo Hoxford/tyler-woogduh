@@ -316,6 +316,9 @@ int main(void)
   #define vDEBUG_MAIN(a)
 #endif
 
+  bool b_should_init_radio = false;
+
+
   //init the debug interface
   vDEBUG_init();
   vDEBUG_MAIN("Hello World!");
@@ -339,10 +342,10 @@ int main(void)
   vDEBUG_MAIN("checking for update");
   check_for_update();
 
-  vDEBUG_MAIN("initial batt check");
-  check_battery();
+  //vDEBUG_MAIN("initial batt check");
+  //check_battery();
 
-  //mount the file system
+  //eBSP_Radio_Disable();mount the file system
 //  iFileSys_mount(&sFile_Sys, 0, 1);
 
   //set up the A to D converter
@@ -361,6 +364,7 @@ int main(void)
 
   eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_UP_GOOD, SPEAKER_SEQ_NONE, false);
 
+
   vDEBUG_MAIN("Starting super loop");
   while(1)
   {
@@ -369,16 +373,32 @@ int main(void)
     {
       ineedmd_watchdog_pat();
       ineedmd_sleep();
-      check_battery();
+      check_battery(true);
+
+      b_should_init_radio = true;
       vDEBUG_IM_ALIVE(ALIVE_ASLEEP);
     }
+
+    //if we were asllep we need to power the radio back up.
+    if ( b_should_init_radio == true )
+    {
+      eBSP_Radio_Enable();
+      iRadio_Power_On();
+      eBSP_Radio_Reset();
+      iIneedMD_radio_setup();
+      eIneedMD_radio_process_init();
+
+      b_should_init_radio = false;
+
+    }
+    check_battery(false);
     ineedmd_watchdog_pat();
     iIneedMD_radio_process();
     iIneedmd_command_process();
     iIneedmd_waveform_process();
+    iIneedmd_sysinfo_process();
     eClock_process();
     eIneedmd_UI_process();
-    check_battery();
 //    check_for_update();
 //    check_for_reset();
     vDEBUG_IM_ALIVE(ALIVE_AWAKE);

@@ -40,7 +40,7 @@
 //*****************************************************************************
 // function declarations
 //*****************************************************************************
-void            check_battery(void); //battery power check function
+void            check_battery(bool show_leds); //battery power check function
 ERROR_CODE      measure_battery(uint32_t * uiBatt_voltage, bool bForce_measurement); // run the ADC to measure the battery
 extern char     ineedmd_get_battery_voltage(void); //returns the battery voltage in 1/10ths of volts
 extern uint32_t ineedmd_get_unit_tempoerature(void);

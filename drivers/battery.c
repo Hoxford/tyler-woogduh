@@ -33,7 +33,7 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
-#define MEAS_BATT_READ_COUNT  16
+#define MEAS_BATT_READ_COUNT  4
 //*****************************************************************************
 // variables
 //*****************************************************************************
@@ -71,7 +71,7 @@
 * return value description: none
 ******************************************************************************/
 void
-check_battery(void)
+check_battery(bool show_leds)
 {
 #define DEBUG_check_battery
 #ifdef DEBUG_check_battery
@@ -114,7 +114,10 @@ check_battery(void)
       {
         //the battery voltage is greater then the low voltage value, sys ok
         bIs_batt_critical = false;
-        //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_GOOD, SPEAKER_SEQ_NONE, false);
+        if ( show_leds == true)
+          {
+          eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_GOOD, SPEAKER_SEQ_NONE, true);
+          }
 
         //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_GOOD);
       }
@@ -122,14 +125,20 @@ check_battery(void)
       {
         //the battery voltage is greater then the critical voltage value, sys warning ok
         bIs_batt_critical = false;
-        //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_MEDIUM, SPEAKER_SEQ_NONE, false);
+        if ( show_leds == true)
+          {
+          eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_MEDIUM, SPEAKER_SEQ_NONE, true);
+          }
         //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_LOW);
       }
       else
       {
         //the battery is at or below the critical voltage value, sys warning critical!
         bIs_batt_critical = true;
-        //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_LOW, SPEAKER_SEQ_NONE, false);
+        if ( show_leds == true)
+          {
+          eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_LOW, SPEAKER_SEQ_NONE, true);
+          }
         //todo: led pattern needs to be critical voltage value
         //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_LOW);
       }
@@ -328,11 +337,11 @@ ineedmd_get_battery_voltage(void)
 
   //convert the ADC reading to 10uV steps
   measure_battery(&mv_battery, true);
-  mv_battery = mv_battery * 161;
+  mv_battery = mv_battery * 162;
   //scale the 10uv steps to tenths of volts
-  battery_voltage_in_tenths = mv_battery / 10000;
+  battery_voltage_in_tenths = mv_battery / 1000;
   //suptract the offset of 2.5V
-  offset_battery_voltage_in_tenths = battery_voltage_in_tenths - 25;
+  offset_battery_voltage_in_tenths = battery_voltage_in_tenths - 250;
 
   return (char) (0xff & offset_battery_voltage_in_tenths);
 
@@ -345,6 +354,9 @@ ineedmd_get_unit_tempoerature()
 
   uint32_t TempValueC;
   uint32_t temp_adc_return_value;
+//  uint16_t uiPrevious_sys_speed = 0;
+//  uint16_t uiCurr_sys_speed = 0;
+
 
   TemperatureMeasureADCEnable();
 

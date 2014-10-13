@@ -1358,11 +1358,14 @@ TemperatureMeasureADCEnable(void)
     //uint32_t uiData;
 
     //Enable the ADC Clock
-    MAP_SysCtlPeripheralEnable(TEMPERATURE_SYSCTL_PERIPH_ADC);
+    SysCtlPeripheralEnable(TEMPERATURE_SYSCTL_PERIPH_ADC);
 
     MAP_ADCSequenceDisable(TEMPERATURE_ADC, 3);
+
     MAP_ADCSequenceConfigure(TEMPERATURE_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+
     MAP_ADCSequenceStepConfigure(TEMPERATURE_ADC, 3, 0, TEMPERATURE_ADC_CTL | ADC_CTL_IE | ADC_CTL_END );
+
     MAP_ADCIntClear(TEMPERATURE_ADC, 3);
 
     MAP_ADCSequenceEnable(TEMPERATURE_ADC, 3);

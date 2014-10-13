@@ -149,7 +149,77 @@ int SearchArrCmd(const unsigned char dataPacketType, const unsigned char szRecCo
   }
   return -1;
 }
+int ineedmd_send_status()
+{
+  unsigned char OutGoingPacket[0x20];  //maximum length of an outgoing packet is 0x20
+  uint16_t OutGoingPacket_len = 0;
 
+
+  memset(OutGoingPacket, 0x00, 0x20); //todo: magic numbers!
+  OutGoingPacket[OutGoingPacket_len++] = 0x9c;
+  OutGoingPacket[OutGoingPacket_len++] = 0x02;
+  OutGoingPacket[OutGoingPacket_len++] = 0x14;
+  OutGoingPacket[OutGoingPacket_len++] = 0x00; // hard coding the version number
+  OutGoingPacket[OutGoingPacket_len++] = 0x04; // hard coding the version number
+  OutGoingPacket[OutGoingPacket_len++] = 0x05; // hard coding the version number
+  OutGoingPacket[OutGoingPacket_len++] = ineedmd_get_battery_voltage();
+
+  //OutGoingPacket[OutGoingPacket_len++] = 0x80;
+
+  OutGoingPacket[OutGoingPacket_len++] = (char) (0xff & ineedmd_get_unit_tempoerature());
+  //OutGoingPacket[OutGoingPacket_len++] = 0x80;
+
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // operating mode  - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // capture settings 1  - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // capture settings 2  - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 4 - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 3 - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 2 - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 1 - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 4  - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 3  - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 2  - no information to add yet
+  OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 1  - no information to add yet
+
+  OutGoingPacket[OutGoingPacket_len++] = 0xc9;
+ /*  char replyToSend[100];
+
+  sprintf(replyToSend, "%X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %x",
+      OutGoingPacket[0x00],
+        OutGoingPacket[0x01],
+        OutGoingPacket[0x02],
+        OutGoingPacket[0x03],
+        OutGoingPacket[0x04],
+        OutGoingPacket[0x05],
+
+        OutGoingPacket[0x06],
+        OutGoingPacket[0x07],
+        OutGoingPacket[0x08],
+        OutGoingPacket[0x09],
+        OutGoingPacket[0x0a],
+        OutGoingPacket[0x0b],
+        OutGoingPacket[0x0c],
+        OutGoingPacket[0x0d],
+        OutGoingPacket[0x0e],
+        OutGoingPacket[0x0f],
+        OutGoingPacket[0x10],
+        OutGoingPacket[0x11],
+        OutGoingPacket[0x12],
+        OutGoingPacket[0x13]);
+
+  PrintCommand(OutGoingPacket, OutGoingPacket[2]); //this is just to display on our side, what reply we are sending.
+  printf("Sending status record...");
+*/
+  if(OutGoingPacket_len > 0x20)
+  {
+    printf("Packet len > 0x20! SYS HALT");
+    while(1){};
+  }
+
+  writeDataToPort(OutGoingPacket, OutGoingPacket_len);  //todo magic number!
+
+  return 1;
+}
 
 //*****************************************************************************
 // name:
@@ -271,8 +341,8 @@ void ParseFrame(void *pt)
 
   unsigned char * ucRaw_Frame = pt;
 
-  unsigned char OutGoingPacket[0x20];  //maximum length of an outgoing packet is 0x20
-  uint16_t OutGoingPacket_len = 0;  //maximum length of an outgoing packet is 0x20
+  //unsigned char OutGoingPacket[0x20];  //maximum length of an outgoing packet is 0x20
+  //uint16_t OutGoingPacket_len = 0;  //maximum length of an outgoing packet is 0x20
   unsigned char Frame[300];
 //  int frameCnt;
   unsigned char lengthPacket;// = Frame[2]; //which is also frameCnt, probably.
@@ -290,6 +360,9 @@ void ParseFrame(void *pt)
 //  int counter;//temporary for 0x17 case
 //  DWORD dwBytesWritten;
   INMD_LED_COMMAND eInmd_LED_cmnd = INMD_LED_CMND_LED_OFF;
+  INMD_WAVEFORM_COMMAND eInmd_waveform_cmnd = INMD_WFRM_OFF;
+
+
   initACKNACK();
 
 //  PARSE_THREAD *args = (PARSE_THREAD *)pt;
@@ -457,59 +530,9 @@ void ParseFrame(void *pt)
 //        printf("\nReceived request for status...\nSending status record...");
         printf("Received request for status...");
         printf("Building Status Packet...");
-        memset(OutGoingPacket, 0x00, 0x20); //todo: magic numbers!
-        OutGoingPacket_len = 0;
-        OutGoingPacket[OutGoingPacket_len++] = 0x9c;
-        OutGoingPacket[OutGoingPacket_len++] = 0x02;
-        OutGoingPacket[OutGoingPacket_len++] = 0x12;
-        OutGoingPacket[OutGoingPacket_len++] = 0x04; // hard coding the version number
-        OutGoingPacket[OutGoingPacket_len++] = ineedmd_get_battery_voltage();
-        OutGoingPacket[OutGoingPacket_len++] = (char) (0xff & ineedmd_get_unit_tempoerature());
+        ineedmd_send_status();
 
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // operating mode  - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // capture settings 1  - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // capture settings 2  - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 4 - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 3 - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 2 - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Time 1 - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 4  - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 3  - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 2  - no information to add yet
-        OutGoingPacket[OutGoingPacket_len++] = 0x00;  // Alarm 1  - no information to add yet
 
-        OutGoingPacket[OutGoingPacket_len++] = 0xc9;
-
-        sprintf(replyToSend, "%X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %X %x",
-            OutGoingPacket[0x00],
-              OutGoingPacket[0x01],
-              OutGoingPacket[0x02],
-              OutGoingPacket[0x03],
-              OutGoingPacket[0x04],
-              OutGoingPacket[0x05],
-
-              OutGoingPacket[0x06],
-              OutGoingPacket[0x07],
-              OutGoingPacket[0x08],
-              OutGoingPacket[0x09],
-              OutGoingPacket[0x0a],
-              OutGoingPacket[0x0b],
-              OutGoingPacket[0x0c],
-              OutGoingPacket[0x0d],
-              OutGoingPacket[0x0e],
-              OutGoingPacket[0x0f],
-              OutGoingPacket[0x10],
-
-              OutGoingPacket[0x11]);
-        PrintCommand(OutGoingPacket, OutGoingPacket[2]); //this is just to display on our side, what reply we are sending.
-        printf("Sending status record...");
-
-        if(OutGoingPacket_len > 0x20)
-        {
-          printf("Packet len > 0x20! SYS HALT");
-          while(1){};
-        }else{/*do nothing*/}
-        writeDataToPort(OutGoingPacket, OutGoingPacket_len);  //todo magic number!
         break;
       case 0x17:
 //todo: frameCnt was not set properly, this code to be implemented later
@@ -569,10 +592,43 @@ void ParseFrame(void *pt)
 
       case REQUEST_TO_TEST://request to send test signal.
         //printf("Received Request to Test");
-        if(Frame[4] == EKG_TEST_PAT)
+        if(Frame[4] == STOP_EKG_TEST_PAT)
         {
           printf("Received \"test\" request...");
-          iIneedmd_waveform_enable_TestSignal();
+          eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_NONE, SPEAKER_SEQ_NONE, true);
+          iIneedmd_waveform_disable_TestSignal();
+        }
+        else if(Frame[4] == EKG_TEST_PAT)
+        {
+          printf("Received \"test\" request...");
+
+
+          eInmd_waveform_cmnd = (INMD_WAVEFORM_COMMAND)Frame[5];
+          switch (eInmd_waveform_cmnd)
+          {
+            case INMD_WFRM_OFF:
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_NONE, SPEAKER_SEQ_NONE, false);
+              iIneedmd_waveform_enable_TestSignal(INMD_WFRM_OFF);
+              break;
+            case INMD_WFRM_TRI:
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_TRI_WVFRM, SPEAKER_SEQ_NONE, false);
+              iIneedmd_waveform_enable_TestSignal(INMD_WFRM_TRI);
+              break;
+            case INMD_WFRM_SQR:
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_MV_CAL, SPEAKER_SEQ_NONE, false);
+              iIneedmd_waveform_enable_TestSignal(INMD_WFRM_TRI);
+              break;
+            case INMD_WFRM_TST:
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_MV_CAL, SPEAKER_SEQ_NONE, false);
+              iIneedmd_waveform_enable_TestSignal(INMD_WFRM_TST);
+              break;
+
+            default:
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_NONE, SPEAKER_SEQ_NONE, false);
+              iIneedmd_waveform_enable_TestSignal(INMD_WFRM_OFF);
+              break;
+           }
+
         }
         else if(Frame[4] == LED_TEST_PATTERN)
         {
@@ -583,7 +639,7 @@ void ParseFrame(void *pt)
             case INMD_LED_CMND_LED_OFF:
               printf("LED_OFF");
               ineedmd_send_ack();
-              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, false);
+              eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, true);
               break;
             case INMD_LED_CMND_POWER_ON_BATT_LOW:
               printf("POWER_ON_BATT_LOW");
@@ -696,7 +752,7 @@ void ParseFrame(void *pt)
               //TODO: add battery state check
               //ineedmd_led_pattern(HIBERNATE);
               //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE, SPEAKER_SEQ_NONE, false);
-              check_battery();
+              check_battery(true);
               break;
             case INMD_LED_CMND_LEADS_ON:
               printf("LEADS_ON");

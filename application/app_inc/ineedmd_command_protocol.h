@@ -32,9 +32,9 @@
 #define STOP_EKG_TEST_PAT 0x00
 
 #define EKG_TEST_PAT      0x01
-#define TRIANGLE_TEST_PAT 0x00
-#define SQUARE_TEST_PAT   0x01
-#define WAVEFORM_TEST_PAT 0x02
+#define TRIANGLE_TEST_PAT 0x01
+#define SQUARE_TEST_PAT   0x02
+#define WAVEFORM_TEST_PAT 0x03
 
 #define LED_TEST_PATTERN  0x02
 #define REQ_FOR_DFU       0x03
@@ -85,6 +85,16 @@ typedef enum
   INMD_LED_CMND_POWER_UP_GOOD,
   INMD_LED_CMND_ACTUAL_DFU,
 }INMD_LED_COMMAND;
+
+//led commands
+typedef enum
+{
+  INMD_WFRM_OFF = 0x00,
+  INMD_WFRM_TRI = 0x01,
+  INMD_WFRM_SQR,
+  INMD_WFRM_TST,
+
+}INMD_WAVEFORM_COMMAND;
 //*****************************************************************************
 // structures
 //*****************************************************************************
@@ -99,5 +109,6 @@ typedef enum
 int iIneedmd_Rcv_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
 int iIneedmd_Send_cmnd_frame(uint8_t * uiCmnd_Frame, uint16_t uiCmnd_Frame_len);
 int iIneedmd_command_process(void);
+int ineedmd_send_status(void);
 
 #endif //__INEEDMD_COMMAND_PROTOCOL_H__
