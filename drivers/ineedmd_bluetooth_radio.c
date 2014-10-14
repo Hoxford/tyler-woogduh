@@ -335,7 +335,8 @@ typedef enum eRadio_message
   RADIO_MSG_RADIO_RFD,
   RADIO_MSG_RADIO_SETUP,
   RADIO_MSG_RADIO_PWR_DOWN,
-  RADIO_MSG_RADIO_PWR_UP
+  RADIO_MSG_RADIO_PWR_UP,
+  RADIO_MSG_WAIT_FOR_CONNECTION
 }eRadio_message;
 
 /******************************************************************************
@@ -344,7 +345,7 @@ typedef enum eRadio_message
 typedef struct tRadio_message_package
 {
   eRadio_message eMessage;
-  uint8_t pBuffer[128];
+  tRadio_request tRequest;
 }tRadio_message_package;
 
 /******************************************************************************
