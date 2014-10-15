@@ -112,7 +112,6 @@ volatile uint32_t uiCTS_int_status = 0;
 volatile bool bIs_usart_timeout = false;
 volatile bool bRdio_track_timeout_tick = false;
 volatile uint32_t uiRdio_timeout_tick = 0;
-static   bool bIs_Radio_UART_using_dma = false;
 volatile int  iNum_cmnd_buffs = 0;
 volatile int  iNum_cts_procs = 0;
 volatile bool bIs_DMA_transmit_in_process = false;
@@ -1738,57 +1737,6 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
 #endif
   ERROR_CODE eEC = ER_OK;
   uint32_t uiCurrent_Baud_rate = 0;
-  uint32_t uiCurrent_uart_settings = 0;
-
-//  MAP_UARTConfigGetExpClk(INEEDMD_RADIO_UART, INEEDMD_RADIO_UART_CLK, &uiCurrent_Baud_rate, &uiCurrent_uart_settings);
-//
-//  if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_57600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_57600u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_57600;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_76800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_76800u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_76800;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_115200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_115200u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_115200;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_230400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_230400u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_230400;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_460800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_460800u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_460800;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_921600d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_921600u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_921600;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1382400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1382400u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1382400;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_1843200d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_1843200u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_1843200;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_2764800d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_2764800u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_2764800;
-//  }
-//  else if((uiCurrent_Baud_rate >= INEEDMD_RADIO_UART_BAUD_3686400d10) & (uiCurrent_Baud_rate<= INEEDMD_RADIO_UART_BAUD_3686400u10))
-//  {
-//    uiCurrent_Baud_rate = INEEDMD_RADIO_UART_BAUD_3686400;
-//  }
-//  else
-//  {
-//#ifdef DEBUG
-//    vDEBUG_BSB_GET_BAUD("Get baud SYS HALT, unknown baud rate");
-//    while(1){};
-//#endif
-//  }
 
   if(sRadio_UART_handle == NULL)
   {
@@ -2246,7 +2194,9 @@ ERROR_CODE eRadio_interface_enable(void)
     if(USE_RADIO_UART_DMA == true)
     {
       //configure the radio UART to use DMA
-      eEC = Radio_UART_DMA_Config();
+      //todo: implement dma config
+//      eEC = Radio_UART_DMA_Config();
+      eEC = ER_FAIL; //DMA not implemented yet
     }else{/*do nothing*/}
   }
 
@@ -2494,8 +2444,6 @@ ERROR_CODE eRadio_rcv_string(char *cRcv_string, uint16_t uiBuff_size)
 ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 {
   ERROR_CODE eEC = ER_FAIL;
-  bool bChar_avail = false;
-  uint16_t uiTimeout = 0;
   int i = 0;
 
   //WARNING: this code is untested and my not work properly with the RTOS
@@ -2553,6 +2501,8 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 
 ERROR_CODE  eRadio_rcv_frame(uint8_t * cRcv_frame)
 {
+  //todo: implement error code setting
+  ERROR_CODE eEC = ER_FAIL;
   if(sRadio_UART_handle != NULL)
   {
     UART_close(sRadio_UART_handle);
@@ -2579,6 +2529,8 @@ ERROR_CODE  eRadio_rcv_frame(uint8_t * cRcv_frame)
   sRadio_UART_handle = UART_open(INEEDMD_RADIO_UART_INDEX, &sRadio_UART_params);
 
   UART_read(sRadio_UART_handle, cRcv_frame, 1);
+
+  return eEC;
 }
 //*****************************************************************************
 // name: eRadio_clear_rcv_buffer
@@ -3897,8 +3849,9 @@ ERROR_CODE  eGet_Radio_CTS_status(void)
 //******************************************************************************/
 ERROR_CODE eMaster_int_disable(void)
 {
-  ERROR_CODE eEC = ER_OK;
-  MAP_IntMasterDisable();
+  ERROR_CODE eEC = ER_FAIL;
+  //todo implement master disable for TI-RTOS
+//  MAP_IntMasterDisable();
   return eEC;
 }
 

@@ -219,6 +219,20 @@ ERROR_CODE eIneedmd_UI_params_init(tUI_request * ptUI_Request)
   ptUI_Request->ePower_led_sequence = POWER_LED_NO_UI;
   ptUI_Request->uiUI_element        = INMD_UI_ELEMENT_NONE;
 
+  if((ptUI_Request->bPerform_Immediatly == false)             &\
+     (ptUI_Request->eAlert_sound        == ALERT_SOUND_NO_UI) &\
+     (ptUI_Request->eComms_led_sequence == COMMS_LED_NO_UI)   &\
+     (ptUI_Request->eHeart_led_sequence == HEART_LED_NO_UI)   &\
+     (ptUI_Request->ePower_led_sequence == POWER_LED_NO_UI)   &\
+     (ptUI_Request->uiUI_element        == INMD_UI_ELEMENT_NONE))
+  {
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
   return eEC;
 }
 
@@ -236,7 +250,7 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
 #else
   #define vDEBUG_INMD_UI_REQ(a)
 #endif
-  ERROR_CODE eEC = ER_OK;
+  ERROR_CODE eEC = ER_FAIL;
   bool bDid_message_post = false;
   tUI_request tUI_Msg;
   uint16_t uiElement = ptUI_Request->uiUI_element;

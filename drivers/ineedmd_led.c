@@ -714,7 +714,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
 //    case POWER_LED_PURPLE:
 //      break;
 //    case POWER_LED_PINK:
-      break;
+//      break;
     case ALERT_SOUND_ON:
       break;
     case ALERT_SOUND_OFF:

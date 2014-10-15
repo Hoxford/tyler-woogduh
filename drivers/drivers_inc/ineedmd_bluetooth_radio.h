@@ -35,13 +35,16 @@
 
 typedef enum eRadio_request
 {
-  RADIO_REQUEST_NONE,
+  RADIO_REQUEST_NONE = 0,
   RADIO_REQUEST_CHANGE_SETTINGS,
+  RADIO_REQUEST_POWER_ON,
+  RADIO_REQUEST_POWER_OFF,
   RADIO_REQUEST_SEND_FRAME,
   RADIO_REQUEST_RECEIVE_FRAME,
   RADIO_REQUEST_WAIT_FOR_CONNECTION,
   RADIO_REQUEST_HALT_WAIT_FOR_CONNECTION,
-  RADIO_REQUEST_BREAK_CONNECTION
+  RADIO_REQUEST_BREAK_CONNECTION,
+  RADIO_REQUEST_LIMIT
 }eRadio_request;
 
 typedef enum eTransmit_priority
@@ -82,7 +85,7 @@ typedef enum eRadio_connection_state
 //Radio setup ready
 typedef enum eRadio_setup_state
 {
-    RDIO_SETUP_NOT_STARTED,
+    RDIO_SETUP_NOT_STARTED = 0,
     RDIO_SETUP_ENABLE_INTERFACE,
     RDIO_SETUP_INTERFACE_ENABLED,
     RDIO_SETUP_START_POWER,
@@ -92,8 +95,10 @@ typedef enum eRadio_setup_state
     RDIO_SETUP_START_RFD,
     RDIO_SETUP_FINISH_RFD,
     RDIO_SETUP_READY,
+    RDIO_SETUP_RADIO_READY_POWERED_OFF,
     RDIO_SETUP_ERROR,
-    RDIO_SETUP_UNKNOWN
+    RDIO_SETUP_UNKNOWN,
+    RDIO_SETUP_LIMIT
 }eRadio_setup_state;
 
 /******************************************************************************
@@ -102,7 +107,7 @@ typedef enum eRadio_setup_state
 //tExample_struct description
 typedef struct tRadio_request
 {
-  void * vBuff;  //pointer to the TX or RX buffer
+  uint8_t uiBuff[256];  //pointer to the TX or RX buffer
   uint32_t uiBuff_size; //size of the buffer in bytes
   uint32_t uiTimeout;  //timeout for receive and wait for connection in milliseconds
   eRadio_request eRequest; //radio request type
@@ -112,6 +117,7 @@ typedef struct tRadio_request
   void (* vBuff_receive_callback)      (eRadio_receive_state eRcv_state);
   void (* vChange_setting_callback)    (eRadio_Settings eSetting);
   void (* vConnection_status_callback) (eRadio_connection_state eRadio_conn);
+  void (* vSetup_state_callback)       (eRadio_setup_state eState);
 }tRadio_request;
 
 /******************************************************************************
@@ -137,6 +143,7 @@ typedef struct tRadio_request
 //void        vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count);
 eRadio_connection_state eGet_connection_state(void);
 eRadio_setup_state      eGet_radio_setup_state(void);
+ERROR_CODE              eSet_radio_setup_state(eRadio_setup_state eState);
 void        vIneedMD_radio_read_cb(RADIO_INTERFACE_RXCB_PARAMS);
 void        vIneedMD_radio_write_cb(RADIO_INTERFACE_TXCB_PARAMS);
 //ERROR_CODE  eIneedMD_radio_check_for_connection(void);

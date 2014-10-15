@@ -84,6 +84,7 @@ typedef enum
   INMD_LED_CMND_TEST_PASS,
   INMD_LED_CMND_POWER_UP_GOOD,
   INMD_LED_CMND_ACTUAL_DFU,
+  INMD_LED_CMND_LIMIT
 }INMD_LED_COMMAND;
 
 typedef enum eCommand_Request_notify
@@ -94,6 +95,7 @@ typedef enum eCommand_Request_notify
   CMND_REQUEST_RCV_PROTOCOL_FRAME,
   CMND_NOTIFY_INTERFACE_ESTABLISHED,
   CMND_NOTIFY_PROTOCOL_INTERFACE_ESTABLISHED,
+  CMND_NOTIFY_PROTOCOL_INTERFACE_TIME_OUT,
   CMND_NOTIFY_PROTOCOL_INTERFACE_CLOSED,
 }eCommand_Request_notify;
 /******************************************************************************
