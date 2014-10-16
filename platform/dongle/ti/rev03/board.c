@@ -1760,6 +1760,48 @@ ERROR_CODE eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get)
 #undef vDEBUG_BSB_GET_BAUD
 }
 
+ERROR_CODE eBSP_Set_radio_uart_to_blocking(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  if(sRadio_UART_handle != NULL)
+  {
+    UART_close(sRadio_UART_handle);
+  }else{/*do nothing*/}
+
+//  sRadio_UART_params.readMode       = UART_MODE_CALLBACK;              /*!< Mode for all read calls */
+//  sRadio_UART_params.writeMode      = UART_MODE_CALLBACK;              /*!< Mode for all write calls */
+  sRadio_UART_params.readMode       = UART_MODE_BLOCKING;              /*!< Mode for all read calls */
+  sRadio_UART_params.writeMode      = UART_MODE_BLOCKING;              /*!< Mode for all write calls */
+  sRadio_UART_params.readTimeout    = 1000;                            /*!< Timeout for read semaphore */
+  sRadio_UART_params.writeTimeout   = 1000;                            /*!< Timeout for write semaphore */
+  sRadio_UART_params.readCallback   = vIneedMD_radio_read_cb;          /*!< Pointer to read callback */
+//  sRadio_UART_params.writeCallback  = vIneedMD_radio_write_cb;         /*!< Pointer to write callback */
+//  sRadio_UART_params.readCallback   = NULL;          /*!< Pointer to read callback */
+  sRadio_UART_params.writeCallback  = NULL;         /*!< Pointer to write callback */
+//  sRadio_UART_params.readReturnMode = UART_RETURN_NEWLINE;             /*!< Receive return mode */
+  sRadio_UART_params.readReturnMode = UART_RETURN_FULL;             /*!< Receive return mode */
+  sRadio_UART_params.readDataMode   = UART_DATA_BINARY;                /*!< Type of data being read */
+  sRadio_UART_params.writeDataMode  = UART_DATA_BINARY;                /*!< Type of data being written */
+  sRadio_UART_params.readEcho       = UART_ECHO_OFF;                   /*!< Echo received data back */
+  sRadio_UART_params.baudRate       = INEEDMD_RADIO_UART_BAUD_1382400;              /*!< Baud rate for UART */
+  sRadio_UART_params.dataLength     = UART_LEN_8;                      /*!< Data length for UART */
+  sRadio_UART_params.stopBits       = UART_STOP_ONE;                   /*!< Stop bits for UART */
+  sRadio_UART_params.parityType     = UART_PAR_NONE;                   /*!< Parity bit type for UART */
+
+  sRadio_UART_handle = UART_open(INEEDMD_RADIO_UART_INDEX, &sRadio_UART_params);
+
+  if(sRadio_UART_handle == NULL)
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
+  return eEC;
+}
+
 ERROR_CODE  eBSP_Set_radio_uart_to_callback(void)
 {
   ERROR_CODE eEC = ER_FAIL;

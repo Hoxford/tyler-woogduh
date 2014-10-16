@@ -1223,6 +1223,8 @@ ERROR_CODE eIneedmd_cmnd_Proto_Request_Notify(tINMD_protocol_req_notify * ptPara
       case CMND_NOTIFY_PROTOCOL_INTERFACE_TIME_OUT:
         break;
       case CMND_NOTIFY_PROTOCOL_INTERFACE_CLOSED:
+        tProtocol_msg.eMsg = CMND_MSG_WAKEUP;
+        eEC = ER_OK;
         break;
       default:
         break;

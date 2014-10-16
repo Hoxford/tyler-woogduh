@@ -255,6 +255,8 @@
 #define SSP_PASSKEY_PARSE  "%s %s %hhx %c %hhx %c %hhx %c %hhx %c %hhx %c %hhx %d"
 #define SSP_PASSKEY_PARSE_NUM_ELEMENTS  15
 #define SET_RESET         "SET RESET\r\n"  //sets and returns the factory settings of the module.
+
+#define NO_CARRIER        "NO CARRIER "
 #define READY             "READY.\r\n"
 #define READY_STRLEN      8
 #define RING              "RING "
@@ -267,6 +269,7 @@
 #define BG_SIZE              1024
 #define BG_SEND_SIZE         128
 #define BG_SEND_SIZE_SMALL   50
+#define MSG_BUFF_SIZE        256
 
 //Delay times
 #define TIMEOUT_RFD_CTS_HL         2000
@@ -2470,6 +2473,15 @@ void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count)
       tParams.eRequest = RADIO_REQUEST_RECEIVE_PROTOCOL_FRAME;
       eIneedmd_radio_request(&tParams);
     }
+    else if((c[0] == 'N') &\
+            (c[1] == 'O') &\
+            (c[2] == ' '))
+    {
+      //copy the already recieved bytes
+      memcpy(tParams.uiBuff, c, count);
+      tParams.eRequest = RADIO_REQUEST_RECEIVE_RADIO_FRAME;
+      eIneedmd_radio_request(&tParams);
+    }
 
     return;
   }
@@ -2629,6 +2641,9 @@ ERROR_CODE eIneedmd_radio_request(tRadio_request * tRequest)
           case RADIO_REQUEST_RECEIVE_PROTOCOL_FRAME:
             bDid_message_post = Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
             break;
+          case RADIO_REQUEST_RECEIVE_RADIO_FRAME:
+            bDid_message_post = Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
+            break;
           case RADIO_REQUEST_WAIT_FOR_CONNECTION:
             eConn_State = eGet_radio_connection_state();
             if(eConn_State == RADIO_CONN_NONE)
@@ -2656,6 +2671,13 @@ ERROR_CODE eIneedmd_radio_request(tRadio_request * tRequest)
               bDid_message_post = Mailbox_post(tTIRTOS_Radio_mailbox, tRequest, BIOS_WAIT_FOREVER);
             }
             break;
+          case RADIO_REQUEST_POWER_ON:
+            //radio is already powered on set the error code to ok
+            eEC = ER_OK;
+            if(tRequest->vSetup_state_callback != NULL)
+            {
+              tRequest->vSetup_state_callback(RDIO_SETUP_READY);
+            }
           default:
             bDid_message_post = false;
             break;
@@ -2786,6 +2808,8 @@ void vIneedMD_radio_task(UArg a0, UArg a1)
   eRadio_connection_state eConn_State;
   tRadio_request tRadio_msg;
   tINMD_protocol_req_notify tProtocol_req_notify;
+  char *   cNo_carrier = NULL;
+  uint16_t uiRcvd_str_len = 0;
 
   uint32_t uiMsg_size = sizeof(tRadio_request);
   uint32_t uiMbox_size = 0;
@@ -2855,10 +2879,20 @@ void vIneedMD_radio_task(UArg a0, UArg a1)
             }
           }
           break;
-//        case RADIO_REQUEST_RECEIVE_FRAME:
-//          //todo: move to the request function since the receive frame is interrupt based and doesn't need a special message case to process
-//          eRadio_rcv_frame((uint8_t *)cRdo_setup_rcv_buff, 3);
-//          break;
+        case RADIO_REQUEST_RECEIVE_RADIO_FRAME:
+          eIneedmd_radio_rcv_string((char *)&tRadio_msg.uiBuff[3], MSG_BUFF_SIZE, &uiRcvd_str_len);
+          cNo_carrier = strstr((char *)tRadio_msg.uiBuff, NO_CARRIER);
+          if(cNo_carrier != NULL)
+          {
+            eSet_connection_state(RADIO_CONN_NONE);
+            eIneedmd_cmnd_Proto_ReqNote_params_init(&tProtocol_req_notify);
+            tProtocol_req_notify.eReq_Notify = CMND_NOTIFY_PROTOCOL_INTERFACE_CLOSED;
+            eIneedmd_cmnd_Proto_Request_Notify(&tProtocol_req_notify);
+
+            eBSP_Set_radio_uart_to_blocking();
+          }
+
+          break;
         case RADIO_REQUEST_RECEIVE_PROTOCOL_FRAME:
           eRadio_rcv_frame(&tRadio_msg.uiBuff[3], (tRadio_msg.uiBuff_size - 3));
           if((tRadio_msg.uiBuff[0]                          == INEEDMD_CMND_SOF) & \

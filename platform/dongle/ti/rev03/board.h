@@ -518,6 +518,7 @@ int         EKGSPIEnable(void);
 int         EKGSPIDisable(void);
 ERROR_CODE  eBSP_Set_radio_uart_baud(uint32_t uiBaud_rate_to_set);
 ERROR_CODE  eBSP_Get_radio_uart_baud(uint32_t * uiBaud_rate_to_get);
+ERROR_CODE  eBSP_Set_radio_uart_to_blocking(void);
 ERROR_CODE  eBSP_Set_radio_uart_to_callback(void);
 ERROR_CODE  eBSP_RadioUARTEnable(void);
 int         RadioUARTDisable(void);
