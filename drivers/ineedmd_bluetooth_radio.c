@@ -1677,43 +1677,43 @@ ERROR_CODE iIneedmd_radio_rcv_settings(char *cRcv_string, uint16_t uiBuff_size)
   eEC = eUsing_radio_uart_dma();
   if(eEC == ER_TRUE)
   {
-    for(i = 0; i < 5; i++)  //Check all available buffers to review buffers
-    {
-      eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
-      if(eEC == ER_OK)
-      {
-        //determine if settings message received
-        cSettings_msg = strstr(cRcv_string, ENDOF_SET_SETTINGS);
-        if(cSettings_msg == NULL)
-        {
-          eEC = ER_INVALID_RESPONSE;
-        }
-        else
-        {
-          eEC = ER_VALID;
-          break;
-        }
-        //set a data received control variable to mark some data was received from radio
-        bWas_any_data_rcvd = true;
-      }
-      else if(eEC == ER_NODATA)
-      {
-        //check if the radio was completly silent
-        if(bWas_any_data_rcvd == false)
-        {
-          eEC = ER_FAIL;
-        }else{/*do nothing*/}
-        continue;
-      }
-      else
-      {
-        /*nothing*/
-  #ifdef DEBUG
-        vDEBUG_RDIO_RCV_SET("Rcv settings SYS HALT, fail to rcv");
-        while(1){};//catch a fail to receive
-  #endif
-      }
-    }
+//    for(i = 0; i < 5; i++)  //Check all available buffers to review buffers
+//    {
+//      eEC = eRcv_dma_radio_cmnd_frame(cRcv_string, uiBuff_size);
+//      if(eEC == ER_OK)
+//      {
+//        //determine if settings message received
+//        cSettings_msg = strstr(cRcv_string, ENDOF_SET_SETTINGS);
+//        if(cSettings_msg == NULL)
+//        {
+//          eEC = ER_INVALID_RESPONSE;
+//        }
+//        else
+//        {
+//          eEC = ER_VALID;
+//          break;
+//        }
+//        //set a data received control variable to mark some data was received from radio
+//        bWas_any_data_rcvd = true;
+//      }
+//      else if(eEC == ER_NODATA)
+//      {
+//        //check if the radio was completly silent
+//        if(bWas_any_data_rcvd == false)
+//        {
+//          eEC = ER_FAIL;
+//        }else{/*do nothing*/}
+//        continue;
+//      }
+//      else
+//      {
+//        /*nothing*/
+//  #ifdef DEBUG
+//        vDEBUG_RDIO_RCV_SET("Rcv settings SYS HALT, fail to rcv");
+//        while(1){};//catch a fail to receive
+//  #endif
+//      }
+//    }
   }
   else //using blocking type receive
   {
