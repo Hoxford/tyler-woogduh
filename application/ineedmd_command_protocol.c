@@ -54,6 +54,7 @@
 
 //protocol connection defines
 #define PROTOCOL_CONN_TIMEOUT_1MIN    60000
+#define PROTOCOL_CONN_TIMEOUT_FOREVER 0
 
 #ifdef DEBUG
   #define printf        vDEBUG
@@ -188,6 +189,8 @@ void vRadio_connection_callback(eRadio_connection_state eRadio_conn)
   else if(eRadio_conn == RADIO_CONN_CONNECTED)
   {
     bIs_protocol_connection = true;
+    tCmnd_Req_Notify.eReq_Notify = CMND_NOTIFY_PROTOCOL_INTERFACE_ESTABLISHED;
+    eEC = ER_OK;
   }
 
   if(eEC == ER_OK)
@@ -1213,6 +1216,9 @@ ERROR_CODE eIneedmd_cmnd_Proto_Request_Notify(tINMD_protocol_req_notify * ptPara
       case CMND_NOTIFY_INTERFACE_ESTABLISHED:
         break;
       case CMND_NOTIFY_PROTOCOL_INTERFACE_ESTABLISHED:
+        //notify task that protocol interface was established
+        tProtocol_msg.eMsg = CMND_MSG_PROTOCOL_INTERFACE_ESTABLISHED;
+        eEC = ER_OK;
         break;
       case CMND_NOTIFY_PROTOCOL_INTERFACE_TIME_OUT:
         break;
@@ -1278,6 +1284,7 @@ void vIneedmd_command_task(UArg a0, UArg a1)
       {
         case CMND_MSG_WAKEUP:
         {
+          //Perform wakeup procedure
           eIneedmd_radio_request_params_init (&tRadio_request);
           tRadio_request.eRequest = RADIO_REQUEST_POWER_ON;
           tRadio_request.vSetup_state_callback = &vRadio_setup_callback;
@@ -1295,9 +1302,10 @@ void vIneedmd_command_task(UArg a0, UArg a1)
             {
               Task_sleep(10);
             }
+            vDEBUG("Proto cmndr, waiting for proto connection");
             eIneedmd_radio_request_params_init (&tRadio_request);
             tRadio_request.eRequest = RADIO_REQUEST_WAIT_FOR_CONNECTION;
-            tRadio_request.uiTimeout = PROTOCOL_CONN_TIMEOUT_1MIN;
+            tRadio_request.uiTimeout = PROTOCOL_CONN_TIMEOUT_FOREVER;
             tRadio_request.vConnection_status_callback = &vRadio_connection_callback;
             eIneedmd_radio_request(&tRadio_request);
           }
@@ -1317,11 +1325,26 @@ void vIneedmd_command_task(UArg a0, UArg a1)
           }
           break;
         case CMND_MSG_PROTOCOL_FRAME:
-          eParse_Protocol_Frame(&tProtocol_msg.uiCmnd_Frame, tProtocol_msg.uiCmnd_Frame_len);
+          vDEBUG("Proto cmndr, got proto frame");
+          eEC = eParse_Protocol_Frame(tProtocol_msg.uiCmnd_Frame, tProtocol_msg.uiCmnd_Frame_len);
+          if(eEC == ER_OK)
+          {
+            eIneedmd_radio_request_params_init (&tRadio_request);
+            tRadio_request.eRequest = RADIO_REQUEST_RECEIVE_FRAME;
+            eIneedmd_radio_request(&tRadio_request);
+          }
           break;
         case CMND_MSG_INTERFACE_ESTABLISHED:
           break;
         case CMND_MSG_PROTOCOL_INTERFACE_ESTABLISHED:
+          //perform protocol interface established procedure
+          //
+          vDEBUG("Proto cmndr, proto intf estab");
+          //Tell the radio to go into receive mode
+          //
+          eIneedmd_radio_request_params_init (&tRadio_request);
+          tRadio_request.eRequest = RADIO_REQUEST_RECEIVE_FRAME;
+          eIneedmd_radio_request(&tRadio_request);
           break;
         case CMND_MSG_PROTOCOL_INTERFACE_CLOSED:
           break;

@@ -78,8 +78,7 @@ int main(void)
   vDEBUG_init();
   vDEBUG("Hello World!");
 
-//  BIOS_start();    /* does not return */
-  eOSAL_OS_start();
+  eOSAL_OS_start();/* does not return */
 
   return(0);
 }

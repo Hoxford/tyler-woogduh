@@ -2274,12 +2274,8 @@ int iRadio_send_string(char *cSend_string, uint16_t uiBuff_size)
     return 0;
   }
 
-  iBytes_sent = UART_writePolling(sRadio_UART_handle, cSend_string, i);
+  iBytes_sent = UART_write(sRadio_UART_handle, cSend_string, i);
 
-//  for (i = 0; i<uiBuff_size; i++)
-//  {
-//    UARTCharPut(INEEDMD_RADIO_UART, cSend_string[i]);
-//  }
   return iBytes_sent;
 }
 
@@ -2383,10 +2379,12 @@ int iRadio_send_frame(uint8_t *cSend_frame, uint16_t uiFrame_size)
 {
   int i;
 
-  for (i = 0; i<uiFrame_size; i++)
+  i = UART_write(sRadio_UART_handle, cSend_frame, uiFrame_size);
+
+  if(i == UART_ERROR)
   {
-    MAP_UARTCharPut(INEEDMD_RADIO_UART, cSend_frame[i]);
-  }
+    i = -1;
+  }else{/*do nothing*/}
   return i;
 }
 
@@ -2499,36 +2497,11 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
 //  return 1;
 //}
 
-ERROR_CODE  eRadio_rcv_frame(uint8_t * cRcv_frame)
+ERROR_CODE  eRadio_rcv_frame(uint8_t * cRcv_frame, uint32_t uiFrame_len)
 {
-  //todo: implement error code setting
   ERROR_CODE eEC = ER_FAIL;
-  if(sRadio_UART_handle != NULL)
-  {
-    UART_close(sRadio_UART_handle);
-  }else{/*do nothing*/}
 
-  sRadio_UART_params.readMode       = UART_MODE_CALLBACK;              /*!< Mode for all read calls */
-  sRadio_UART_params.writeMode      = UART_MODE_BLOCKING;              /*!< Mode for all write calls */
-  sRadio_UART_params.readTimeout    = 1000;                            /*!< Timeout for read semaphore */
-  sRadio_UART_params.writeTimeout   = 1000;                            /*!< Timeout for write semaphore */
-  sRadio_UART_params.readCallback   = vIneedMD_radio_read_cb;          /*!< Pointer to read callback */
-//  sRadio_UART_params.writeCallback  = vIneedMD_radio_write_cb;         /*!< Pointer to write callback */
-//  sRadio_UART_params.readCallback   = NULL;          /*!< Pointer to read callback */
-  sRadio_UART_params.writeCallback  = NULL;         /*!< Pointer to write callback */
-//  sRadio_UART_params.readReturnMode = UART_RETURN_NEWLINE;             /*!< Receive return mode */
-  sRadio_UART_params.readReturnMode = UART_RETURN_FULL;             /*!< Receive return mode */
-  sRadio_UART_params.readDataMode   = UART_DATA_BINARY;                /*!< Type of data being read */
-  sRadio_UART_params.writeDataMode  = UART_DATA_BINARY;                /*!< Type of data being written */
-  sRadio_UART_params.readEcho       = UART_ECHO_OFF;                   /*!< Echo received data back */
-  sRadio_UART_params.baudRate       = INEEDMD_RADIO_UART_BAUD_1382400;              /*!< Baud rate for UART */
-  sRadio_UART_params.dataLength     = UART_LEN_8;                      /*!< Data length for UART */
-  sRadio_UART_params.stopBits       = UART_STOP_ONE;                   /*!< Stop bits for UART */
-  sRadio_UART_params.parityType     = UART_PAR_NONE;                   /*!< Parity bit type for UART */
-
-  sRadio_UART_handle = UART_open(INEEDMD_RADIO_UART_INDEX, &sRadio_UART_params);
-
-  UART_read(sRadio_UART_handle, cRcv_frame, 1);
+  UART_read(sRadio_UART_handle, cRcv_frame, uiFrame_len);
 
   return eEC;
 }

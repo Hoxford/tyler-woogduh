@@ -266,10 +266,19 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
     switch (eHeart_led_seq)
     {
       default:
-        vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
-        while(1){};
+        eEC = ER_FAIL;
+        if(eEC == ER_FAIL)
+        {
+          vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
+          while(1){};
+        }
     }
-    Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
+
+    if(eEC == ER_OK)
+    {
+      Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
+    }else{/*do nothing*/}
+
   }else{/*do nothing*/}
 
   // Comms LED sequence request

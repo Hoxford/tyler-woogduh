@@ -41,6 +41,8 @@ typedef enum eRadio_request
   RADIO_REQUEST_POWER_OFF,
   RADIO_REQUEST_SEND_FRAME,
   RADIO_REQUEST_RECEIVE_FRAME,
+  RADIO_REQUEST_RECEIVE_PROTOCOL_FRAME,
+  RADIO_REQUEST_RECEIVE_RADIO_FRAME,
   RADIO_REQUEST_WAIT_FOR_CONNECTION,
   RADIO_REQUEST_HALT_WAIT_FOR_CONNECTION,
   RADIO_REQUEST_BREAK_CONNECTION,
@@ -130,20 +132,15 @@ typedef struct tRadio_request
 //ERROR_CODE  eIneedMD_radio_task_init(void); //Function to call to initalize the radio driver task
 //void        ineedmd_radio_power     (bool);
 //void        ineedmd_radio_reset     (void);
-//void ineedmd_radio_soft_reset(void);
 //ERROR_CODE  eIneedmd_radio_rfd(void);
 //void        ineedmd_radio_send_string(char *send_string, uint16_t uiBuff_size);
 //int         ineedmd_radio_send_frame(uint8_t *send_frame, uint16_t uiFrame_size);
 //int         iIneedmd_radio_rcv_string(char *cRcv_string, uint16_t uiBuff_size);
-//int         iIneedmd_radio_rcv_byte(uint8_t *uiRcv_byte);
-//int         iIneedmd_radio_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size);
-//ERROR_CODE  eIneedmd_radio_int_rcv_frame(uint8_t *uiRcv_frame, uint16_t uiBuff_size, uint32_t * uiBytes_rcvd);
 //ERROR_CODE  eIneedMD_radio_setup(void);
 //void        vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count);
 //void        vIneedMD_radio_write_cb(UART_Handle sHandle, void *buf, int count);
-eRadio_connection_state eGet_connection_state(void);
+eRadio_connection_state eGet_radio_connection_state(void);
 eRadio_setup_state      eGet_radio_setup_state(void);
-ERROR_CODE              eSet_radio_setup_state(eRadio_setup_state eState);
 void        vIneedMD_radio_read_cb(RADIO_INTERFACE_RXCB_PARAMS);
 void        vIneedMD_radio_write_cb(RADIO_INTERFACE_TXCB_PARAMS);
 //ERROR_CODE  eIneedMD_radio_check_for_connection(void);

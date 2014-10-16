@@ -102,11 +102,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/drivers/battery.c</locationURI>
 		</link>
 		<link>
-			<name>drivers/bluetooth.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/drivers/bluetooth.c</locationURI>
-		</link>
-		<link>
 			<name>drivers/ineedmd_adc.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/drivers/ineedmd_adc.c</locationURI>
