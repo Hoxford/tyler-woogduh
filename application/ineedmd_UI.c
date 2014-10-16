@@ -92,6 +92,8 @@
 #define LED_0_5_SEC                     500
 
 #define UI_TIMER_PERIOD_10SEC           10000000
+#define UI_TIMER_PERIOD_5SEC            5000000
+#define UI_TIMER_PERIOD_2SEC            2000000
 #define UI_TIMER_PERIOD_1SEC            1000000
 #define UI_TIMER_PERIOD_500mSEC         500000
 #define UI_TIMER_PERIOD_100mSEC         100000
@@ -104,6 +106,22 @@
 uintmax_t uiTimer = 0;
 bool      bIsSeqRunning = false;
 uint8_t uiMailbox_buff[768];
+
+//used during timer interrupts to get next UI call
+eCOMMS_LED_UI eComms_last_sequence = COMMS_LED_NO_UI;
+bool bComms_led_on = false;
+bool bComms_led_flashing = false;
+
+eHEART_LED_UI eHeart_last_sequence = HEART_LED_NO_UI;
+bool bHeart_led_on = false;
+bool bHeart_led_flashing = false;
+
+ePOWER_LED_UI ePower_last_sequence = POWER_LED_NO_UI;
+bool bPower_led_on = false;
+bool bPower_led_flashing = false;
+
+
+
 
 /******************************************************************************
 * external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -265,6 +283,26 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
   {
     switch (eHeart_led_seq)
     {
+      case HEART_LED_NO_UI:
+        tUI_Msg.eHeart_led_sequence = HEART_LED_NO_UI;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        break;
+      case HEART_LED_UI_OFF:
+        tUI_Msg.eHeart_led_sequence = HEART_LED_UI_OFF;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        break;
+      case HEART_LED_LEAD_OFF_NO_DATA:
+        tUI_Msg.eHeart_led_sequence = HEART_LED_LEAD_OFF_NO_DATA;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        break;
+      case HEART_LED_LEAD_ON:
+        tUI_Msg.eHeart_led_sequence = HEART_LED_LEAD_ON;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        break;
+      case HEART_LED_DIGITAL_FLATLINE:
+        tUI_Msg.eHeart_led_sequence = HEART_LED_DIGITAL_FLATLINE;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        break;
       default:
         eEC = ER_FAIL;
         if(eEC == ER_FAIL)
@@ -287,6 +325,54 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
   {
     switch (eComms_led_seq)
     {
+      case COMMS_LED_NO_UI:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_NO_UI;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_UI_OFF:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_UI_OFF;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_BLUETOOTH_PAIRING:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_BLUETOOTH_PAIRING_FAILIED:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING_FAILIED;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_USB_CONNECTION_SUCESSFUL:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_USB_CONNECTION_SUCESSFUL;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_USB_CONNECTION_FAILED:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_USB_CONNECTION_FAILED;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_DATA_TRANSFERING_FROM_DONGLE:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_DATA_TRANSFERING_FROM_DONGLE;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_DATA_TRANSFER_SUCESSFUL:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_DATA_TRANSFER_SUCESSFUL;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_DONGLE_STORAGE_WARNING:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_DONGLE_STORAGE_WARNING;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_ERASING_STORED_DATA:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_ERASING_STORED_DATA;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
+      case COMMS_LED_ERASE_COMPLETE:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_ERASE_COMPLETE;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        break;
       default:
         vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
         while(1){};
@@ -304,26 +390,44 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
     switch (ePower_led_seq)
     {
       case POWER_LED_NO_UI:
+        tUI_Msg.ePower_led_sequence = POWER_LED_NO_UI;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_UI_OFF:
         tUI_Msg.ePower_led_sequence = POWER_LED_UI_OFF;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_90to100:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_90to100;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_50to90:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_50to90;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_25to50:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_25to50;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_0to25:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_0to25;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_BLIP_90to100:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_90to100;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_BLIP_50to90:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_50to90;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_BLIP_25to50:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_25to50;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       case POWER_LED_POWER_ON_BLIP_0to25:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_0to25;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         break;
       default:
         vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
@@ -340,22 +444,49 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
 
 void vIneedmd_UI_Comms_led_timer_INT_Service(UArg a0)
 {
-//  eIneedmd_LED_pattern(COMMS_LED_OFF);
+  eCOMMS_LED_UI next_sequence = COMMS_LED_UI_OFF;
+  if(bComms_led_flashing)
+  {
+    next_sequence = eComms_last_sequence;
+  }
+  tUI_request tUI_task_msg;
+  eIneedmd_UI_params_init(&tUI_task_msg);
+  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+  tUI_task_msg.eComms_led_sequence = next_sequence;
+  eIneedmd_UI_request(&tUI_task_msg);
+  //  eIneedmd_LED_pattern(COMMS_LED_OFF);
   return;
 }
 
 void vIneedmd_UI_Heart_led_timer_INT_Service(UArg a0)
 {
-//  eIneedmd_LED_pattern(HEART_LED_OFF);
+  eHEART_LED_UI next_sequence = HEART_LED_UI_OFF;
+
+  if (bHeart_led_flashing)
+  {
+    next_sequence = eHeart_last_sequence;
+  }
+  tUI_request tUI_task_msg;
+  eIneedmd_UI_params_init(&tUI_task_msg);
+  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+  tUI_task_msg.eHeart_led_sequence = next_sequence;
+  eIneedmd_UI_request(&tUI_task_msg);
   return;
 }
 
 void vIneedmd_UI_Power_led_timer_INT_Service(UArg a0)
 {
+  ePOWER_LED_UI next_sequence = POWER_LED_UI_OFF;
+  //check current sequence to get next sequence
+  if (bPower_led_flashing)
+  {
+    next_sequence = ePower_last_sequence;
+  }
+  //post next led state
   tUI_request tUI_task_msg;
   eIneedmd_UI_params_init(&tUI_task_msg);
   tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
-  tUI_task_msg.ePower_led_sequence = POWER_LED_UI_OFF;
+  tUI_task_msg.ePower_led_sequence = next_sequence;
   eIneedmd_UI_request(&tUI_task_msg);
   return;
 }
@@ -379,7 +510,7 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
 //  I2C_Handle         tI2C_handle;
 //  I2C_Params         tI2C_params;
   tStruct_UI_Process          tUI_Process;
-//  tStruct_UI_Command_Request  tUI_requested_feature;
+  tStruct_UI_Command_Request  tUI_requested_feature;
   tUI_request tUI_task_msg;
   uint32_t uiTimer_period = 0;
 
@@ -416,13 +547,22 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
   }
 //  eClock_get_total_runtime(&uiCurrent_tick);
 
-//  eIneedmd_UI_params_init(&tUI_task_msg);
-//  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
-//  tUI_task_msg.ePower_led_sequence = POWER_LED_UI_OFF;
-//  eIneedmd_UI_request(&tUI_task_msg);
-//  eIneedmd_UI_params_init(&tUI_task_msg);
 
   eIneedmd_LED_pattern(UI_ALL_OFF);
+
+
+  eIneedmd_UI_params_init(&tUI_task_msg);
+  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+  tUI_task_msg.eHeart_led_sequence = HEART_LED_DIGITAL_FLATLINE;
+  eIneedmd_UI_request(&tUI_task_msg);
+
+
+  eIneedmd_UI_params_init(&tUI_task_msg);
+  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+  tUI_task_msg.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING;
+  eIneedmd_UI_request(&tUI_task_msg);
+
+//  eIneedmd_UI_params_init(&tUI_task_msg);
 
   //Main UI task loop
   //
@@ -441,34 +581,171 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
         {
           case POWER_LED_NO_UI:
             tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bPower_led_on = false;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_UI_OFF:
             eIneedmd_LED_pattern(POWER_LED_OFF);
             uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bPower_led_on = false;
+            ePower_last_sequence = POWER_LED_UI_OFF;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_POWER_ON_90to100:
             eIneedmd_LED_pattern(POWER_LED_GREEN);
-            uiTimer_period = UI_TIMER_PERIOD_10SEC;
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bPower_led_on = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_90to100;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_POWER_ON_50to90:
             eIneedmd_LED_pattern(POWER_LED_YELLOW);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bPower_led_on = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_50to90;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_POWER_ON_25to50:
             eIneedmd_LED_pattern(POWER_LED_ORANGE);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bPower_led_on = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_25to50;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_POWER_ON_0to25:
             eIneedmd_LED_pattern(POWER_LED_RED);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bPower_led_on = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_0to25;
+            bPower_led_flashing = false;
+            break;
+          case POWER_LED_POWER_ON_CHARGE_90to100:
+            //if entering pattern for first time, reset state flag to start pattern immediately
+            if (ePower_last_sequence != POWER_LED_POWER_ON_CHARGE_90to100)
+            {
+              bPower_led_on = false;
+            }
+            bPower_led_flashing = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_CHARGE_90to100;
+            if (bPower_led_on == false)
+            {
+              eIneedmd_LED_pattern(POWER_LED_GREEN);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(POWER_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = false;
+            }
+            break;
+          case POWER_LED_POWER_ON_CHARGE_50to90:
+            //if entering pattern for first time, reset state flag to start pattern immediately
+            if (ePower_last_sequence != POWER_LED_POWER_ON_CHARGE_50to90)
+            {
+              bPower_led_on = false;
+            }
+            bPower_led_flashing = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_CHARGE_50to90;
+            if (bPower_led_on == false)
+            {
+              eIneedmd_LED_pattern(POWER_LED_YELLOW);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(POWER_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = false;
+            }
+            break;
+          case POWER_LED_POWER_ON_CHARGE_25to50:
+            //if entering pattern for first time, reset state flag to start pattern immediately
+            if (ePower_last_sequence != POWER_LED_POWER_ON_CHARGE_25to50)
+            {
+              bPower_led_on = false;
+            }
+            bPower_led_flashing = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_CHARGE_25to50;
+            if (bPower_led_on == false)
+            {
+              eIneedmd_LED_pattern(POWER_LED_ORANGE);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(POWER_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = false;
+            }
+            break;
+          case POWER_LED_POWER_ON_CHARGE_0to25:
+            //if entering pattern for first time, reset state flag to start pattern immediately
+            if (ePower_last_sequence != POWER_LED_POWER_ON_CHARGE_0to25)
+            {
+              bPower_led_on = false;
+            }
+            bPower_led_flashing = true;
+            ePower_last_sequence = POWER_LED_POWER_ON_CHARGE_0to25;
+            if (bPower_led_on == false)
+            {
+              eIneedmd_LED_pattern(POWER_LED_RED);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(POWER_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bPower_led_on = false;
+            }
             break;
           case POWER_LED_POWER_ON_BLIP_90to100:
+            eIneedmd_LED_pattern(POWER_LED_GREEN);
+            uiTimer_period = UI_TIMER_PERIOD_1SEC;
+            bPower_led_on = false;
+            ePower_last_sequence =  POWER_LED_POWER_ON_BLIP_90to100;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_POWER_ON_BLIP_50to90:
+            eIneedmd_LED_pattern(POWER_LED_YELLOW);
+            uiTimer_period = UI_TIMER_PERIOD_1SEC;
+            bPower_led_on = false;
+            ePower_last_sequence =  POWER_LED_POWER_ON_BLIP_50to90;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_POWER_ON_BLIP_25to50:
+            eIneedmd_LED_pattern(POWER_LED_ORANGE);
+            uiTimer_period = UI_TIMER_PERIOD_1SEC;
+            bPower_led_on = false;
+            ePower_last_sequence =  POWER_LED_POWER_ON_BLIP_25to50;
+            bPower_led_flashing = false;
             break;
           case POWER_LED_POWER_ON_BLIP_0to25:
+            eIneedmd_LED_pattern(POWER_LED_RED);
+            uiTimer_period = UI_TIMER_PERIOD_1SEC;
+            bPower_led_on = false;
+            ePower_last_sequence =  POWER_LED_POWER_ON_BLIP_0to25;
+            bPower_led_flashing = false;
             break;
           default:
             eIneedmd_LED_pattern(UI_ALL_OFF);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bPower_led_on = false;
+            ePower_last_sequence =  POWER_LED_UI_OFF;
+            bPower_led_flashing = false;
+
+            bComms_led_on = false;
+            bComms_led_flashing = false;
+            eComms_last_sequence =  COMMS_LED_UI_OFF;
+
+            bHeart_led_on = false;
+            eHeart_last_sequence =  HEART_LED_UI_OFF;
+            bHeart_led_flashing = false;
             break;
         }
 
@@ -496,8 +773,144 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
 
         switch(tUI_task_msg.eComms_led_sequence)
         {
+          case COMMS_LED_NO_UI:
+            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bComms_led_on = false;
+            eComms_last_sequence = COMMS_LED_NO_UI;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_UI_OFF:
+            eIneedmd_LED_pattern(COMMS_LED_OFF);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bComms_led_on = false;
+            eComms_last_sequence = COMMS_LED_UI_OFF;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL:
+            eIneedmd_LED_pattern(COMMS_LED_BLUE);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_BLUETOOTH_PAIRING:
+            if (eComms_last_sequence != COMMS_LED_BLUETOOTH_PAIRING)
+            {
+              bComms_led_on = false;
+            }
+            bComms_led_flashing = true;
+            eComms_last_sequence = COMMS_LED_BLUETOOTH_PAIRING;
+            if (bComms_led_on == false)
+            {
+              eIneedmd_LED_pattern(COMMS_LED_BLUE);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bComms_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(COMMS_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bComms_led_on = false;
+            }
+            break;
+          case COMMS_LED_BLUETOOTH_PAIRING_FAILIED:
+            eIneedmd_LED_pattern(COMMS_LED_ORANGE);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_BLUETOOTH_PAIRING_FAILIED;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_USB_CONNECTION_SUCESSFUL:
+            eIneedmd_LED_pattern(COMMS_LED_BLUE);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_BLUETOOTH_PAIRING_FAILIED;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_USB_CONNECTION_FAILED:
+            eIneedmd_LED_pattern(COMMS_LED_ORANGE);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_USB_CONNECTION_FAILED;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_DATA_TRANSFERING_FROM_DONGLE:
+            if (eComms_last_sequence != COMMS_LED_DATA_TRANSFERING_FROM_DONGLE)
+            {
+              bComms_led_on = false;
+            }
+            bComms_led_flashing = true;
+            eComms_last_sequence = COMMS_LED_DATA_TRANSFERING_FROM_DONGLE;
+            if (bComms_led_on == false)
+            {
+              eIneedmd_LED_pattern(COMMS_LED_PURPLE);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bComms_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(COMMS_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_1SEC;
+              bComms_led_on = false;
+            }
+            break;
+          case COMMS_LED_DATA_TRANSFER_SUCESSFUL:
+            eIneedmd_LED_pattern(COMMS_LED_PURPLE);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_DATA_TRANSFER_SUCESSFUL;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_DONGLE_STORAGE_WARNING:
+            eIneedmd_LED_pattern(COMMS_LED_ORANGE);
+            uiTimer_period = UI_TIMER_PERIOD_5SEC;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_DONGLE_STORAGE_WARNING;
+            bComms_led_flashing = false;
+            break;
+          case COMMS_LED_ERASING_STORED_DATA:
+            if (eComms_last_sequence != COMMS_LED_ERASING_STORED_DATA)
+            {
+              bComms_led_on = false;
+            }
+            bComms_led_flashing = true;
+            eComms_last_sequence = COMMS_LED_ERASING_STORED_DATA;
+
+            if (bComms_led_on == false)
+            {
+              eIneedmd_LED_pattern(COMMS_LED_ORANGE);
+              uiTimer_period = UI_TIMER_PERIOD_2SEC;
+              bComms_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(COMMS_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_2SEC;
+              bComms_led_on = false;
+            }
+            break;
+          case COMMS_LED_ERASE_COMPLETE:
+            eIneedmd_LED_pattern(COMMS_LED_GREEN);
+            uiTimer_period = UI_TIMER_PERIOD_2SEC;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_ERASE_COMPLETE;
+            bComms_led_flashing = false;
+            break;
           default:
             eIneedmd_LED_pattern(UI_ALL_OFF);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bPower_led_on = false;
+            ePower_last_sequence =  POWER_LED_UI_OFF;
+            bPower_led_flashing = false;
+
+            bComms_led_on = false;
+            bComms_led_flashing = false;
+            eComms_last_sequence =  COMMS_LED_UI_OFF;
+
+            bHeart_led_on = false;
+            eHeart_last_sequence =  HEART_LED_UI_OFF;
+            bHeart_led_flashing = false;
             break;
         }
 
@@ -525,8 +938,98 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
 
         switch(tUI_task_msg.eHeart_led_sequence)
         {
+          case HEART_LED_NO_UI:
+            tUI_Process.comms_led_last_UI_request = COMMS_LED_NO_UI;
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bHeart_led_on = false;
+            eHeart_last_sequence = HEART_LED_NO_UI;
+            bHeart_led_flashing = false;
+            break;
+          case HEART_LED_UI_OFF:
+            eIneedmd_LED_pattern(HEART_LED_OFF);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bHeart_led_on = false;
+            eHeart_last_sequence = HEART_LED_UI_OFF;
+            bHeart_led_flashing = false;
+            break;
+          case HEART_LED_LEAD_OFF_NO_DATA:
+            //if entering pattern for first time, reset state flag to start pattern immediately
+            if (eHeart_last_sequence != HEART_LED_LEAD_OFF_NO_DATA)
+            {
+              bHeart_led_on = false;
+            }
+            bHeart_led_flashing = true;
+            eHeart_last_sequence = HEART_LED_LEAD_OFF_NO_DATA;
+            if (bHeart_led_on == false)
+            {
+              eIneedmd_LED_pattern(HEART_LED_ORANGE);
+              uiTimer_period = UI_TIMER_PERIOD_2SEC;
+              bHeart_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(HEART_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_2SEC;
+              bHeart_led_on = false;
+            }
+            break;
+          case HEART_LED_LEAD_ON:
+            //if entering pattern for first time, reset state flag to start pattern immediately
+            if (eHeart_last_sequence != HEART_LED_LEAD_ON)
+            {
+              bHeart_led_on = false;
+            }
+            bHeart_led_flashing = true;
+            eHeart_last_sequence = HEART_LED_LEAD_ON;
+            if (bHeart_led_on == false)
+            {
+              eIneedmd_LED_pattern(HEART_LED_GREEN);
+              uiTimer_period = UI_TIMER_PERIOD_2SEC;
+              bHeart_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(HEART_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_2SEC;
+              bHeart_led_on = false;
+            }
+            break;
+          case HEART_LED_DIGITAL_FLATLINE:
+            //if entering pattern for first time, reset state flag to start pattern immediately
+            if (eHeart_last_sequence != HEART_LED_DIGITAL_FLATLINE)
+            {
+              bHeart_led_on = false;
+            }
+            bHeart_led_flashing = true;
+            eHeart_last_sequence = HEART_LED_DIGITAL_FLATLINE;
+            if (bHeart_led_on == false)
+            {
+              eIneedmd_LED_pattern(HEART_LED_RED);
+              uiTimer_period = UI_TIMER_PERIOD_500mSEC;
+              bHeart_led_on = true;
+            }
+            else
+            {
+              eIneedmd_LED_pattern(HEART_LED_OFF);
+              uiTimer_period = UI_TIMER_PERIOD_500mSEC;
+              bHeart_led_on = false;
+            }
+            break;
           default:
             eIneedmd_LED_pattern(UI_ALL_OFF);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bPower_led_on = false;
+            ePower_last_sequence =  POWER_LED_UI_OFF;
+            bPower_led_flashing = false;
+
+            bComms_led_on = false;
+            eComms_last_sequence =  COMMS_LED_UI_OFF;
+            bComms_led_flashing = false;
+
+            bHeart_led_on = false;
+            eHeart_last_sequence =  HEART_LED_UI_OFF;
+            bHeart_led_flashing = false;
+
             break;
         }
 
