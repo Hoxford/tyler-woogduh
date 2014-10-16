@@ -70,8 +70,9 @@
 * param description: none
 * return value description: none
 ******************************************************************************/
+
 void
-check_battery(bool show_leds)
+check_battery(uint32_t * uiBatt_voltage, bool show_leds)
 {
 #define DEBUG_check_battery
 #ifdef DEBUG_check_battery
@@ -83,7 +84,7 @@ check_battery(bool show_leds)
   ERROR_CODE eEC = ER_NO;
   ERROR_CODE eEC_Do_Charge = ER_NO;
   bool bIs_batt_critical = false;
-  uint32_t uiBatt_voltage = 0;
+  // uint32_t uiBatt_voltage = 0;
   uint16_t uiPrev_sys_speed = 0;
 #ifdef DEBUG
   uint16_t uiIm_charging_timer = 0;
@@ -107,10 +108,10 @@ check_battery(bool show_leds)
   {
     //check the battery voltage via measuring directly
     //
-    eEC = measure_battery(&uiBatt_voltage, true);
+    eEC = measure_battery(uiBatt_voltage, true);
     if(eEC == ER_OK)
     {
-      if(uiBatt_voltage >= BATTERY_LOW_ADC_VALUE )
+      if(*uiBatt_voltage >= BATTERY_LOW_ADC_VALUE )
       {
         //the battery voltage is greater then the low voltage value, sys ok
         bIs_batt_critical = false;
@@ -121,7 +122,7 @@ check_battery(bool show_leds)
 
         //todo: change to UI process call ineedmd_led_pattern(POWER_ON_BATT_GOOD);
       }
-      else if(uiBatt_voltage > BATTERY_CRITICAL_ADC_VALUE)
+      else if(*uiBatt_voltage > BATTERY_CRITICAL_ADC_VALUE)
       {
         //the battery voltage is greater then the critical voltage value, sys warning ok
         bIs_batt_critical = false;
@@ -135,7 +136,9 @@ check_battery(bool show_leds)
       {
         //the battery is at or below the critical voltage value, sys warning critical!
         bIs_batt_critical = true;
-        if ( show_leds == true)
+
+        // always flash the red LED
+        if ( (show_leds == true) | (show_leds == false) )
           {
           eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_LOW, SPEAKER_SEQ_NONE, true);
           }
@@ -163,6 +166,8 @@ check_battery(bool show_leds)
     }
   }else{/*do nothing*/}
 
+  /*
+  //  battery voltage is ppassed up and dealt with at a higher level
   //check the error code to determine if the system needs to charge
   if(eEC_Do_Charge == ER_YES)
   {
@@ -180,6 +185,7 @@ check_battery(bool show_leds)
 
     //turn off the radio
     iRadio_Power_Off();
+
 
     // clocks down the processor to REALLY slow
     set_system_speed (INEEDMD_CPU_SPEED_REALLY_SLOW);
@@ -210,7 +216,8 @@ check_battery(bool show_leds)
     iRadio_Power_On();
 
     vDEBUG_CHK_BATT("Chk Batt, batt charged resuming operation");
-  }else{/*do nothing*/}
+  }
+  */
 
   return;
 #undef vDEBUG_CHK_BATT

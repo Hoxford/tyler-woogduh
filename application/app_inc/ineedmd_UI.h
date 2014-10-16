@@ -84,6 +84,7 @@ typedef enum
 /******************************************************************************
 * public functions
 ******************************************************************************/
+INMD_UI_LED_SEQ eIneedmd_present_UI_Process(void); // return's the present UI state for LEDS
 ERROR_CODE eIneedmd_UI_process_init(void);  //initalize the UI process
 ERROR_CODE eIneedmd_UI_request(uint8_t uiUser_Interface, INMD_UI_LED_SEQ eUI_LED_Sequence, INMD_UI_SPEAKER_SEQ eUI_Spkr_Sequence, bool bDo_immediatly);
 ERROR_CODE eIneedmd_UI_process(void); //main UI process function

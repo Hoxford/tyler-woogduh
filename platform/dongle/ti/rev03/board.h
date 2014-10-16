@@ -65,7 +65,7 @@
 #define BATTERY_ADC                          ADC0_BASE
 #define BATTERY_ADC_CTL_CH0                  ADC_CTL_CH0
 #define BATTERY_SYSCTL_PERIPH_ADC            SYSCTL_PERIPH_ADC0
-#define BATTERY_CRITICAL_ADC_VALUE           0x00000800
+#define BATTERY_CRITICAL_ADC_VALUE           0x00000780
 #define BATTERY_LOW_ADC_VALUE                0x00000900
 
 //temperature monitor mapping

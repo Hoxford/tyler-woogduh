@@ -60,6 +60,12 @@ ERROR_CODE eIneedmd_UI_process_init(void)
   return eEC;
 }
 
+INMD_UI_LED_SEQ
+eIneedmd_present_UI_Process()
+{
+  return eUI_LED_Seq;
+}
+
 /******************************************************************************
 * name:
 * description:
@@ -858,10 +864,13 @@ ERROR_CODE eIneedmd_UI_process(void)
       break;
     case LED_SEQ_HIBERNATE_LOW:
       uiTick_diff = uiCurrent_tick - uiTimer;
-      if(uiTick_diff >= 500)
+      if(uiTick_diff >= 20000)
+      {
+        uiTimer = uiCurrent_tick;
+      }
+      else if (uiTick_diff >= 500)
       {
         ineedmd_led_pattern(HIBERNATE_LOW_OFF);
-        eUI_LED_Seq = LED_SEQ_NONE;
       }
       else
       {

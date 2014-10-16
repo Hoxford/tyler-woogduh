@@ -1163,11 +1163,19 @@ void
 PowerInitFunction(void)
 {
   // set the brown out detection registers
+  // at 2.8V
+  HWREG(SYSCTL_PBORCTL_R)=SYSCTL_PBORCTL_BOR1;
 
-  HWREG(SYSCTL_PBORCTL_R)=SYSCTL_PBORCTL_BOR0;
+  //sets the voltage dependent deset bahavior to be sys resets
+  SysCtlResetBehaviorSet(SYSCTL_ONRST_WDOG0_POR|SYSCTL_ONRST_WDOG1_POR|SYSCTL_ONRST_BOR_POR|SYSCTL_ONRST_EXT_POR);
+
+  //and congigures the ve ebvents as interupts...
+
+
+  SysCtlVoltageEventConfig(SYSCTL_VEVENT_VDDABO_INT|SYSCTL_VEVENT_VDDBO_INT);
+
 
   // set the LDO in sleep and deep sleep...
-
   SysCtlLDODeepSleepSet(SYSCTL_LDO_0_90V);
   SysCtlLDOSleepSet(SYSCTL_LDO_0_90V);
 

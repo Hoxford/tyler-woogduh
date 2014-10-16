@@ -161,7 +161,7 @@ int ineedmd_send_status()
   OutGoingPacket[OutGoingPacket_len++] = 0x14;
   OutGoingPacket[OutGoingPacket_len++] = 0x00; // hard coding the version number
   OutGoingPacket[OutGoingPacket_len++] = 0x04; // hard coding the version number
-  OutGoingPacket[OutGoingPacket_len++] = 0x05; // hard coding the version number
+  OutGoingPacket[OutGoingPacket_len++] = 0x08; // hard coding the version number
   OutGoingPacket[OutGoingPacket_len++] = ineedmd_get_battery_voltage();
 
   //OutGoingPacket[OutGoingPacket_len++] = 0x80;
@@ -752,7 +752,7 @@ void ParseFrame(void *pt)
               //TODO: add battery state check
               //ineedmd_led_pattern(HIBERNATE);
               //eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE, SPEAKER_SEQ_NONE, false);
-              check_battery(true);
+              //check_battery(true);
               break;
             case INMD_LED_CMND_LEADS_ON:
               printf("LEADS_ON");

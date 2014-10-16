@@ -317,7 +317,7 @@ int main(void)
 #endif
 
   bool b_should_init_radio = false;
-
+  uint32_t ubattery_voltage = 0;
 
   //init the debug interface
   vDEBUG_init();
@@ -325,6 +325,9 @@ int main(void)
 
   //init the board
   iBoard_init();
+
+  // Measure the battery voltage so we can make decisions about the boot sequence..
+  measure_battery(&ubattery_voltage, true);
 
 //  ineedmd_led_pattern(LED_OFF);
   eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_OFF, SPEAKER_SEQ_NONE, true);
@@ -353,33 +356,50 @@ int main(void)
   iADC_setup();
 
   //set up the module radio
-  vDEBUG_MAIN("Radio setup");
-  iIneedMD_radio_setup();
+  //vDEBUG_MAIN("Radio setup");
+  //if ( ubattery_voltage > BATTERY_CRITICAL_ADC_VALUE)
+  //{
+    //the radio needs time to settle before the radio it ready approximately 3 second
+    //iIneedMD_radio_setup();
+  //}
 
   //init processes, there should be no hardware init done past this point
   //
   eClock_process_init();
   eIneedmd_UI_process_init();
-  eIneedMD_radio_process_init();
 
-  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_UP_GOOD, SPEAKER_SEQ_NONE, false);
+  //if ( ubattery_voltage > BATTERY_CRITICAL_ADC_VALUE)
+    //{
+      //eIneedMD_radio_process_init();
+      // we havent started the radio so mark it as not strated.
+      //b_should_init_radio = false;
+    //}
+
+  //todo: blocking LED in the boot ... this slows the boot, but ensures that the sequence is complete.
+  eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_POWER_UP_GOOD, SPEAKER_SEQ_NONE, true);
 
 
   vDEBUG_MAIN("Starting super loop");
   while(1)
   {
-    while ((ineedmd_usb_connected() == ER_NOT_CONNECTED) & \
-           (ineedmd_ekg_connected() == ER_NOT_CONNECTED))
+    //start of the sleep loop.
+    //Stay in sleep if the battery is low or if we are not connected to an EKG 'glove'
+    while ( \
+             ((ineedmd_usb_connected() == ER_NOT_CONNECTED) & (ineedmd_ekg_connected() == ER_NOT_CONNECTED)) | \
+             ( ubattery_voltage < BATTERY_CRITICAL_ADC_VALUE)\
+          )
     {
+
       ineedmd_watchdog_pat();
       ineedmd_sleep();
-      check_battery(true);
+      check_battery(&ubattery_voltage, true);
 
       b_should_init_radio = true;
       vDEBUG_IM_ALIVE(ALIVE_ASLEEP);
     }
+    //end of the sleep loop
 
-    //if we were asllep we need to power the radio back up.
+    //if we were asleep we need to power the radio back up.
     if ( b_should_init_radio == true )
     {
       eBSP_Radio_Enable();
@@ -391,7 +411,12 @@ int main(void)
       b_should_init_radio = false;
 
     }
-    check_battery(false);
+    measure_battery(&ubattery_voltage, false);
+    //if the battery is low and there is no other UI sequence ...  display the low battery warning...
+    if ((ubattery_voltage < BATTERY_LOW_ADC_VALUE) & ( eIneedmd_present_UI_Process() == LED_SEQ_NONE))
+    {
+      eIneedmd_UI_request(INMD_UI_LED, LED_SEQ_HIBERNATE_LOW, SPEAKER_SEQ_NONE, false);
+    }
     ineedmd_watchdog_pat();
     iIneedMD_radio_process();
     iIneedmd_command_process();

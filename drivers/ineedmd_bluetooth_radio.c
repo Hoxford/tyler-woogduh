@@ -43,10 +43,10 @@
 //*****************************************************************************
 // defines
 //*****************************************************************************
-#define INEEDMD_LOW_BATT_VOLTAGE     3300
+#define INEEDMD_LOW_BATT_VOLTAGE     3200
 #define INEEDMD_SHTDWN_BATT_VOLTAGE  3100
-#define INEEDMD_FULL_BATT_VOLTAGE    3400
-#define INEEDMD_PIO_MASK             01
+#define INEEDMD_FULL_BATT_VOLTAGE    3300
+#define INEEDMD_PIO_MASK             02
 
 #define INEEDMD_PLATFORM_RADIO_TYPE  INEEDMD_BT_RADIO_PLATFORM
   #define INEEDMD_BT_RADIO_PLATFORM  0x01
@@ -243,7 +243,7 @@
   #define SET_CONTROL_VREGEN_MODE_1  1
   #define SET_CONTROL_VREGEN_MODE_2  2
     #define SET_CONTROL_VREGE_MODE SET_CONTROL_VREGEN_MODE_1
-  #define SET_CONTROL_VREGEN_PIOMASK  PIO_MASK_PIO1
+  #define SET_CONTROL_VREGEN_PIOMASK  PIO_MASK_NONE
 #define SSP_CONFIRM  "\r\nSSP CONFIRM %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY  "\r\nSSP PASSKEY %x:%x:%x:%x:%x:%x OK\r\n"
 #define SSP_PASSKEY_PARSE  "%s %s %hhx %c %hhx %c %hhx %c %hhx %c %hhx %c %hhx %d"
