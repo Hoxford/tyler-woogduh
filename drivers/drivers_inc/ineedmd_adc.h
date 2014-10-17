@@ -1,4 +1,18 @@
-//TODO: move to board.h
+/******************************************************************************
+*
+* indeedmd_adc.h - adc driver include file
+* Copyright (c) notice
+*
+******************************************************************************/
+#ifndef __INEEDMD_ADC_H__
+#define __INEEDMD_ADC_H__
+/******************************************************************************
+* includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+/******************************************************************************
+*public defines ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 #ifndef INEEDMD_PORTA_ADC_SPI_CLK
 	#define INEEDMD_PORTA_ADC_SPI_CLK 	0x02
 #endif
@@ -26,15 +40,17 @@
 
 //SPI command list
 //***************************************************************
-#define ADS1198_WAKEUP		0x02
-#define ADS1198_NOP			0x02
-#define ADS1198_STANDBY		0x04
-#define ADS1198_RESET		0x06
-#define ADS1198_START		0x08
-#define ADS1198_STOP		0x0A
-#define ADS1198_RDATAC		0x10		//continuous conversion mode
-#define ADS1198_SDATAC		0x11		//stop continuous conversion
-#define ADS1198_RDATA		0x12		//read data by command
+
+////todo: move to board.c
+//#define ADS1198_WAKEUP		0x02
+//#define ADS1198_NOP			0x02
+//#define ADS1198_STANDBY		0x04
+//#define ADS1198_RESET		0x06
+//#define ADS1198_START		0x08
+//#define ADS1198_STOP		0x0A
+//#define ADS1198_RDATAC		0x10		//continuous conversion mode
+//#define ADS1198_SDATAC		0x11		//stop continuous conversion
+//#define ADS1198_RDATA		0x12		//read data by command
 
 //register read/write commands
 //				byte 1								byte 2
@@ -284,32 +300,56 @@
 //Part ID
 //#define ADS1198_ID              0xB6
 
+/******************************************************************************
+*public variables /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-extern void ineedmd_adc_Stop_Continuous_Conv();
-extern void ineedmd_adc_Start_Continuous_Conv();
+/******************************************************************************
+* external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-extern void ineedmd_adc_Send_Command(uint32_t command);
-extern uint32_t ineedmd_adc_Register_Read(uint32_t address);
-extern void ineedmd_adc_Register_Write(uint32_t address, uint32_t value);
-extern void ineedmd_adc_Start_Internal_Reference();
-extern void ineedmd_adc_Stop_Internal_Reference();
-extern void ineedmd_adc_Start_High();
-extern void ineedmd_adc_Start_Low();
-extern void ineedmd_adc_Request_Data();
-extern void ineedmd_adc_Receive_Data(char* data);
+/******************************************************************************
+*public enums /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-extern int ineedmd_adc_gain_set(int gain_position);
-extern int ineedmd_adc_mux_set(int mux_position);
-void ineedmd_adc_Power_Off();
-void ineedmd_adc_Power_On();
+/******************************************************************************
+*public structures ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+/******************************************************************************
+* external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+
+/******************************************************************************
+* public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+void ineedmd_adc_Stop_Continuous_Conv();
+void ineedmd_adc_Start_Continuous_Conv();
+
+void ineedmd_adc_Send_Command(uint32_t command);
+uint32_t ineedmd_adc_Register_Read(uint32_t address);
+void ineedmd_adc_Register_Write(uint32_t address, uint32_t value);
+void ineedmd_adc_Start_Internal_Reference();
+void ineedmd_adc_Stop_Internal_Reference();
+void ineedmd_adc_Start_High();
+
+void ineedmd_adc_Request_Data();
+void ineedmd_adc_Receive_Data(char* data);
+
+int ineedmd_adc_gain_set(int gain_position);
+int ineedmd_adc_mux_set(int mux_position);
+
 ERROR_CODE eIneedmd_adc_Power_status(void);
 
-extern uint32_t ineedmd_adc_Get_ID();
-       void     switch_on_adc_for_lead_detection(void);
-extern uint32_t ineedmd_adc_Check_Lead_Off();
-extern uint32_t ineedmd_adc_Check_RLD_Lead();
-extern int ineedmd_adc_Check_Update();
+uint32_t ineedmd_adc_Get_ID();
+void     switch_on_adc_for_lead_detection(void);
+uint32_t ineedmd_adc_Check_Lead_Off();
+uint32_t ineedmd_adc_Check_RLD_Lead();
+int ineedmd_adc_Check_Update();
 
-extern void ineedmd_adc_Set_Sample_Rate(uint32_t SPS);
-extern void ineedmd_adc_Enable_Lead_Detect();
-int iADC_setup(void); //sets up the A to D driver
+void ineedmd_adc_Set_Sample_Rate(uint32_t SPS);
+void ineedmd_adc_Enable_Lead_Detect();
+ERROR_CODE eADC_setup(void); //sets up the A to D driver
+
+#endif //#define __INEEDMD_ADC_H__

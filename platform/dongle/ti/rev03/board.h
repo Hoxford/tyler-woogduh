@@ -43,6 +43,7 @@
 ******************************************************************************/
 #include <ti/drivers/GPIO.h>
 #include <ti/drivers/UART.h>
+#include <ti/drivers/SPI.h>
 /******************************************************************************
 *public defines ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -90,20 +91,56 @@
 
 //A to D Converter port mappings
 #define INEEDMD_ADC_GPIO_PORT           GPIO_PORTA_BASE
+
 //#define INEEDMD_PORTA_ADC_PWRDN_OUT_PIN GPIO_PIN_7 //0x80
 //#define INEEDMD_PORTA_ADC_RESET_OUT_PIN GPIO_PIN_6 //0X40
 //#define INEEDMD_PORTA_ADC_INTERUPT_PIN  GPIO_PIN_0 //0x01
 //#define INEEDMD_PORTA_ADC_START_PIN     GPIO_PIN_1 //0x02
 //#define INEEDMD_PORTA_ADC_nCS_PIN       GPIO_PIN_3 //0x08
-#define INEEDMD_ADC_PWR_PIN       GPIO_PIN_7 //0x80
-#define INEEDMD_ADC_RESET_PIN     GPIO_PIN_6 //0X40
+
+//ADC power pin defines
+  #define INEEDMD_ADC_PWR_PIN        GPIO_PIN_7
+  #define INEEDMD_ADC_PWR_PIN_SET    GPIO_PIN_7
+  #define INEEDMD_ADC_PWR_PIN_CLEAR  0
+
+//ADC reset pin defines
+  #define INEEDMD_ADC_RESET_PIN        GPIO_PIN_6
+  #define INEEDMD_ADC_RESET_PIN_SET    GPIO_PIN_6
+  #define INEEDMD_ADC_RESET_PIN_CLEAR  0
+
 #define INEEDMD_ADC_INTERUPT_PIN  GPIO_PIN_0 //0x01
-#define INEEDMD_ADC_START_PIN     GPIO_PIN_1 //0x02
-#define INEEDMD_ADC_nCS_PIN       GPIO_PIN_3 //0x08
-//port mappings to make easier to read names...
+//ADC start pin defines
+  #define INEEDMD_ADC_START_PIN        GPIO_PIN_1
+  #define INEEDMD_ADC_START_PIN_SET    GPIO_PIN_1
+  #define INEEDMD_ADC_START_PIN_CLEAR  0
+
+//ADC chip select defines
+  #define INEEDMD_ADC_nCS_PIN        GPIO_PIN_3
+  #define INEEDMD_ADC_nCS_PIN_SET    GPIO_PIN_3
+  #define INEEDMD_ADC_nCS_PIN_CLEAR  0
+
+#define INEEDMD_ADC_SYSCTL_PRIPH_SSI  SYSCTL_PERIPH_SSI0
+#define INEEDMD_ADC_GPIO_SSICLK       GPIO_PA2_SSI0CLK
+#define INEEDMD_ADC_GPIO_SSITX        GPIO_PA5_SSI0TX
+#define INEEDMD_ADC_GPIO_SSIRX        GPIO_PA4_SSI0RX
+#define INEEDMD_ADC_SSICLK_PIN        GPIO_PIN_2
+#define INEEDMD_ADC_SSITX_PIN         GPIO_PIN_5
+#define INEEDMD_ADC_SSIRX_PIN         GPIO_PIN_4
+
 #define INEEDMD_ADC_SPI     SSI0_BASE
 #define INEEDMD_FLASH_SPI   SSI1_BASE
 #define INEEDMD_SPI_CLK                 16000000
+
+//ADC command defines
+  #define ADS1198_WAKEUP          0x02
+  #define ADS1198_NOP                     0x02
+  #define ADS1198_STANDBY         0x04
+  #define ADS1198_RESET           0x06
+  #define ADS1198_START           0x08
+  #define ADS1198_STOP            0x0A
+  #define ADS1198_RDATAC          0x10            //continuous conversion mode
+  #define ADS1198_SDATAC          0x11            //stop continuous conversion
+  #define ADS1198_RDATA           0x12            //read data by command
 
 //EKG Lead reading mappings
 #define LEAD_SHORT                     0x82FF
@@ -569,7 +606,14 @@ void        ConfigureSleep(void);
 void        ConfigureDeepSleep(void);
 void        LEDI2CDisable(void);
 ERROR_CODE  eBSP_LEDI2C_clock_set(void);
-void USBPortDisable(void);
+void        USBPortDisable(void);
+
+ERROR_CODE  eBSP_ADC_Start(bool bStart);
+ERROR_CODE  eBSP_ADC_Hard_Reset(void);
+ERROR_CODE  eBSP_ADC_Power(bool bPower);
+ERROR_CODE  eBSP_ADC_Continuous_Conv(bool bConversions);
+ERROR_CODE  eBSP_ADC_SPI_Enable(void);
+
 ERROR_CODE eMaster_int_enable(void);
 ERROR_CODE eMaster_int_disable(void);
 int iHW_delay(uint32_t uiDelay);

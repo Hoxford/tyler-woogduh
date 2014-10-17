@@ -312,6 +312,8 @@ const tUSBBuffer g_sTxBuffer =
 //Waverform timer variables
 volatile bool bWaveform_timer_tick = false;
 
+//adc variables
+
 //HW delay variables
 uint32_t uiHW_delay_Sys_speed_1ms_ticks = 0;
 
@@ -412,6 +414,10 @@ UART_Params sRadio_UART_params;
 
 //CPU frequency parameters
 Types_FreqHz sCPU_freq;
+
+//SPI parameters
+SPI_Handle tSPI_ADC_handle;
+SPI_Params tSPI_ADC_params;
 
 /******************************************************************************
 * external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1558,57 +1564,7 @@ ERROR_CODE set_system_speed (eSYSTEM_SPEED_INDEX eHow_Fast)
 //#undef vDEBUG_IS_BATT_LOW
 //}
 //
-//int
-//EKGSPIEnable(void)
-//{
-//  //
-//  // Configuring the SPI port and pins to talk to the analog front end
-//  // SPI0_BASE is mapped to INEEDMD_ADC_SPI
-//  //
-//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
-//  //no need for a majik delay as we are configuring the GPIO pins as well...
-//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-//  // power UP the ADC
-//  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-//  // Enable pin PA6 for GPIOOutput
-//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-//  // Enable pin PA0 for GPIOInput
-//  MAP_GPIOPinTypeGPIOInput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_INTERUPT_PIN);
-//  // Enable pin PA1 for GPIOOutput
-//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN);
-//  //set the nCS pin as a GPIO
-//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN);
-//  // Enable pin PA2 for SSI0 SSI0CLK
-//  //
-//  MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK);
-//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_2);
-//  //
-//  // Enable pin PA5 for SSI0 SSI0TX
-//  //
-//  MAP_GPIOPinConfigure(GPIO_PA5_SSI0TX);
-//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_5);
-//  //
-//  // Enable pin PA3 for SSI0 SSI0FSS
-//  //
-//  //MAP_GPIOPinConfigure(GPIO_PA3_SSI0FSS);
-//  //MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_3);
-//  //
-//  // Enable pin PA4 for SSI0 SSI0RX
-//  //
-//  MAP_GPIOPinConfigure(GPIO_PA4_SSI0RX);
-//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_4);
-//
-//  MAP_SSIClockSourceSet(INEEDMD_ADC_SPI, SSI_CLOCK_PIOSC);
-//
-//  //set SSI for 1MHz clock and 8 bit data, master mode
-//  SSIConfigSetExpClk(INEEDMD_ADC_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
-//  SSIEnable(INEEDMD_ADC_SPI);
-////  while(!SysCtlPeripheralReady(INEEDMD_ADC_SPI));
-//
-//
-//   return 1;
-//
-//}
+
 //
 //int
 //EKGSPIDisable(void)
@@ -1855,6 +1811,7 @@ ERROR_CODE  eBSP_RadioUARTEnable(void)
   ERROR_CODE eEC = ER_FAIL;
 
   eEC = eBSP_Set_radio_uart_baud(INEEDMD_RADIO_UART_BAUD_1382400);
+//  eEC = eBSP_Set_radio_uart_baud(INEEDMD_RADIO_UART_BAUD_115200);
 
   if(eEC == ER_OK)
   {
@@ -3327,7 +3284,299 @@ ERROR_CODE  eGet_Radio_CTS_status(void)
 //	//SysCtlPeripheralDeepSleepDisable(SYSCTL_PERIPH_WDOG1);
 //	//
 //}
+
+/******************************************************************************
+* name: eBSP_ADC_Start
+* description: Starts or stops the ADC depending on the parameter
+* param description: bool - true: start the ADC
+*                         - false: stop the ADC
+* return value description: ERROR_CODE - ER_OK: pin to adc was set/cleared
+*                                      - ER_FAIL: pin to adc was not set/cleared
+******************************************************************************/
+ERROR_CODE  eBSP_ADC_Start(bool bStart)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiPin_Read;
+
+  if(bStart == true)
+  {
+    GPIO_write(EK_TM4C123GXL_ADC_START, INEEDMD_ADC_START_PIN_SET);
+
+    uiPin_Read = GPIO_read(EK_TM4C123GXL_ADC_START);
+    if((uiPin_Read & INEEDMD_ADC_START_PIN) == INEEDMD_ADC_START_PIN_SET)
+    {
+      eEC = ER_OK;
+    }
+    else
+    {
+      eEC = ER_FAIL;
+    }
+  }
+  else
+  {
+    GPIO_write(EK_TM4C123GXL_ADC_START, INEEDMD_ADC_START_PIN_CLEAR);
+
+    uiPin_Read = GPIO_read(EK_TM4C123GXL_ADC_START);
+    if((uiPin_Read & INEEDMD_ADC_START_PIN) == INEEDMD_ADC_START_PIN_CLEAR)
+    {
+      eEC = ER_OK;
+    }
+    else
+    {
+      eEC = ER_FAIL;
+    }
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name: eBSP_ADC_Hard_Reset
+* description: do a hardware reset by pulling reset low
+* param description:
+*
+* return value description: ERROR_CODE - ER_OK: reset successful
+*                                      - ER_FAIL: reset fail
+******************************************************************************/
+ERROR_CODE eBSP_ADC_Hard_Reset(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  uint32_t uiPin_Read;
+  //toggle reset pin
+//  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
+  GPIO_write(EK_TM4C123GXL_ADC_RESET, INEEDMD_ADC_RESET_PIN_CLEAR);
+  uiPin_Read = GPIO_read(EK_TM4C123GXL_ADC_RESET);
+  if((uiPin_Read & INEEDMD_ADC_RESET_PIN) == INEEDMD_ADC_RESET_PIN_CLEAR)
+  {
+    iHW_delay(3);
+
+    //  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
+    GPIO_write(EK_TM4C123GXL_ADC_RESET, INEEDMD_ADC_RESET_PIN_SET);
+    uiPin_Read = GPIO_read(EK_TM4C123GXL_ADC_RESET);
+    if((uiPin_Read & INEEDMD_ADC_RESET_PIN) == INEEDMD_ADC_RESET_PIN_SET)
+    {
+      eEC = ER_OK;
+      iHW_delay(3);
+    }
+    else
+    {
+      eEC = ER_FAIL;
+    }
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name: eBSP_ADC_Power
+* description: ads1198 power on sequence. toggles pwdn and reset, waits for device to start
+*              wakes with continuous conversions enabled
+*              call INEEDMD_ADC_Stop_Continuous_Conv or send SDATAC before attempting to read/write registers
+* param description: bool - true: power on the ADC
+*                         - false: power off the ADC
+* return value description: ERROR_CODE - ER_OK
+*                                      - ER_FAIL
+******************************************************************************/
+ERROR_CODE  eBSP_ADC_Power(bool bPower)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  if(bPower == true)
+  {
+    //disables clocking into Rx FIFO buffer
+    //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
+
+//    SSIEnable(INEEDMD_ADC_SPI);
+
+    //power up and raise reset (active low pins)
+    GPIO_write(EK_TM4C123GXL_ADC_POWER, INEEDMD_ADC_PWR_PIN_SET);
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+
+    GPIO_write(EK_TM4C123GXL_ADC_RESET, INEEDMD_ADC_RESET_PIN_SET);
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
+    //Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
+
+    //todo: check pins were written to
+    eEC = ER_OK;
+
+  }
+  else
+  {
+
+    //takes the ~rest line low putting the ADS1198 into reset
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
+//    //takes the ~powerdn line low putting the ADS1198 into low power mode
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
 //
+//    bIs_adc_powered_on = false;
+
+    eEC = ER_FAIL;
+
+  }
+
+  return eEC;
+}
+
+/******************************************************************************
+* name: eBSP_ADC_Continuous_Conv
+* description: sets continuous conversions.
+* for false: if START pin is high or a START command received (if START pin is low)
+*  conversions are put into outbound Tx(MISO) FIFO
+*  when a RDATA command is received
+*  Clock data out using ineedmd_adc_Receive_Conversion
+*
+* for true:If start pin is high or START command is received
+*  conversions are automatically put into outbound Tx(MISO) FIFO when ready (DRDY goes low)
+*  use INEEDMD_ADC_Receive_Conversion so shift data through MISO
+* param description: bool - true:
+*                         - false:
+* return value description: type - value: value description
+******************************************************************************/
+ERROR_CODE eBSP_ADC_Continuous_Conv(bool bConversions)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  bool bDid_spi_trans = false;
+  SPI_Transaction tSPI_transaction;
+  uint8_t uiSPI_TX_Byte_buff = 0;
+  uint8_t uiSPI_RX_Byte_buff = 0;
+
+  //check if conversions should be started
+  if(bConversions == false)
+  {
+    //conversions are to be halted
+    //
+    //set the CS low
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+    GPIO_write(EK_TM4C123GXL_ADC_nCS, INEEDMD_ADC_nCS_PIN_CLEAR);
+
+    iHW_delay(3);
+
+//    SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
+//    while(SSIBusy(INEEDMD_ADC_SPI)){}
+    tSPI_transaction.count = sizeof(uiSPI_TX_Byte_buff);
+    uiSPI_TX_Byte_buff = ADS1198_SDATAC;
+    tSPI_transaction.txBuf = (void *)&uiSPI_TX_Byte_buff;
+    tSPI_transaction.rxBuf = (void *)&uiSPI_RX_Byte_buff;
+
+    bDid_spi_trans = SPI_transfer(tSPI_ADC_handle, &tSPI_transaction);
+    if(bDid_spi_trans == true)
+    {
+      eEC = ER_OK;
+    }
+    else
+    {
+      eEC = ER_FAIL;
+    }
+
+
+    //when done set the CS high
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+    GPIO_write(EK_TM4C123GXL_ADC_nCS, INEEDMD_ADC_nCS_PIN_SET);
+  }
+  else
+  {
+//    //conversions are to be started
+//    //
+//    //set the CS low
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
+//    //2us at fullmspeed
+//      iHW_delay(1);
+//
+//    SSIDataPut(INEEDMD_ADC_SPI, ADS1198_RDATAC);
+//    while(SSIBusy(INEEDMD_ADC_SPI))
+//    {
+//    }
+//    //when done set the CS high
+//    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
+    eEC = ER_OK;
+  }
+
+  return eEC;
+}
+
+
+/******************************************************************************
+* name: eBSP_ADC_SPI_Enable
+* description: enables the SPI to the ADC
+* param description:
+*
+* return value description: ERROR_CODE - ER_OK
+*                                      - ER_FAIL
+******************************************************************************/
+ERROR_CODE eBSP_ADC_SPI_Enable(void)
+{
+  ERROR_CODE eEC = ER_FAIL;;
+
+  SPI_Params_init(&tSPI_ADC_params);
+
+  //
+  // Configuring the SPI port and pins to talk to the analog front end
+  // SPI0_BASE is mapped to INEEDMD_ADC_SPI
+  //
+//  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
+//  //no need for a majik delay as we are configuring the GPIO pins as well...
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+//  // power UP the ADC
+//  MAP_GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
+//  // Enable pin PA6 for GPIOOutput
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
+//  // Enable pin PA0 for GPIOInput
+//  MAP_GPIOPinTypeGPIOInput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_INTERUPT_PIN);
+//  // Enable pin PA1 for GPIOOutput
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN);
+//  //set the nCS pin as a GPIO
+//  MAP_GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN);
+  // Enable pin PA2 for SSI0 SSI0CLK
+  //
+//  MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_2);
+//  //
+//  // Enable pin PA5 for SSI0 SSI0TX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PA5_SSI0TX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_5);
+//  //
+//  // Enable pin PA3 for SSI0 SSI0FSS
+//  //
+//  //MAP_GPIOPinConfigure(GPIO_PA3_SSI0FSS);
+//  //MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_3);
+//  //
+//  // Enable pin PA4 for SSI0 SSI0RX
+//  //
+//  MAP_GPIOPinConfigure(GPIO_PA4_SSI0RX);
+//  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_4);
+//
+//  MAP_SSIClockSourceSet(INEEDMD_ADC_SPI, SSI_CLOCK_PIOSC);
+
+  //set SSI for 1MHz clock and 8 bit data, master mode
+//  SSIConfigSetExpClk(INEEDMD_ADC_SPI, INEEDMD_SPI_CLK, SSI_FRF_MOTO_MODE_2, SSI_MODE_MASTER, 1000000, 8);
+//  SSIEnable(INEEDMD_ADC_SPI);
+
+  tSPI_ADC_params.bitRate = 1000000;
+  tSPI_ADC_params.dataSize = 8;
+  tSPI_ADC_params.mode = SPI_MASTER;
+  tSPI_ADC_params.transferMode = SPI_MODE_BLOCKING;
+  tSPI_ADC_params.frameFormat = SPI_POL1_PHA0;
+
+  tSPI_ADC_handle = SPI_open(EK_TM4C123GXL_SPI_ADC, &tSPI_ADC_params);
+
+  if(tSPI_ADC_handle == NULL)
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_OK;
+  }
+
+  return eEC;
+}
+
+
 ////*****************************************************************************
 //// name: eMaster_int_enable
 //// description:
@@ -3340,7 +3589,7 @@ ERROR_CODE  eGet_Radio_CTS_status(void)
 //  MAP_IntMasterEnable();
 //  return eEC;
 //}
-//
+
 ///******************************************************************************
 //* name: eMaster_int_disable
 //* description:

@@ -107,7 +107,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="application/ineedmd_waveform.c|application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/main.c|drivers/UI.c|drivers/SDcard.c|drivers/LED.c|drivers/ineedmd_adc.c|drivers/bluetooth.c|drivers/battery.c|EK_TM4C123GXL.c|tm4c1233h6pm.cmd|platform/dongle/ti/rev03/usblib|platform/dongle/ti/rev03/driverlib|platform/dongle/ti/rev03/driverlib/udma.c|platform/dongle/ti/rev03/driverlib/sysexc.c|platform/dongle/ti/rev03/driverlib/sw_crc.c|platform/dongle/ti/rev03/driverlib/shamd5.c|platform/dongle/ti/rev03/driverlib/qei.c|platform/dongle/ti/rev03/driverlib/pwm.c|platform/dongle/ti/rev03/driverlib/onewire.c|platform/dongle/ti/rev03/driverlib/mpu.c|platform/dongle/ti/rev03/driverlib/lcd.c|platform/dongle/ti/rev03/driverlib/hibernate.c|platform/dongle/ti/rev03/driverlib/fpu.c|platform/dongle/ti/rev03/driverlib/flash.c|platform/dongle/ti/rev03/driverlib/epi.c|platform/dongle/ti/rev03/driverlib/emac.c|platform/dongle/ti/rev03/driverlib/eeprom.c|platform/dongle/ti/rev03/driverlib/des.c|platform/dongle/ti/rev03/driverlib/crc.c|platform/dongle/ti/rev03/driverlib/comp.c|platform/dongle/ti/rev03/driverlib/can.c|platform/dongle/ti/rev03/driverlib/aes.c|utils/file_system.c|utils/fswrapper.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/main.c|drivers/UI.c|drivers/SDcard.c|drivers/LED.c|drivers/bluetooth.c|drivers/battery.c|EK_TM4C123GXL.c|tm4c1233h6pm.cmd|platform/dongle/ti/rev03/usblib|platform/dongle/ti/rev03/driverlib|platform/dongle/ti/rev03/driverlib/udma.c|platform/dongle/ti/rev03/driverlib/sysexc.c|platform/dongle/ti/rev03/driverlib/sw_crc.c|platform/dongle/ti/rev03/driverlib/shamd5.c|platform/dongle/ti/rev03/driverlib/qei.c|platform/dongle/ti/rev03/driverlib/pwm.c|platform/dongle/ti/rev03/driverlib/onewire.c|platform/dongle/ti/rev03/driverlib/mpu.c|platform/dongle/ti/rev03/driverlib/lcd.c|platform/dongle/ti/rev03/driverlib/hibernate.c|platform/dongle/ti/rev03/driverlib/fpu.c|platform/dongle/ti/rev03/driverlib/flash.c|platform/dongle/ti/rev03/driverlib/epi.c|platform/dongle/ti/rev03/driverlib/emac.c|platform/dongle/ti/rev03/driverlib/eeprom.c|platform/dongle/ti/rev03/driverlib/des.c|platform/dongle/ti/rev03/driverlib/crc.c|platform/dongle/ti/rev03/driverlib/comp.c|platform/dongle/ti/rev03/driverlib/can.c|platform/dongle/ti/rev03/driverlib/aes.c|utils/file_system.c|utils/fswrapper.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -205,7 +205,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="application/ineedmd_waveform.c|application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/ineedmd_command_protocol.c|application/main.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/ineedmd_command_protocol.c|application/main.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

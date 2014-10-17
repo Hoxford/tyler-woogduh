@@ -81,7 +81,8 @@ typedef enum eRadio_connection_state
   RADIO_CONN_VERIFYING_CONNECTION,
   RADIO_CONN_CONNECTED,
   RADIO_CONN_HALT,
-  RADIO_CONN_ERROR
+  RADIO_CONN_ERROR,
+  RADIO_CONN_LIMIT
 }eRadio_connection_state;
 
 //Radio setup ready

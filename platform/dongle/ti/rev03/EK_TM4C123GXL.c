@@ -438,62 +438,28 @@ const SPI_Config SPI_config[] = {
  */
 void EK_TM4C123GXL_initSPI(void)
 {
-  // SPI0_BASE is mapped to INEEDMD_ADC_SPI
+  //INEEDMD_ADC_SPI
   //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
+  MAP_SysCtlPeripheralEnable(INEEDMD_ADC_SYSCTL_PRIPH_SSI);
 
-  // Enable pin PA2 for SSI0 SSI0CLK
+  // Enable pin SSI CLK
   //
-  MAP_GPIOPinConfigure(GPIO_PA2_SSI0CLK);
+  MAP_GPIOPinConfigure(INEEDMD_ADC_GPIO_SSICLK);
 
-  // Enable pin PA5 for SSI0 SSI0TX
+  // Enable pin SSI TX
   //
-  MAP_GPIOPinConfigure(GPIO_PA5_SSI0TX);
+  MAP_GPIOPinConfigure(INEEDMD_ADC_GPIO_SSITX);
 
-  // Enable pin PA4 for SSI0 SSI0RX
+  // Enable pin SSI RX
   //
-  MAP_GPIOPinConfigure(GPIO_PA4_SSI0RX);
+  MAP_GPIOPinConfigure(INEEDMD_ADC_GPIO_SSIRX);
 
   //Set the pins to type SSI
   //
-  MAP_GPIOPinTypeSSI(GPIO_PORTA_BASE, (GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_2));
+  MAP_GPIOPinTypeSSI(INEEDMD_ADC_GPIO_PORT, (INEEDMD_ADC_SSICLK_PIN | INEEDMD_ADC_SSITX_PIN | INEEDMD_ADC_SSIRX_PIN));
 
-//    /* SPI0 */
-//    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
-//
-//    /* Need to unlock PF0 */
-//    GPIOPinConfigure(GPIO_PA2_SSI0CLK);
-//    GPIOPinConfigure(GPIO_PA3_SSI0FSS);
-//    GPIOPinConfigure(GPIO_PA4_SSI0RX);
-//    GPIOPinConfigure(GPIO_PA5_SSI0TX);
-//
-//    GPIOPinTypeSSI(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3 |
-//                                    GPIO_PIN_4 | GPIO_PIN_5);
-//
-//    /* SSI2 */
-//    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
-//
-//    GPIOPinConfigure(GPIO_PB4_SSI2CLK);
-//    GPIOPinConfigure(GPIO_PB5_SSI2FSS);
-//    GPIOPinConfigure(GPIO_PB6_SSI2RX);
-//    GPIOPinConfigure(GPIO_PB7_SSI2TX);
-//
-//    GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_5 |
-//                                    GPIO_PIN_6 | GPIO_PIN_7);
-//
-//    /* SSI3 */
-//    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI3);
-//
-//    GPIOPinConfigure(GPIO_PD0_SSI3CLK);
-//    GPIOPinConfigure(GPIO_PD1_SSI3FSS);
-//    GPIOPinConfigure(GPIO_PD2_SSI3RX);
-//    GPIOPinConfigure(GPIO_PD3_SSI3TX);
-//
-//    GPIOPinTypeSSI(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1 |
-//                                    GPIO_PIN_2 | GPIO_PIN_3);
-//
-//    EK_TM4C123GXL_initDMA();
-    SPI_init();
+  EK_TM4C123GXL_initDMA();
+  SPI_init();
 }
 #endif /* TI_DRIVERS_SPI_INCLUDED */
 

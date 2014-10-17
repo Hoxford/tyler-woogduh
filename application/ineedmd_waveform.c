@@ -17,10 +17,12 @@
 #include <stdlib.h>
 #include "utils_inc/error_codes.h"
 #include "board.h"
-#include "ineedmd_bluetooth_radio.h"
+#include "drivers_inc/ineedmd_bluetooth_radio.h"
+#include "drivers_inc/ineedmd_adc.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "app_inc/ineedmd_waveform.h"
+#include "utils_inc/osal.h"
 
 //*****************************************************************************
 // defines
@@ -54,6 +56,7 @@ static bool bTest_Mode = false;
 // functions
 //*****************************************************************************
 
+#ifdef NOT_NOW
 /******************************************************************************
 * name:
 * description:
@@ -156,6 +159,7 @@ void ineedmd_measurement_ramp(void)
 //    }
 //  }
 }
+#endif //#ifdef NOT_NOW
 
 /******************************************************************************
 * name:
@@ -163,20 +167,26 @@ void ineedmd_measurement_ramp(void)
 * param description:
 * return value description:
 ******************************************************************************/
-int iIneedmd_waveform_process(void)
+void vIneedmd_waveform_task(UArg a0, UArg a1)
 {
   bool bDid_sys_tick = false;
+  eADC_setup();
 
-  if(bTest_Mode == true)
+  while(1)
   {
-    bDid_sys_tick = bWaveform_did_timer_tick();
-
-    if(bDid_sys_tick == true)
+    Task_sleep(1000);
+#ifdef NOT_NOW
+    if(bTest_Mode == true)
     {
-      ineedmd_measurement_ramp();
+      bDid_sys_tick = bWaveform_did_timer_tick();
+
+      if(bDid_sys_tick == true)
+      {
+        ineedmd_measurement_ramp();
+      }
     }
+#endif
   }
-  return 1;
 }
 
 /******************************************************************************

@@ -24,7 +24,7 @@
 #include "driverlib/gpio.h"
 
 #include "utils_inc/error_codes.h"
-#include "ineedmd_adc.h"
+#include "drivers_inc/ineedmd_adc.h"
 #include "board.h"
 #include "app_inc/ineedmd_power_modes.h"
 
@@ -55,78 +55,22 @@ bool bIs_adc_powered_on = false;
 /******************************************************************************
 * private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-void ineedmd_adc_Hard_Reset();
+
+//void ineedmd_adc_Hard_Reset();
 
 /******************************************************************************
 * private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-//********************************************************************************
-//do a hardware reset by pulling reset low
-//********************************************************************************
-void ineedmd_adc_Hard_Reset()
-{
-  //toggle reset pin
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
-  //keep low for 2 clock cycles
-    //todo proper delay not sleep
-  sleep_for_tenths(1);
 
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-  //wait 18 device clock cycles - 9 usec
-    //todo proper delay not sleep
-    sleep_for_tenths(1);
-}
+#ifdef NOT_NOW
+
 
 //TODO: add function prototypes to header file
 //TODO: include directory for delay function
 //TODO: set shorter timebases for delay functions
 
-//********************************************************************************
-//stop continuous conversion mode
-//
-//if START pin is high or a START command received (if START pin is low)
-//conversions are put into outbound Tx(MISO) FIFO
-//when a RDATA command is received
-//Clock data out using ineedmd_adc_Receive_Conversion
-//********************************************************************************
-void ineedmd_adc_Stop_Continuous_Conv()
-{
-  //set the CS low
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-  //2us at fullmspeed
-    //todo proper delay not sleep
-    sleep_for_tenths(1);
 
-  SSIDataPut(INEEDMD_ADC_SPI, ADS1198_SDATAC);
-  while(SSIBusy(INEEDMD_ADC_SPI))
-  {
-  }
-  //when done set the CS high
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
 
-}
-
-//********************************************************************************
-//start continous conversion mode
-//
-//If start pin is high or START command is received
-//conversions are automatically put into outbound Tx(MISO) FIFO when ready (DRDY goes low)
-//use INEEDMD_ADC_Receive_Conversion so shift data through MISO
-//********************************************************************************
-void ineedmd_adc_Start_Continuous_Conv()
-{
-  //set the CS low
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, 0x00);
-  //2us at fullmspeed
-    iHW_delay(1);
-
-  SSIDataPut(INEEDMD_ADC_SPI, ADS1198_RDATAC);
-  while(SSIBusy(INEEDMD_ADC_SPI))
-  {
-  }
-  //when done set the CS high
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_nCS_PIN, INEEDMD_PORTA_ADC_nCS_PIN);
-}
 
 /********************************************************************************
 * send single byte command to ADC
@@ -503,68 +447,13 @@ void ineedmd_adc_Receive_Data(char* data)
 
 
 }
+#endif //NOT_NOW
 
 /******************************************************************************
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-//********************************************************************************
-//ads1198 power on sequence
-//
-//toggles pwdn and reset, waits for device to start
-//wakes with continuous conversions enabled
-//call INEEDMD_ADC_Stop_Continuous_Conv or send SDATAC before attempting to read/write registers
-//********************************************************************************
-void ineedmd_adc_Power_On(void)
-{
 
-  if(bIs_adc_powered_on == false)
-  {
-    //disables clocking into Rx FIFO buffer
-    //SSIAdvModeSet(INEEDMD_ADC_SPI, SSI_ADV_MODE_WRITE);
-
-    SSIEnable(INEEDMD_ADC_SPI);
-
-
-  //power up and raise reset (active low pins)
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN);
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, INEEDMD_PORTA_ADC_RESET_OUT_PIN);
-  //Important - wait at least 2^16 device clocks before reset - 32ms using internal clock on ADS1198/ADC front end
-
-    //todo proper delay not sleep
-    sleep_for_tenths(5);
-    ineedmd_adc_Hard_Reset();
-
-    bIs_adc_powered_on = true;
-  }
-  else
-  {
-    return;
-  }
-}
-
-/* --------------------------------------------------------------------------------------------------
-*ads1198 power down
-*
-* Sets the pwdn and resets low
-*
-* --------------------------------------------------------------------------------------------------
-*/
-void ineedmd_adc_Power_Off(void)
-{
-  if(bIs_adc_powered_on == true)
-  {
-    //takes the ~rest line low putting the ADS1198 into reset
-    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_RESET_OUT_PIN, 0x00);
-    //takes the ~powerdn line low putting the ADS1198 into low power mode
-    GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_PWRDN_OUT_PIN, 0x00);
-
-    bIs_adc_powered_on = false;
-  }
-  else
-  {
-    return;
-  }
-}
+#ifdef NOT_NOW
 
 ERROR_CODE eIneedmd_adc_Power_status(void)
 {
@@ -591,17 +480,6 @@ ERROR_CODE eIneedmd_adc_Power_status(void)
 //********************************************************************************
 void ineedmd_adc_Stop_Internal_Reference()
 {
-}
-
-//********************************************************************************
-//lower start pin to stop ADC conversions
-//********************************************************************************
-void ineedmd_adc_Start_Low()
-{
-  GPIOPinWrite(GPIO_PORTA_BASE, INEEDMD_PORTA_ADC_START_PIN, 0x00);
-  //wait for 2 device clocks - 1uSec
-    //todo proper delay not sleep
-    sleep_for_tenths(1);
 }
 
 //*****************************************************************************
@@ -945,19 +823,43 @@ void ineedmd_adc_12_Lead_Config()
 
 }
 
+#endif //NOT_NOW
+
 //*****************************************************************************
 // name: iADC_setup
 // description: sets up the A to D converter driver
 // param description: none
 // return value description: 1 if success
 //*****************************************************************************
-int iADC_setup(void)
+ERROR_CODE eADC_setup(void)
 {
+  ERROR_CODE eEC = ER_FAIL;
   uint32_t regVal;
 
-  ineedmd_adc_Start_Low();
-  //power on ADC, disable continuous conversions
-  ineedmd_adc_Power_On();
+  eEC = eBSP_ADC_SPI_Enable();
+
+  if(eEC == ER_OK)
+  {
+    eEC = eBSP_ADC_Start(false);
+  }
+
+  if(eEC == ER_OK)
+  {
+    //power on ADC, disable continuous conversions
+    eEC = eBSP_ADC_Power(true);
+  }
+
+  if(eEC == ER_OK)
+  {
+    eEC = eBSP_ADC_Hard_Reset();
+  }
+
+  if(eEC == ER_OK)
+  {
+    eEC = eBSP_ADC_Continuous_Conv(false);
+  }
+
+#ifdef NOT_YET
   //turn off continuous conversion for register read/writes
   ineedmd_adc_Stop_Continuous_Conv();
 
@@ -970,8 +872,8 @@ int iADC_setup(void)
   //start conversions
   ineedmd_adc_Start_Internal_Reference();
   ineedmd_adc_Start_High();
-
-  return 1;
+#endif
+  return eEC;
 }
 
 #endif //#define __INEEDMD_A__

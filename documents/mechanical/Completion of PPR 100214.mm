@@ -1,0 +1,209 @@
+<map version="freeplane 1.3.0">
+<!--To view this file, download free mind mapping software Freeplane from http://freeplane.sourceforge.net -->
+<node TEXT="Completion of Pre-Production Run (PPR)" ID="ID_1723255651" CREATED="1283093380553" MODIFIED="1412293918133"><hook NAME="MapStyle" zoom="0.64986104">
+    <properties show_icon_for_attributes="true"/>
+
+<map_styles>
+<stylenode LOCALIZED_TEXT="styles.root_node">
+<stylenode LOCALIZED_TEXT="styles.predefined" POSITION="right">
+<stylenode LOCALIZED_TEXT="default" MAX_WIDTH="600" COLOR="#000000" STYLE="as_parent">
+<font NAME="SansSerif" SIZE="10" BOLD="false" ITALIC="false"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="defaultstyle.details"/>
+<stylenode LOCALIZED_TEXT="defaultstyle.note"/>
+<stylenode LOCALIZED_TEXT="defaultstyle.floating">
+<edge STYLE="hide_edge"/>
+<cloud COLOR="#f0f0f0" SHAPE="ROUND_RECT"/>
+</stylenode>
+</stylenode>
+<stylenode LOCALIZED_TEXT="styles.user-defined" POSITION="right">
+<stylenode LOCALIZED_TEXT="styles.topic" COLOR="#18898b" STYLE="fork">
+<font NAME="Liberation Sans" SIZE="10" BOLD="true"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="styles.subtopic" COLOR="#cc3300" STYLE="fork">
+<font NAME="Liberation Sans" SIZE="10" BOLD="true"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="styles.subsubtopic" COLOR="#669900">
+<font NAME="Liberation Sans" SIZE="10" BOLD="true"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="styles.important">
+<icon BUILTIN="yes"/>
+</stylenode>
+</stylenode>
+<stylenode LOCALIZED_TEXT="styles.AutomaticLayout" POSITION="right">
+<stylenode LOCALIZED_TEXT="AutomaticLayout.level.root" COLOR="#000000">
+<font SIZE="18"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="AutomaticLayout.level,1" COLOR="#0033ff">
+<font SIZE="16"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="AutomaticLayout.level,2" COLOR="#00b439">
+<font SIZE="14"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="AutomaticLayout.level,3" COLOR="#990000">
+<font SIZE="12"/>
+</stylenode>
+<stylenode LOCALIZED_TEXT="AutomaticLayout.level,4" COLOR="#111111">
+<font SIZE="10"/>
+</stylenode>
+</stylenode>
+</stylenode>
+</map_styles>
+</hook>
+<hook NAME="AutomaticEdgeColor" COUNTER="6"/>
+<node TEXT="Completion of Alpha 1" POSITION="right" ID="ID_94794172" CREATED="1412256897772" MODIFIED="1412269378591">
+<edge COLOR="#ff0000"/>
+<node TEXT="Mechanical" ID="ID_960279235" CREATED="1410537708077" MODIFIED="1410537711761">
+<node TEXT="Test requirements" ID="ID_387709131" CREATED="1409678387829" MODIFIED="1409678517182">
+<icon BUILTIN="full-3"/>
+<node TEXT="Create requirements" ID="ID_1104135630" CREATED="1409678540600" MODIFIED="1409678555553">
+<icon BUILTIN="full-2"/>
+<node TEXT="2H" ID="ID_1890695888" CREATED="1409678562001" MODIFIED="1409678566145"/>
+</node>
+<node TEXT="Drop" ID="ID_439856257" CREATED="1409678397591" MODIFIED="1409678619183">
+<icon BUILTIN="full-3"/>
+<icon BUILTIN="stop-sign"/>
+</node>
+<node TEXT="Splash" ID="ID_1621000291" CREATED="1409678403007" MODIFIED="1409678579984">
+<icon BUILTIN="full-3"/>
+</node>
+<node TEXT="Vibration" ID="ID_1762728136" CREATED="1409678418594" MODIFIED="1409678579985">
+<icon BUILTIN="full-3"/>
+</node>
+<node TEXT="Heat" ID="ID_1414371484" CREATED="1409678422832" MODIFIED="1409678579985">
+<icon BUILTIN="full-3"/>
+</node>
+</node>
+<node TEXT="BIO sensitivity" ID="ID_119784826" CREATED="1409681571835" MODIFIED="1409681585893">
+<icon BUILTIN="full-3"/>
+<node TEXT="Bio Sensitivity Requirements Defined" ID="ID_827359806" CREATED="1412266680499" MODIFIED="1412291823578">
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#000000" WIDTH="2" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_1711405253" STARTINCLINATION="288;0;" ENDINCLINATION="4;-140;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
+</node>
+</node>
+<node TEXT="Determine color 10/9/14" ID="ID_1707046939" CREATED="1410540290390" MODIFIED="1412293652690">
+<icon BUILTIN="full-1"/>
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#cc00cc" WIDTH="6" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_15039271" STARTINCLINATION="622;26;" ENDINCLINATION="469;196;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
+<node TEXT="Present and decide on stock colors" ID="ID_1397730431" CREATED="1412266722019" MODIFIED="1412266751690">
+<node TEXT="Determine resin for molding" ID="ID_1711405253" CREATED="1412266784083" MODIFIED="1412291742738">
+<node TEXT="Contact Resin Mfrs" ID="ID_1140026909" CREATED="1412267097870" MODIFIED="1412291129737">
+<icon BUILTIN="button_ok"/>
+</node>
+</node>
+</node>
+</node>
+<node TEXT="Determine qty" ID="ID_1647305046" CREATED="1410540304321" MODIFIED="1410540342800">
+<icon BUILTIN="full-1"/>
+</node>
+<node TEXT="label" ID="ID_1421150394" CREATED="1411163773421" MODIFIED="1411164542432">
+<icon BUILTIN="full-3"/>
+<node TEXT="review labels" ID="ID_710859045" CREATED="1411163795602" MODIFIED="1411163845081">
+<icon BUILTIN="negative"/>
+<icon BUILTIN="full-1"/>
+</node>
+<node TEXT="add acceptance criteria" ID="ID_1870013417" CREATED="1411163810982" MODIFIED="1411163833911">
+<icon BUILTIN="negative"/>
+</node>
+</node>
+<node TEXT="" ID="ID_1327754094" CREATED="1412265494338" MODIFIED="1412265494338">
+<node TEXT="Validate first Article case" ID="ID_948411510" CREATED="1410537713255" MODIFIED="1412293638408">
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#000000" WIDTH="2" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_1926340995" STARTINCLINATION="-3;228;" ENDINCLINATION="-50;-101;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
+<node TEXT="Unit passes leak test" ID="ID_376296713" CREATED="1412264959811" MODIFIED="1412293638408" HGAP="53" VSHIFT="-28">
+<node TEXT="Submersion test" ID="ID_634925156" CREATED="1412264982641" MODIFIED="1412264993234"/>
+<node TEXT="Wash Test" ID="ID_1360897294" CREATED="1412264996439" MODIFIED="1412265002539"/>
+<node TEXT="Verify Gasket sample" ID="ID_140857373" CREATED="1408569298845" MODIFIED="1408569348190">
+<icon BUILTIN="full-3"/>
+<node TEXT="4H" ID="ID_632531761" CREATED="1409679067113" MODIFIED="1409679068836"/>
+</node>
+</node>
+<node TEXT="Assembly Evaluation" ID="ID_300673447" CREATED="1412265566246" MODIFIED="1412265591050"/>
+<node TEXT="Note changes required and revise Parts" ID="ID_1625760516" CREATED="1412265593803" MODIFIED="1412266108782"/>
+<node TEXT="Printed parts received and verified" ID="ID_537367970" CREATED="1408569312693" MODIFIED="1412268078558">
+<icon BUILTIN="full-3"/>
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#000000" WIDTH="2" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_376296713" STARTINCLINATION="32;-7;" ENDINCLINATION="95;16;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
+<node TEXT="Place order" ID="ID_160798485" CREATED="1409678211574" MODIFIED="1409678221676">
+<node TEXT="4H" ID="ID_442392613" CREATED="1409678222470" MODIFIED="1409678279346"/>
+</node>
+<node TEXT="Approvals" ID="ID_992854551" CREATED="1409678155368" MODIFIED="1409678159571">
+<node TEXT="2H" ID="ID_1442976390" CREATED="1409678171540" MODIFIED="1409678193644"/>
+</node>
+</node>
+</node>
+</node>
+</node>
+</node>
+<node TEXT="Completion of Alpha 2 C15 10/24/14" POSITION="right" ID="ID_785512851" CREATED="1412256908825" MODIFIED="1412293910233" HGAP="7" VSHIFT="86">
+<edge COLOR="#0000ff"/>
+<font BOLD="true"/>
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#000000" WIDTH="2" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_1903234859" STARTINCLINATION="26;331;" ENDINCLINATION="-32;-130;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
+<node TEXT="Assembly of A2 painted parts 10/24/14" ID="ID_660397128" CREATED="1412256922186" MODIFIED="1412293118334">
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#000000" WIDTH="2" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_500163528" STARTINCLINATION="-24;104;" ENDINCLINATION="8;-134;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
+<node TEXT="Receipt of Painted A2 parts 10/23/10" ID="ID_1823435139" CREATED="1412266188568" MODIFIED="1412293086362">
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+<node TEXT="Order A2 Parts 10/6/14" ID="ID_151446446" CREATED="1412265458793" MODIFIED="1412293555348">
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+<node TEXT="Assembly design review" ID="ID_1411639434" CREATED="1408569328215" MODIFIED="1412267430923" HGAP="47" VSHIFT="27">
+<icon BUILTIN="full-3"/>
+<arrowlink SHAPE="CUBIC_CURVE" COLOR="#000000" WIDTH="2" TRANSPARENCY="80" FONT_SIZE="9" FONT_FAMILY="SansSerif" DESTINATION="ID_866091427" STARTINCLINATION="29;31;" ENDINCLINATION="-81;59;" STARTARROW="NONE" ENDARROW="DEFAULT"/>
+<node TEXT="Visit Mfg with A1" ID="ID_1926340995" CREATED="1409678349050" MODIFIED="1412265371472">
+<node TEXT="Create A1 Assy Inst Outline" ID="ID_936025181" CREATED="1412265409411" MODIFIED="1412266419698"/>
+</node>
+<node TEXT="8H" ID="ID_718271829" CREATED="1409678346120" MODIFIED="1409678347798"/>
+</node>
+<node TEXT="Update parts with any changes from Mfg review" ID="ID_866091427" CREATED="1412267174194" MODIFIED="1412267263566"/>
+</node>
+<node TEXT="Specify Paint 10/9/14" ID="ID_15039271" CREATED="1412290539195" MODIFIED="1412291339750">
+<font BOLD="true"/>
+</node>
+</node>
+</node>
+<node TEXT="Approval of A2 Parts (ineedMD) 10/25/14" ID="ID_173443375" CREATED="1412268133712" MODIFIED="1412293905159" HGAP="42" VSHIFT="86">
+<font BOLD="true"/>
+<node TEXT="Ship Assembled painted  A2&apos;s to ineed 10/24/14" ID="ID_500163528" CREATED="1412289565801" MODIFIED="1412293847247">
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+</node>
+</node>
+<node TEXT="Approval of A2 Parts (OODG)" ID="ID_572231596" CREATED="1412266484290" MODIFIED="1412289841728"/>
+<node TEXT="Assembly of Unpainted A2 Parts" ID="ID_653254923" CREATED="1412289843215" MODIFIED="1412289911748">
+<node TEXT="Receipt of unpainted A2 parts 10/20/14" ID="ID_1241428758" CREATED="1412266188568" MODIFIED="1412292998277">
+<node TEXT="Order A2 Parts" ID="ID_130371465" CREATED="1412265458793" MODIFIED="1412266238410"/>
+</node>
+<node TEXT="Assembly design review" ID="ID_1750126599" CREATED="1408569328215" MODIFIED="1412293715064" HGAP="47" VSHIFT="27">
+<icon BUILTIN="full-3"/>
+<node TEXT="Visit Mfg with A1" ID="ID_621098581" CREATED="1409678349050" MODIFIED="1412265371472">
+<node TEXT="Create A1 Assy Inst Outline" ID="ID_1392647746" CREATED="1412265409411" MODIFIED="1412266419698"/>
+</node>
+<node TEXT="Create A2 Assy instructions with Mfg" ID="ID_1983228446" CREATED="1409678360380" MODIFIED="1412266310326"/>
+<node TEXT="8H" ID="ID_76138912" CREATED="1409678346120" MODIFIED="1409678347798"/>
+<node TEXT="Update parts with any changes from Mfg review" ID="ID_120814894" CREATED="1412267174194" MODIFIED="1412267263566"/>
+</node>
+</node>
+</node>
+<node TEXT="Completion of PPR" POSITION="right" ID="ID_404084866" CREATED="1412256943293" MODIFIED="1412293918123" HGAP="-131" VSHIFT="-5">
+<edge COLOR="#ffff00"/>
+<font BOLD="true"/>
+<node TEXT="Test FPR Parts" ID="ID_405726242" CREATED="1412267808873" MODIFIED="1412292839661" HGAP="28" VSHIFT="33">
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+<node TEXT="Assemble PPR Parts 11/21/14" ID="ID_607017426" CREATED="1412267749772" MODIFIED="1412292836441" HGAP="49" VSHIFT="23">
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+<node TEXT="Order Of FPR Parts 10/24/14" ID="ID_1974786967" CREATED="1412267692980" MODIFIED="1412292874727" HGAP="-295" VSHIFT="28">
+<icon BUILTIN="messagebox_warning"/>
+<font BOLD="true"/>
+<node TEXT="Completion of Alpha 2" ID="ID_1903234859" CREATED="1412267640915" MODIFIED="1412292874727" HGAP="92" VSHIFT="43">
+<icon BUILTIN="messagebox_warning"/>
+</node>
+</node>
+</node>
+</node>
+<node TEXT="Approval of FPR Parts" ID="ID_1072573892" CREATED="1412267967627" MODIFIED="1412292895415" HGAP="35" VSHIFT="16"/>
+</node>
+</node>
+</map>
