@@ -455,7 +455,7 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
     }
     else
     {
-      //when the control comes here, it is implicitly implied that the packetType and also the actual command are very much valid.
+      //when the control comes here, it is implicit that the packetType and also the actual command are very much valid.
       switch (eProtocolFrameCommandID)
       {
         case COMMAND_ID_SET_STATUS: //status

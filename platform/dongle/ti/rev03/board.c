@@ -3672,6 +3672,9 @@ ERROR_CODE eBSP_Board_init(void)
   Board_initUART();
   Board_initI2C();
   Board_initSPI();
+  Board_initSDSPI();
+  Board_initUSB(EK_TM4C123GXL_USBDEVICE);
+//  Board_initUSBMSCHFatFs();
 
   set_system_speed (INEEDMD_CPU_SPEED_FULL_EXTERNAL);
 

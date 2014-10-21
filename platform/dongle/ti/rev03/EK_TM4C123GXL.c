@@ -318,18 +318,27 @@ SDSPITiva_Object sdspiTivaobjects[EK_TM4C123GXL_SDSPICOUNT];
 /* SDSPI configuration structure, describing which pins are to be used */
 const SDSPITiva_HWAttrs sdspiTivaHWattrs[EK_TM4C123GXL_SDSPICOUNT] = {
     {
-        SSI2_BASE,          /* SPI base address */
+//        SSI2_BASE,          /* SPI base address */
+        SSI1_BASE,          /* SPI base address */
 
-        GPIO_PORTB_BASE,    /* The GPIO port used for the SPI pins */
-        GPIO_PIN_4,         /* SCK */
-        GPIO_PIN_6,         /* MISO */
-        GPIO_PIN_7,         /* MOSI */
+//        GPIO_PORTB_BASE,    /* The GPIO port used for the SPI pins */
+//        GPIO_PIN_4,         /* SCK */
+//        GPIO_PIN_6,         /* MISO */
+//        GPIO_PIN_7,         /* MOSI */
+         GPIO_PORTD_BASE,    /* The GPIO port used for the SPI pins */
+         GPIO_PIN_0,         /* SCK */
+         GPIO_PIN_3,         /* MISO */
+         GPIO_PIN_2,         /* MOSI */
 
-        GPIO_PORTA_BASE,    /* Chip select port */
-        GPIO_PIN_5,         /* Chip select pin */
+//        GPIO_PORTA_BASE,    /* Chip select port */
+//        GPIO_PIN_5,         /* Chip select pin */
+         GPIO_PORTD_BASE,    /* Chip select port */
+         GPIO_PIN_1,         /* Chip select pin */
 
-        GPIO_PORTB_BASE,    /* GPIO TX port */
-        GPIO_PIN_7,         /* GPIO TX pin */
+//        GPIO_PORTB_BASE,    /* GPIO TX port */
+//        GPIO_PIN_7,         /* GPIO TX pin */
+         GPIO_PORTD_BASE,    /* GPIO TX port */
+         GPIO_PIN_2,         /* GPIO TX pin */
     }
 };
 
@@ -343,34 +352,38 @@ const SDSPI_Config SDSPI_config[] = {
  */
 void EK_TM4C123GXL_initSDSPI(void)
 {
-    /* Enable the peripherals used by the SD Card */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
+  /* Enable the peripherals used by the SD Card */
+//  SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
+  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
 
-    /* Configure pad settings */
-    GPIOPadConfigSet(GPIO_PORTB_BASE,
+  /* Configure pad settings */
+//  GPIOPadConfigSet(GPIO_PORTB_BASE,
+//          GPIO_PIN_4 | GPIO_PIN_7,
+//          GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
+  GPIOPadConfigSet(GPIO_PORTB_BASE,
             GPIO_PIN_4 | GPIO_PIN_7,
             GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
 
-    GPIOPadConfigSet(GPIO_PORTB_BASE,
-            GPIO_PIN_6,
-            GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPU);
+  GPIOPadConfigSet(GPIO_PORTB_BASE,
+          GPIO_PIN_6,
+          GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPU);
 
-    GPIOPadConfigSet(GPIO_PORTA_BASE,
-            GPIO_PIN_5,
-            GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
+  GPIOPadConfigSet(GPIO_PORTA_BASE,
+          GPIO_PIN_5,
+          GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
 
-    GPIOPinConfigure(GPIO_PB4_SSI2CLK);
-    GPIOPinConfigure(GPIO_PB6_SSI2RX);
-    GPIOPinConfigure(GPIO_PB7_SSI2TX);
+  GPIOPinConfigure(GPIO_PB4_SSI2CLK);
+  GPIOPinConfigure(GPIO_PB6_SSI2RX);
+  GPIOPinConfigure(GPIO_PB7_SSI2TX);
 
-    /*
-     * These GPIOs are connected to PB6 and PB7 and need to be brought into a
-     * GPIO input state so they don't interfere with SPI communications.
-     */
-    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0);
-    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_1);
+  /*
+   * These GPIOs are connected to PB6 and PB7 and need to be brought into a
+   * GPIO input state so they don't interfere with SPI communications.
+   */
+  GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0);
+  GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_1);
 
-    SDSPI_init();
+  SDSPI_init();
 }
 #endif /* TI_DRIVERS_SDSPI_INCLUDED */
 

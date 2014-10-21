@@ -82,24 +82,19 @@
 			<locationURI>PARENT-2-PROJECT_LOC/application/main.c</locationURI>
 		</link>
 		<link>
-			<name>drivers/LED.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/drivers/LED.c</locationURI>
-		</link>
-		<link>
 			<name>drivers/SDcard.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/drivers/SDcard.c</locationURI>
 		</link>
 		<link>
-			<name>drivers/UI.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/drivers/UI.c</locationURI>
-		</link>
-		<link>
 			<name>drivers/battery.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/drivers/battery.c</locationURI>
+		</link>
+		<link>
+			<name>drivers/ineedmd_USB.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/drivers/ineedmd_USB.c</locationURI>
 		</link>
 		<link>
 			<name>drivers/ineedmd_adc.c</name>
