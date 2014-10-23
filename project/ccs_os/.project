@@ -87,6 +87,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/drivers/SDcard.c</locationURI>
 		</link>
 		<link>
+			<name>drivers/USBMSCD.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/drivers/USBMSCD.c</locationURI>
+		</link>
+		<link>
 			<name>drivers/battery.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/drivers/battery.c</locationURI>

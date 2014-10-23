@@ -288,7 +288,8 @@
 #define RING_CONNECTION_STRING_LEN   36
 
 #define BT_MACADDR_NUM_BYTES  6
-#define BG_SIZE              1024
+//#define BG_SIZE              1024
+#define BG_SIZE              512
 #define BG_SEND_SIZE         128
 #define BG_SEND_SIZE_SMALL   50
 #define MSG_BUFF_SIZE        256

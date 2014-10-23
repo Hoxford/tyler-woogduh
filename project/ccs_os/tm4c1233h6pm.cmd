@@ -7,12 +7,13 @@
  *****************************************************************************/
 
 --retain=g_pfnVectors
-
+/*
 MEMORY
 {
     FLASH (RX) : origin = 0x00000000, length = 0x00040000
     SRAM (RWX) : origin = 0x20000000, length = 0x00008000
 }
+*/
 
 /* The following command line options are set as part of the CCS project.    */
 /* If you are building using the command line, or for some reason want to    */
@@ -40,6 +41,9 @@ SECTIONS
     .bss    :   > SRAM
     .sysmem :   > SRAM
     .stack  :   > SRAM
+    .dma    :   > SRAM
 }
 
+/*
 __STACK_TOP = __stack + 512;
+*/

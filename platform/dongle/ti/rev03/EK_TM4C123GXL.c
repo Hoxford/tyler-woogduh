@@ -318,8 +318,7 @@ SDSPITiva_Object sdspiTivaobjects[EK_TM4C123GXL_SDSPICOUNT];
 /* SDSPI configuration structure, describing which pins are to be used */
 const SDSPITiva_HWAttrs sdspiTivaHWattrs[EK_TM4C123GXL_SDSPICOUNT] = {
     {
-//        SSI2_BASE,          /* SPI base address */
-        SSI1_BASE,          /* SPI base address */
+        INEEDMD_SD_SSI_BASE,          /* SPI base address */
 
 //        GPIO_PORTB_BASE,    /* The GPIO port used for the SPI pins */
 //        GPIO_PIN_4,         /* SCK */
@@ -353,35 +352,31 @@ const SDSPI_Config SDSPI_config[] = {
 void EK_TM4C123GXL_initSDSPI(void)
 {
   /* Enable the peripherals used by the SD Card */
-//  SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
+  MAP_SysCtlPeripheralEnable(INEEDMD_SD_SPI_SYSCTL_PERIPH);
 
   /* Configure pad settings */
-//  GPIOPadConfigSet(GPIO_PORTB_BASE,
-//          GPIO_PIN_4 | GPIO_PIN_7,
-//          GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
-  GPIOPadConfigSet(GPIO_PORTB_BASE,
-            GPIO_PIN_4 | GPIO_PIN_7,
+  GPIOPadConfigSet(INEEDMD_SD_GPIO_PORT,
+      INEEDMD_SD_SCK_PIN | INEEDMD_SD_MOSI_PIN,
             GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
 
-  GPIOPadConfigSet(GPIO_PORTB_BASE,
-          GPIO_PIN_6,
+  GPIOPadConfigSet(INEEDMD_SD_GPIO_PORT,
+      INEEDMD_SD_MISO_PIN,
           GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPU);
 
-  GPIOPadConfigSet(GPIO_PORTA_BASE,
-          GPIO_PIN_5,
+  GPIOPadConfigSet(INEEDMD_SD_CS_GPIO_PORT,
+      INEEDMD_SD_CS_PIN,
           GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
 
-  GPIOPinConfigure(GPIO_PB4_SSI2CLK);
-  GPIOPinConfigure(GPIO_PB6_SSI2RX);
-  GPIOPinConfigure(GPIO_PB7_SSI2TX);
+  GPIOPinConfigure(INEEDMD_SD_SCK_SSI);
+  GPIOPinConfigure(INEEDMD_SD_MISO_SSI);
+  GPIOPinConfigure(INEEDMD_SD_MOSI_SSI);
 
-  /*
-   * These GPIOs are connected to PB6 and PB7 and need to be brought into a
-   * GPIO input state so they don't interfere with SPI communications.
-   */
-  GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0);
-  GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_1);
+//  /*
+//   * These GPIOs are connected to PB6 and PB7 and need to be brought into a
+//   * GPIO input state so they don't interfere with SPI communications.
+//   */
+//  GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_0);
+//  GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_1);
 
   SDSPI_init();
 }
@@ -572,16 +567,53 @@ void EK_TM4C123GXL_initUART(void)
 void EK_TM4C123GXL_initUSB(EK_TM4C123GXL_USBMode usbMode)
 {
     /* Enable the USB peripheral and PLL */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
-    SysCtlUSBPLLEnable();
+    MAP_SysCtlPeripheralEnable(INEEDMD_USB_SYSCTL_PERIPH);
+    MAP_SysCtlUSBPLLEnable();
+
+    EK_TM4C123GXL_initDMA();
 
     /* Setup pins for USB operation */
-    GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+    GPIOPinTypeUSBAnalog(INEEDMD_USB_GPIO_PORT, INEEDMD_USBDP_PIN | INEEDMD_USBDM_PIN);
 
     if (usbMode == EK_TM4C123GXL_USBHOST) {
         System_abort("USB host not supported\n");
     }
 }
+
+#if TI_DRIVERS_USBMSCHFATFS_INCLUDED
+#include <ti/drivers/USBMSCHFatFs.h>
+#include <ti/drivers/usbmschfatfs/USBMSCHFatFsTiva.h>
+
+/* USBMSCHFatFs objects */
+USBMSCHFatFsTiva_Object usbmschfatfstivaObjects[1];
+
+/* USBMSCHFatFs configuration structure, describing which pins are to be used */
+const USBMSCHFatFsTiva_HWAttrs usbmschfatfstivaHWAttrs[1] = {
+    {INT_USB0}
+};
+
+const USBMSCHFatFs_Config USBMSCHFatFs_config[] = {
+    {
+        &USBMSCHFatFsTiva_fxnTable,
+        &usbmschfatfstivaObjects[0],
+        &usbmschfatfstivaHWAttrs[0]
+    },
+    {NULL, NULL, NULL}
+};
+
+/*
+ *  ======== DK_TM4C123G_initUSBMSCHFatFs ========
+ */
+void EK_TM4C123GXL_initUSBMSCHFatFs(void)
+{
+    /* Initialize the DMA control table */
+    EK_TM4C123GXL_initDMA();
+
+    /* Call the USB initialization function for the USB Reference modules */
+    EK_TM4C123GXL_initUSB(EK_TM4C123GXL_USBDEVICE);
+    USBMSCHFatFs_init();
+}
+#endif /* TI_DRIVERS_USBMSCHFATFS_INCLUDED */
 
 #if TI_DRIVERS_WATCHDOG_INCLUDED
 #include <ti/drivers/Watchdog.h>

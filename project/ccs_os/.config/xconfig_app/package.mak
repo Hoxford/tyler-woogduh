@@ -70,18 +70,18 @@ package.mak: C:/ti/xdctools_3_30_03_47_core/packages/xdc/bld/ITargetFilter.xs
 C:/ti/xdctools_3_30_03_47_core/packages/xdc/bld/package.xs:
 package.mak: C:/ti/xdctools_3_30_03_47_core/packages/xdc/bld/package.xs
 package.mak: config.bld
-C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/ITarget.xs:
-package.mak: C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/ITarget.xs
-C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/C28_large.xs:
-package.mak: C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/C28_large.xs
-C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/C28_float.xs:
-package.mak: C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/C28_float.xs
-C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/package.xs:
-package.mak: C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/package.xs
-C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/arm/elf/IArm.xs:
-package.mak: C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/arm/elf/IArm.xs
-C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/arm/elf/package.xs:
-package.mak: C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/arm/elf/package.xs
+C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/ITarget.xs:
+package.mak: C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/ITarget.xs
+C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/C28_large.xs:
+package.mak: C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/C28_large.xs
+C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/C28_float.xs:
+package.mak: C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/C28_float.xs
+C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/package.xs:
+package.mak: C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/package.xs
+C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/arm/elf/IArm.xs:
+package.mak: C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/arm/elf/IArm.xs
+C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/arm/elf/package.xs:
+package.mak: C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/arm/elf/package.xs
 package.mak: package.bld
 C:/ti/xdctools_3_30_03_47_core/packages/xdc/tools/configuro/template/compiler.opt.xdt:
 package.mak: C:/ti/xdctools_3_30_03_47_core/packages/xdc/tools/configuro/template/compiler.opt.xdt
@@ -98,7 +98,7 @@ package.mak: C:/ti/xdctools_3_30_03_47_core/packages/xdc/tools/configuro/templat
 endif
 
 ti.targets.arm.elf.M4F.rootDir ?= c:/ti/ccsv6/tools/compiler/arm_5.1.8
-ti.targets.arm.elf.packageBase ?= C:/ti/tirtos_tivac_2_00_02_36/products/bios_6_40_02_27/packages/ti/targets/arm/elf/
+ti.targets.arm.elf.packageBase ?= C:/ti/tirtos_tivac_2_01_00_03/products/bios_6_40_03_39/packages/ti/targets/arm/elf/
 .PRECIOUS: $(XDCCFGDIR)/%.oem4f
 .PHONY: all,em4f .dlls,em4f .executables,em4f test,em4f
 all,em4f: .executables,em4f

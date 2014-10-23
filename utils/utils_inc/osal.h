@@ -9,18 +9,42 @@
 /******************************************************************************
 * includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-#include <ti/sysbios/BIOS.h>
+
+//TI RTOS XDCtools header files
 #include <xdc/runtime/Error.h>
 #include <xdc/std.h>
 #include <xdc/runtime/System.h>
-#include <ti/sysbios/knl/Task.h>
-#include <ti/sysbios/knl/Queue.h>
-#include <ti/sysbios/knl/Mailbox.h>
-#include <ti/sysbios/hal/Timer.h>
-#include <ti/sysbios/knl/Clock.h>
+//#include <xdc/runtime/knl/Semaphore.h>
+
+//TI RTOS sysbios header files
+  #include <ti/sysbios/BIOS.h>
+//fatfs sysbios header files
+  #include <ti/sysbios/fatfs/diskio.h>
+//gate sysbios header files
+  #include <ti/sysbios/gates/GateMutex.h>
+  #include <ti/sysbios/gates/GateMutexPri.h>
+//hal sysbios header files
+  #include <ti/sysbios/hal/Timer.h>
+  #include <ti/sysbios/hal/Hwi.h>
+//knl sysbios header files
+  #include <ti/sysbios/knl/Task.h>
+  #include <ti/sysbios/knl/Queue.h>
+  #include <ti/sysbios/knl/Mailbox.h>
+  #include <ti/sysbios/knl/Clock.h>
+  #include <ti/sysbios/knl/Semaphore.h>
+  #include <ti/sysbios/knl/Clock.h>
+
+//driver sysbios header files
+  #include <ti/drivers/SDSPI.h>
+  #include <ti/drivers/sdspi/SDSPITiva.h>
+  #include <ti/drivers/USBMSCHFatFs.h>
+
 /******************************************************************************
 *public defines ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+
+#define OSAL_SEM_WAIT_TIMEOUT_WAITFOREVER  BIOS_WAIT_FOREVER
+#define OSAL_SEM_WAIT_TIMEOUT_1SECOND      100000
 
 /******************************************************************************
 *public variables /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

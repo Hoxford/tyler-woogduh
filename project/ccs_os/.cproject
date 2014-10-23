@@ -5,6 +5,9 @@
 	<storageModule configRelations="2" moduleId="org.eclipse.cdt.core.settings">
 		<cconfiguration id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.846674819">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.846674819" moduleId="org.eclipse.cdt.core.settings" name="Debug">
+				<macros>
+					<stringMacro name="COM_TI_RTSC_TIRTOSTIVAC_INSTALL_DIR" type="VALUE_PATH_DIR" value="c:/ti/tirtos_tivac_2_01_00_03"/>
+				</macros>
 				<externalSettings/>
 				<extensions>
 					<extension id="com.ti.ccstudio.binaryparser.CoffParser" point="org.eclipse.cdt.core.BinaryParser"/>
@@ -82,6 +85,7 @@
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.LIBRARY.313502473" name="Include library file or command file as input (--library, -l)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.LIBRARY" valueType="libs">
 									<listOptionValue builtIn="false" value="&quot;libc.a&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${COM_TI_RTSC_TIRTOSTIVAC_INSTALL_DIR}/products/TivaWare_C_Series-2.1.0.12573c/driverlib/ccs/Debug/driverlib.lib&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${COM_TI_RTSC_TIRTOSTIVAC_INSTALL_DIR}/products/TivaWare_C_Series-2.1.0.12573c/usblib/ccs/Debug/usblib.lib&quot;"/>
 								</option>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD_SRCS.88086770" name="Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD_SRCS"/>
 								<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD2_SRCS.241080160" name="Linker Command Files" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exeLinker.inputType__CMD2_SRCS"/>
@@ -107,7 +111,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/main.c|drivers/UI.c|drivers/SDcard.c|drivers/LED.c|drivers/bluetooth.c|drivers/battery.c|EK_TM4C123GXL.c|tm4c1233h6pm.cmd|platform/dongle/ti/rev03/usblib|platform/dongle/ti/rev03/driverlib|platform/dongle/ti/rev03/driverlib/udma.c|platform/dongle/ti/rev03/driverlib/sysexc.c|platform/dongle/ti/rev03/driverlib/sw_crc.c|platform/dongle/ti/rev03/driverlib/shamd5.c|platform/dongle/ti/rev03/driverlib/qei.c|platform/dongle/ti/rev03/driverlib/pwm.c|platform/dongle/ti/rev03/driverlib/onewire.c|platform/dongle/ti/rev03/driverlib/mpu.c|platform/dongle/ti/rev03/driverlib/lcd.c|platform/dongle/ti/rev03/driverlib/hibernate.c|platform/dongle/ti/rev03/driverlib/fpu.c|platform/dongle/ti/rev03/driverlib/flash.c|platform/dongle/ti/rev03/driverlib/epi.c|platform/dongle/ti/rev03/driverlib/emac.c|platform/dongle/ti/rev03/driverlib/eeprom.c|platform/dongle/ti/rev03/driverlib/des.c|platform/dongle/ti/rev03/driverlib/crc.c|platform/dongle/ti/rev03/driverlib/comp.c|platform/dongle/ti/rev03/driverlib/can.c|platform/dongle/ti/rev03/driverlib/aes.c|utils/file_system.c|utils/fswrapper.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/main.c|drivers/UI.c|drivers/SDcard.c|drivers/LED.c|drivers/bluetooth.c|drivers/battery.c|EK_TM4C123GXL.c|platform/dongle/ti/rev03/usblib|platform/dongle/ti/rev03/driverlib|platform/dongle/ti/rev03/driverlib/udma.c|platform/dongle/ti/rev03/driverlib/sysexc.c|platform/dongle/ti/rev03/driverlib/sw_crc.c|platform/dongle/ti/rev03/driverlib/shamd5.c|platform/dongle/ti/rev03/driverlib/qei.c|platform/dongle/ti/rev03/driverlib/pwm.c|platform/dongle/ti/rev03/driverlib/onewire.c|platform/dongle/ti/rev03/driverlib/mpu.c|platform/dongle/ti/rev03/driverlib/lcd.c|platform/dongle/ti/rev03/driverlib/hibernate.c|platform/dongle/ti/rev03/driverlib/fpu.c|platform/dongle/ti/rev03/driverlib/flash.c|platform/dongle/ti/rev03/driverlib/epi.c|platform/dongle/ti/rev03/driverlib/emac.c|platform/dongle/ti/rev03/driverlib/eeprom.c|platform/dongle/ti/rev03/driverlib/des.c|platform/dongle/ti/rev03/driverlib/crc.c|platform/dongle/ti/rev03/driverlib/comp.c|platform/dongle/ti/rev03/driverlib/can.c|platform/dongle/ti/rev03/driverlib/aes.c|utils/file_system.c|utils/fswrapper.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

@@ -29,6 +29,9 @@
 typedef enum eUSB_request_ID
 {
   USB_REQUEST_NONE,
+  USB_REQUEST_REGISTER_CONN_CALLBACK,
+  USB_REQUEST_FORCE_DISCONNECT,
+  USB_REQUEST_RECONNECT,
   USB_REQUEST_LIMIT
 }eUSB_request_ID;
 
@@ -49,7 +52,6 @@ typedef struct tUSB_req
 /******************************************************************************
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-ERROR_CODE eUSB_MassStorage_read(void);
-ERROR_CODE eUSB_MassStorage_write(void);
-ERROR_CODE eUSB_MassStorage_waitForConnect(uint32_t uiTimeout);
+ERROR_CODE eUSB_request_params_init (tUSB_req * tParams );
+ERROR_CODE eUSB_request             (tUSB_req * tRequest);
 #endif //__INEEDMD_USB_H__
