@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "inc/hw_memmap.h"
+
 #include "utils_inc/error_codes.h"
 #include "drivers_inc/ineedmd_USB.h"
 #include "utils_inc/proj_debug.h"
@@ -45,7 +47,7 @@ const char  inputfile[] = "fat:"STR(SD_DRIVE_NUM)":log.txt";
 /******************************************************************************
 * external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-
+extern Mailbox_Handle tUSB_mailbox;
 /******************************************************************************
 * enums ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -53,6 +55,10 @@ const char  inputfile[] = "fat:"STR(SD_DRIVE_NUM)":log.txt";
 typedef enum eUSB_message_ID
 {
   USB_MSG_NONE,
+  USB_MSG_FORCE_DISCONNECT,
+  USB_MSG_REQUEST_RECONNECT,
+  USB_MSG_CONNECTED,
+  USB_MSG_DISCONNECTED,
   USB_MSG_LIMIT
 }eUSB_message_ID;
 
@@ -75,9 +81,8 @@ SDSPI_Handle sdspiHandle;
 * private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 ERROR_CODE eUSB_mass_storage_setup(void); //short function declaration description
-//ERROR_CODE eUSB_MassStorage_waitForConnect(uint32_t uiTimeout);
-ERROR_CODE eUSB_MassStorage_read(void);
-ERROR_CODE eUSB_MassStorage_write(void);
+void vUSB_mass_storage_connect_callback(void);
+void vUSB_mass_storage_disconnect_callback(void);
 
 /******************************************************************************
 * private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,9 +101,6 @@ ERROR_CODE eUSB_mass_storage_setup(void)
   ERROR_CODE eEC = ER_OK;
   SDSPI_Handle sdspiHandle;
   SDSPI_Params sdspiParams;
-  USBMSCHFatFs_Handle usbmschfatfsHandle;
-  USBMSCHFatFs_Params usbmschfatfsParams;
-  bool bIs_usb_connected = false;
 
   //init SD card IO
   /* Mount and register the USB Drive */
@@ -181,6 +183,76 @@ ERROR_CODE eUSB_request_params_init(tUSB_req * tParams)
 ERROR_CODE eUSB_request(tUSB_req * tRequest)
 {
   ERROR_CODE eEC = ER_FAIL;
+  ERROR_CODE eEC_register_callback = ER_FAIL;
+
+  if(tRequest == NULL)
+  {
+    eEC = ER_PARAM;
+  }
+  else
+  {
+    if(tRequest->eRequest >= USB_REQUEST_LIMIT)
+    {
+      eEC = ER_REQUEST;
+    }
+    else
+    {
+      switch(tRequest->eRequest)
+      {
+        case USB_REQUEST_REGISTER_CONN_CALLBACK:
+        {
+          if(tRequest->vUSB_connection_callback == NULL)
+          {
+            eEC = ER_PARAM1;
+          }
+          else
+          {
+            //Set callback into callback array
+            //
+
+            if(eEC_register_callback == ER_FAIL)
+            {
+              eEC = ER_FULL;
+            }
+            else
+            {
+              eEC = ER_OK;
+            }
+          }
+          break;
+        }
+        case USB_REQUEST_UNREGISTER_CONN_CALLBACK:
+        {
+          if(tRequest->vUSB_connection_callback == NULL)
+          {
+            eEC = ER_PARAM1;
+          }
+          else
+          {
+            //Clear callback in callback array
+            //
+
+            if(eEC_register_callback == ER_NOT_SET)
+            {
+              eEC = ER_NOT_SET;
+            }
+            else
+            {
+              eEC = ER_OK;
+            }
+          }
+          break;
+        }
+        case USB_REQUEST_FORCE_DISCONNECT:
+          break;
+        case USB_REQUEST_RECONNECT:
+          break;
+        default:
+          eEC = ER_REQUEST;
+          break;
+      }
+    }
+  }
 
   return eEC;
 }
@@ -194,6 +266,7 @@ ERROR_CODE eUSB_request(tUSB_req * tRequest)
 void vUSB_task(UArg arg0, UArg arg1)
 {
   ERROR_CODE eEC = ER_FAIL;
+  tUSB_message tMsg;
 
   eEC = eUSB_mass_storage_setup();
   if(eEC == ER_FAIL)
@@ -204,13 +277,35 @@ void vUSB_task(UArg arg0, UArg arg1)
 
   while(1)
   {
-    if(eUSB_MassStorage_waitForConnect() == ER_OK)
+    if(Mailbox_pend(tUSB_mailbox, &tMsg, BIOS_WAIT_FOREVER) == true)
     {
-      //do task shutdown for mass storage device procedure
-    }
-    else
-    {
-      Task_sleep(1000);
+      switch(tMsg.eMessage)
+      {
+        case USB_MSG_FORCE_DISCONNECT:
+          break;
+        case USB_MSG_REQUEST_RECONNECT:
+          break;
+        case USB_MSG_CONNECTED:
+          break;
+        case USB_MSG_DISCONNECTED:
+          break;
+        default:
+          break;
+      }
+
+
+      if(eUSB_MassStorage_waitForConnect() == ER_OK)
+      {
+        //do task shutdown for mass storage device procedure
+        eEC = ER_OK;
+
+      }
+
+      if(eUSB_MassStorage_waitForDisonnect() == ER_OK)
+      {
+        //do task startup
+        eEC = ER_OK;
+      }
     }
   }
 }

@@ -82,8 +82,7 @@
 
 #define Board_WIFI                  EK_TM4C123GXL_WIFI
 
-#define Board_gpioCallbacks0        EK_TM4C123GXL_gpioPortFCallbacks
-#define Board_gpioCallbacks1        EK_TM4C123GXL_gpioPortFCallbacks
+#define Board_gpioCallbacks0        EK_TM4C123GXL_gpioPortBCallbacks
 
 /* Board specific I2C addresses */
 #define Board_TMP006_ADDR           (0x40)
@@ -326,7 +325,7 @@
 * external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 /* GPIO_Callbacks structure for GPIO interrupts */
-extern const GPIO_Callbacks EK_TM4C123GXL_gpioPortFCallbacks;
+extern const GPIO_Callbacks EK_TM4C123GXL_gpioPortBCallbacks;
 
 /******************************************************************************
 *public enums /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -347,6 +346,7 @@ typedef enum EK_TM4C123GXL_GPIOName
   EK_TM4C123GXL_ADC_INTERUPT,
   EK_TM4C123GXL_ADC_START,
   EK_TM4C123GXL_ADC_nCS,
+  EK_TM4C123GXL_USB_DETECT,
   EK_TM4C123GXL_GPIOCOUNT
 
 } EK_TM4C123GXL_GPIOName;

@@ -32,12 +32,12 @@
   #include <ti/sysbios/knl/Mailbox.h>
   #include <ti/sysbios/knl/Clock.h>
   #include <ti/sysbios/knl/Semaphore.h>
-  #include <ti/sysbios/knl/Clock.h>
 
 //driver sysbios header files
   #include <ti/drivers/SDSPI.h>
   #include <ti/drivers/sdspi/SDSPITiva.h>
   #include <ti/drivers/USBMSCHFatFs.h>
+  #include <ti/drivers/GPIO.h>
 
 /******************************************************************************
 *public defines ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

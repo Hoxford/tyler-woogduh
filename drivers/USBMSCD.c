@@ -71,6 +71,7 @@
 
 /* Example/Board Header files */
 #include "USBMSCD.h"
+#include "board.h"
 
 
 /* Static variables and handles */
@@ -91,7 +92,8 @@ static volatile struct {
 } driveInformation;
 
 static GateMutex_Handle gateUSBWait;
-static Semaphore_Handle semUSBConnected;
+static Semaphore_Handle semUSB_Connected;
+static Semaphore_Handle semUSB_Disconnected;
 static Hwi_Handle hwi;
 
 #pragma DATA_SECTION(DMAControlTable, ".dma");
@@ -108,8 +110,9 @@ static tMSCInstance MSCInstance;
  */
 static unsigned int cbMSCHandler(void *cbData, unsigned int event,
                                  unsigned int eventMsg, void *eventMsgPtr);
+void vUSB_Disconnect_callback(void);
 static void close(void *drv);
-static Void USBMSCD_hwiHandler(UArg arg0);
+extern void USBMSCD_hwiHandler(UArg arg0);
 //static unsigned int numBlocks(void *drv);
 static uint32_t numBlocks(void *drv);
 static uint32_t blockSize(void *drv);
@@ -260,10 +263,11 @@ static unsigned int cbMSCHandler(void *cbData, unsigned int event,
     /* Determine what event has happened */
     switch (event) {
         case USB_EVENT_CONNECTED:
-          Semaphore_post(semUSBConnected);
+          Semaphore_post(semUSB_Connected);
             break;
 
         case USB_EVENT_DISCONNECTED:
+          Semaphore_post(semUSB_Disconnected);
             break;
 
         case USBD_MSC_EVENT_WRITING:
@@ -286,16 +290,25 @@ static unsigned int cbMSCHandler(void *cbData, unsigned int event,
 static void close(void *drv)
 {
     /* Nothing needs to be done here */
-    return;
+  Semaphore_post(semUSB_Disconnected);
+  return;
 }
 
 /*
  *  ======== USBMSCD_hwiHandler ========
  *  This function calls the USB library's device interrupt handler.
  */
-static Void USBMSCD_hwiHandler(UArg arg0)
+void USBMSCD_hwiHandler(UArg arg0)
 {
   USB0DeviceIntHandler();
+
+  return;
+}
+
+void vUSB_Disconnect_callback(void)
+{
+  GPIO_clearInt(EK_TM4C123GXL_USB_DETECT);
+  Semaphore_post(semUSB_Disconnected);
 
   return;
 }
@@ -383,8 +396,8 @@ ERROR_CODE eUSB_MassStorage_waitForConnect(void)
   if (state == USBMSD_STATE_UNCONFIGURED)
   {
     vDEBUG("USB Waiting for connection");
-    bDid_sem_pend = Semaphore_pend(semUSBConnected, OSAL_SEM_WAIT_TIMEOUT_WAITFOREVER);
-//    if (!Semaphore_pend(semUSBConnected, uiTimeout))
+    bDid_sem_pend = Semaphore_pend(semUSB_Connected, OSAL_SEM_WAIT_TIMEOUT_WAITFOREVER);
+//    if (!Semaphore_pend(semUSB_Connected, uiTimeout))
     if(bDid_sem_pend == false)
     {
 //      ret = false;
@@ -395,6 +408,42 @@ ERROR_CODE eUSB_MassStorage_waitForConnect(void)
       state = USBMSD_STATE_IDLE;
       vDEBUG("USB connected");
       eEC = ER_OK;
+      /* Enable upd detect interrupts */
+      GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_FALLING);
+    }
+  }
+
+  GateMutex_leave(gateUSBWait, key);
+
+  return eEC;
+}
+
+ERROR_CODE eUSB_MassStorage_waitForDisonnect(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  bool bDid_sem_pend = false;
+  unsigned int key;
+
+  /* Need exclusive access to prevent a race condition */
+  key = GateMutex_enter(gateUSBWait);
+
+  if (state == USBMSD_STATE_IDLE)
+  {
+    vDEBUG("USB Waiting for disconnection");
+    bDid_sem_pend = Semaphore_pend(semUSB_Disconnected, OSAL_SEM_WAIT_TIMEOUT_WAITFOREVER);
+//    if (!Semaphore_pend(semUSB_Connected, uiTimeout))
+    if(bDid_sem_pend == false)
+    {
+//      ret = false;
+      eEC = ER_FAIL;
+    }
+    else
+    {
+      state = USBMSD_STATE_UNCONFIGURED;
+      vDEBUG("USB disconnected");
+      eEC = ER_OK;
+      /* Ensure the interrupt is disabled */
+      GPIO_disableInt(EK_TM4C123GXL_USB_DETECT);
     }
   }
 
@@ -424,8 +473,13 @@ void USBMSCD_init(void)
         System_abort("Can't create USB Hwi");
     }
 
-    semUSBConnected = Semaphore_create(0, &semParams, &eb);
-    if (semUSBConnected == NULL) {
+    semUSB_Connected = Semaphore_create(0, &semParams, &eb);
+    if (semUSB_Connected == NULL) {
+        System_abort("Can't create USB semaphore");
+    }
+
+    semUSB_Disconnected = Semaphore_create(0, &semParams, &eb);
+    if (semUSB_Disconnected == NULL) {
         System_abort("Can't create USB semaphore");
     }
 
@@ -436,6 +490,12 @@ void USBMSCD_init(void)
 
     /* State specific variables */
     state = USBMSD_STATE_UNCONFIGURED;
+
+    /* Initialize interrupts for all ports that need them */
+    GPIO_setupCallbacks(&Board_gpioCallbacks0);
+
+    /* Ensure the interrupt is disabled */
+    GPIO_disableInt(EK_TM4C123GXL_USB_DETECT);
 
     /* Set the USB stack mode to Device mode with VBUS monitoring */
     USBStackModeSet(0, eUSBModeDevice, 0);

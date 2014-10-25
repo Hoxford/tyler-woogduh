@@ -2408,7 +2408,6 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
   ERROR_CODE eEC = ER_FAIL;
   int i = 0;
 
-  //WARNING: this code is untested and my not work properly with the RTOS
   i = UART_read(sRadio_UART_handle, cRcv_char, 1);
 
 //  bChar_avail = UARTCharsAvail(INEEDMD_RADIO_UART);
@@ -2438,7 +2437,7 @@ ERROR_CODE iRadio_rcv_char(char *cRcv_char)
   }
   else if(i == 0)
   {
-    eEC = ER_NODATA;
+    eEC = ER_TIMEOUT;
   }
   else
   {

@@ -1363,21 +1363,18 @@ void vCMND_ECHO_FRAME(const unsigned char * uiFrame, uint16_t uiFrame_len)
 #ifdef DEBUG
   uint16_t uiIndex = 0, uiSend_index = 0;
 
-  uint8_t uiSend_Frame[512]; //todo: magic number warning!
+//  uint8_t uiSend_Frame[256]; //todo: magic number warning!
+  char * cSend_Frame = calloc((uiFrame_len * 3), sizeof(char));
   char cHex_format[] = "%.2x ";
-  if((uiFrame_len * 4) > 512)
-  {
-    return;
-  }
-
-  memset(uiSend_Frame, 0x00, 512);
 
   for(uiIndex = 0; uiIndex <= (uiFrame_len - 1); uiIndex++)
   {
-    uiSend_index += snprintf((char *)&uiSend_Frame[uiSend_index], 512, cHex_format, uiFrame[uiIndex]);
+    uiSend_index += snprintf((char *)&cSend_Frame[uiSend_index], 512, cHex_format, uiFrame[uiIndex]);
   }
 
-  debug_out((char *)uiSend_Frame);
+  debug_out((char *)cSend_Frame);
+
+  free(cSend_Frame);
 #endif // DEBUG
 }
 #endif

@@ -50,6 +50,8 @@ extern "C" {
  *  Note: This function is not reentrant safe.
  */
 ERROR_CODE eUSB_MassStorage_waitForConnect(void);
+ERROR_CODE eUSB_MassStorage_waitForDisonnect(void);
+ERROR_CODE eUSB_MSCD_register_con_discon_cb(void );
 extern void USBMSCD_init(void);
 
 #ifdef __cplusplus

@@ -98,6 +98,8 @@ __attribute__ ((aligned (1024)))
 static tDMAControlTable EK_TM4C123GXL_DMAControlTable[32];
 static bool DMA_initialized = false;
 
+extern void vUSB_Disconnect_callback(void);
+
 /* Hwi_Struct used in the initDMA Hwi_construct call */
 static Hwi_Struct hwiStruct;
 
@@ -170,15 +172,16 @@ const GPIO_HWAttrs gpioHWAttrs[EK_TM4C123GXL_GPIOCOUNT] = {
         {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_INTERUPT_PIN, GPIO_INPUT},
         {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_START_PIN,    GPIO_OUTPUT},
         {INEEDMD_ADC_GPIO_PORT,  INEEDMD_ADC_nCS_PIN,      GPIO_OUTPUT},
+        {GPIO_PORTB_BASE,  GPIO_PIN_4,      GPIO_INPUT},
 };
 
 /* Memory for the GPIO module to construct a Hwi */
 Hwi_Struct callbackHwi;
 
 /* GPIO callback structure to set callbacks for GPIO interrupts */
-const GPIO_Callbacks EK_TM4C123GXL_gpioPortFCallbacks = {
-    GPIO_PORTF_BASE, INT_GPIOF, &callbackHwi,
-    {gpioButtonFxn1, NULL, NULL, NULL, gpioButtonFxn0, NULL, NULL, NULL}
+const GPIO_Callbacks EK_TM4C123GXL_gpioPortBCallbacks = {
+    GPIO_PORTB_BASE, INT_GPIOB, &callbackHwi,
+    {NULL, NULL, NULL, NULL, vUSB_Disconnect_callback, NULL, NULL, NULL}
 };
 
 /* GPIO config structure, must be called in order of the gpio name */
@@ -193,6 +196,7 @@ const GPIO_Config GPIO_config[] = {
     {&gpioHWAttrs[EK_TM4C123GXL_ADC_INTERUPT]},
     {&gpioHWAttrs[EK_TM4C123GXL_ADC_START]},
     {&gpioHWAttrs[EK_TM4C123GXL_ADC_nCS]},
+    {&gpioHWAttrs[EK_TM4C123GXL_USB_DETECT]},
     {NULL},
 };
 
@@ -256,6 +260,14 @@ void EK_TM4C123GXL_initGPIO(void)
   //Init ADC nCS pin
   //
   MAP_GPIOPinTypeGPIOOutput(INEEDMD_ADC_GPIO_PORT, INEEDMD_ADC_nCS_PIN);
+
+  //Init USB unplug detect pin
+  //
+  HWREG(GPIO_PORTB_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+  HWREG(GPIO_PORTB_BASE + GPIO_O_CR) |= GPIO_PIN_4;
+  MAP_GPIOPinTypeGPIOInput(GPIO_PORTB_BASE, GPIO_PIN_4);
+  MAP_GPIOPadConfigSet(GPIO_PORTB_BASE, GPIO_PIN_4, GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPD);
+  HWREG(GPIO_PORTB_BASE + GPIO_O_LOCK) = GPIO_LOCK_M;
 
   /* Once GPIO_init is called, GPIO_config cannot be changed */
   GPIO_init();
