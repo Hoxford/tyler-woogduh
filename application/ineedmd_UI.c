@@ -286,22 +286,27 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
       case HEART_LED_NO_UI:
         tUI_Msg.eHeart_led_sequence = HEART_LED_NO_UI;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        eEC = ER_OK;
         break;
       case HEART_LED_UI_OFF:
         tUI_Msg.eHeart_led_sequence = HEART_LED_UI_OFF;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        eEC = ER_OK;
         break;
       case HEART_LED_LEAD_OFF_NO_DATA:
         tUI_Msg.eHeart_led_sequence = HEART_LED_LEAD_OFF_NO_DATA;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        eEC = ER_OK;
         break;
       case HEART_LED_LEAD_ON:
         tUI_Msg.eHeart_led_sequence = HEART_LED_LEAD_ON;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        eEC = ER_OK;
         break;
       case HEART_LED_DIGITAL_FLATLINE:
         tUI_Msg.eHeart_led_sequence = HEART_LED_DIGITAL_FLATLINE;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        eEC = ER_OK;
         break;
       default:
         eEC = ER_FAIL;
@@ -328,56 +333,71 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
       case COMMS_LED_NO_UI:
         tUI_Msg.eComms_led_sequence = COMMS_LED_NO_UI;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_UI_OFF:
         tUI_Msg.eComms_led_sequence = COMMS_LED_UI_OFF;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
-      case COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL:
-        tUI_Msg.eComms_led_sequence = COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL;
+      case COMMS_LED_BLUETOOTH_CONNECTION_SUCESSFUL:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_BLUETOOTH_CONNECTION_SUCESSFUL;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_BLUETOOTH_PAIRING:
         tUI_Msg.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_BLUETOOTH_PAIRING_FAILIED:
         tUI_Msg.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING_FAILIED;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_USB_CONNECTION_SUCESSFUL:
         tUI_Msg.eComms_led_sequence = COMMS_LED_USB_CONNECTION_SUCESSFUL;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_USB_CONNECTION_FAILED:
         tUI_Msg.eComms_led_sequence = COMMS_LED_USB_CONNECTION_FAILED;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_DATA_TRANSFERING_FROM_DONGLE:
         tUI_Msg.eComms_led_sequence = COMMS_LED_DATA_TRANSFERING_FROM_DONGLE;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_DATA_TRANSFER_SUCESSFUL:
         tUI_Msg.eComms_led_sequence = COMMS_LED_DATA_TRANSFER_SUCESSFUL;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_DONGLE_STORAGE_WARNING:
         tUI_Msg.eComms_led_sequence = COMMS_LED_DONGLE_STORAGE_WARNING;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_ERASING_STORED_DATA:
         tUI_Msg.eComms_led_sequence = COMMS_LED_ERASING_STORED_DATA;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       case COMMS_LED_ERASE_COMPLETE:
         tUI_Msg.eComms_led_sequence = COMMS_LED_ERASE_COMPLETE;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
         break;
       default:
         vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
         while(1){};
     }
-    Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
+    if(eEC == ER_OK)
+    {
+      Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
+    }
   }else{/*do nothing*/}
 
   // Power LED sequence request
@@ -392,49 +412,80 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
       case POWER_LED_NO_UI:
         tUI_Msg.ePower_led_sequence = POWER_LED_NO_UI;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_UI_OFF:
         tUI_Msg.ePower_led_sequence = POWER_LED_UI_OFF;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_90to100:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_90to100;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_50to90:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_50to90;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_25to50:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_25to50;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_0to25:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_0to25;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_BLIP_90to100:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_90to100;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_BLIP_50to90:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_50to90;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_BLIP_25to50:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_25to50;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       case POWER_LED_POWER_ON_BLIP_0to25:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_BLIP_0to25;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
+      case POWER_LED_POWER_ON_CHARGE_90to100:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_CHARGE_90to100;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
+        break;
+      case POWER_LED_POWER_ON_CHARGE_50to90:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_CHARGE_50to90;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
+        break;
+      case POWER_LED_POWER_ON_CHARGE_25to50:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_CHARGE_25to50;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
+        break;
+      case POWER_LED_POWER_ON_CHARGE_0to25:
+        tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_CHARGE_0to25;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
         break;
       default:
         vDEBUG_INMD_UI_REQ("INMD INMD_UI_ELEMENT_COMMS_LED SYS HALT, unknown LED request");
         while(1){};
     }
-
-    Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
+    if(eEC == ER_OK)
+    {
+      Mailbox_post(tUI_mailbox, &tUI_Msg, BIOS_WAIT_FOREVER);
+    }
   }else{/*do nothing*/}
 
   return eEC;
@@ -549,20 +600,6 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
 
 
   eIneedmd_LED_pattern(UI_ALL_OFF);
-
-
-  eIneedmd_UI_params_init(&tUI_task_msg);
-  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
-  tUI_task_msg.eHeart_led_sequence = HEART_LED_DIGITAL_FLATLINE;
-  eIneedmd_UI_request(&tUI_task_msg);
-
-
-  eIneedmd_UI_params_init(&tUI_task_msg);
-  tUI_task_msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
-  tUI_task_msg.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING;
-  eIneedmd_UI_request(&tUI_task_msg);
-
-//  eIneedmd_UI_params_init(&tUI_task_msg);
 
   //Main UI task loop
   //
@@ -787,11 +824,11 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
             eComms_last_sequence = COMMS_LED_UI_OFF;
             bComms_led_flashing = false;
             break;
-          case COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL:
+          case COMMS_LED_BLUETOOTH_CONNECTION_SUCESSFUL:
             eIneedmd_LED_pattern(COMMS_LED_BLUE);
             uiTimer_period = UI_TIMER_PERIOD_5SEC;
             bComms_led_on = true;
-            eComms_last_sequence = COMMS_LED_BLOOTHOOTH_CONNECTION_SUCESSFUL;
+            eComms_last_sequence = COMMS_LED_BLUETOOTH_CONNECTION_SUCESSFUL;
             bComms_led_flashing = false;
             break;
           case COMMS_LED_BLUETOOTH_PAIRING:
@@ -825,7 +862,7 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
             eIneedmd_LED_pattern(COMMS_LED_BLUE);
             uiTimer_period = UI_TIMER_PERIOD_5SEC;
             bComms_led_on = true;
-            eComms_last_sequence = COMMS_LED_BLUETOOTH_PAIRING_FAILIED;
+            eComms_last_sequence = COMMS_LED_USB_CONNECTION_SUCESSFUL;
             bComms_led_flashing = false;
             break;
           case COMMS_LED_USB_CONNECTION_FAILED:

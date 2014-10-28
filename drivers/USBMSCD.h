@@ -43,15 +43,25 @@ extern "C" {
 
 #include <xdc/std.h>
 
+typedef volatile enum USBMSD_USBstate
+{
+  USBMSD_STATE_NONE,
+  USBMSD_STATE_UNCONFIGURED,
+  USBMSD_STATE_INIT,
+  USBMSD_STATE_IDLE,
+  USBMSD_STATE_LIMIT
+} USBMSD_USBState;
+
 /*!
  *  ======== USBMSCD_init ========
  *  Function to initialize the USB mass storage class reference module.
  *
  *  Note: This function is not reentrant safe.
  */
-ERROR_CODE eUSB_MassStorage_waitForConnect(void);
-ERROR_CODE eUSB_MassStorage_waitForDisonnect(void);
-ERROR_CODE eUSB_MSCD_register_con_discon_cb(void );
+ERROR_CODE eUSB_MassStorage_data_connection(void);
+USBMSD_USBState  eUSB_MassStorage_state(void);
+ERROR_CODE eUSB_MSCD_register_cb(void (* vUSB_MSCD_change_callback)(void));
+ERROR_CODE eUSB_MSCD_check_physical_connection(void);
 extern void USBMSCD_init(void);
 
 #ifdef __cplusplus

@@ -229,7 +229,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
 
       break;
     case HEART_LED_RED:
-      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_RED) )
+      if ( (last_UI_state.heart_led_on == false)  || (last_UI_state.heart_led_last_state !=  HEART_LED_RED) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
         i2c_send_buffer[1] = 0x16;
@@ -266,7 +266,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case HEART_LED_GREEN:
-      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_GREEN) )
+      if ( (last_UI_state.heart_led_on == false)  || (last_UI_state.heart_led_last_state !=  HEART_LED_GREEN) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
         i2c_send_buffer[1] = INEEDMD_LED_OFF;
@@ -302,7 +302,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case HEART_LED_BLUE:
-      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_BLUE) )
+      if ( (last_UI_state.heart_led_on == false)  || (last_UI_state.heart_led_last_state !=  HEART_LED_BLUE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
         i2c_send_buffer[1] = INEEDMD_LED_OFF;
@@ -338,7 +338,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case HEART_LED_ORANGE:
-      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_ORANGE) )
+      if ( (last_UI_state.heart_led_on == false)  || (last_UI_state.heart_led_last_state !=  HEART_LED_ORANGE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
         i2c_send_buffer[1] = 0x20;
@@ -374,7 +374,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case HEART_LED_PURPLE:
-      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_PURPLE) )
+      if ( (last_UI_state.heart_led_on == false)  || (last_UI_state.heart_led_last_state !=  HEART_LED_PURPLE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
         i2c_send_buffer[1] = 0x28;
@@ -410,7 +410,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case HEART_LED_PINK:
-      if ( (last_UI_state.heart_led_on == false)  && (last_UI_state.heart_led_last_state !=  HEART_LED_PURPLE) )
+      if ( (last_UI_state.heart_led_on == false)  || (last_UI_state.heart_led_last_state !=  HEART_LED_PURPLE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_HEART_RED_PWM);
         i2c_send_buffer[1] = 0x20;
@@ -484,7 +484,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
 
       break;
     case COMMS_LED_RED:
-      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_RED) )
+      if ( (last_UI_state.comms_led_on == false)  || (last_UI_state.comms_led_last_state !=  COMMS_LED_RED) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
         i2c_send_buffer[1] = 0x16;
@@ -521,7 +521,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case COMMS_LED_GREEN:
-      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_GREEN) )
+      if ( (last_UI_state.comms_led_on == false)  || (last_UI_state.comms_led_last_state !=  COMMS_LED_GREEN) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
         i2c_send_buffer[1] = INEEDMD_LED_OFF;
@@ -557,7 +557,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case COMMS_LED_BLUE:
-      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_BLUE) )
+      if ( (last_UI_state.comms_led_on == false)  || (last_UI_state.comms_led_last_state !=  COMMS_LED_BLUE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
         i2c_send_buffer[1] = INEEDMD_LED_OFF;
@@ -593,7 +593,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case COMMS_LED_ORANGE:
-      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_ORANGE) )
+      if ( (last_UI_state.comms_led_on == false)  || (last_UI_state.comms_led_last_state !=  COMMS_LED_ORANGE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
         i2c_send_buffer[1] = 0x20;
@@ -629,7 +629,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case COMMS_LED_PURPLE:
-      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_PURPLE) )
+      if ( (last_UI_state.comms_led_on == false)  || (last_UI_state.comms_led_last_state !=  COMMS_LED_PURPLE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
         i2c_send_buffer[1] = 0x28;
@@ -665,7 +665,7 @@ ERROR_CODE eIneedmd_LED_pattern(NO_UI_ELEMENT led_pattern)
       break;
 
     case COMMS_LED_PINK:
-      if ( (last_UI_state.comms_led_on == false)  && (last_UI_state.comms_led_last_state !=  COMMS_LED_PURPLE) )
+      if ( (last_UI_state.comms_led_on == false)  || (last_UI_state.comms_led_last_state !=  COMMS_LED_PURPLE) )
       {
         i2c_send_buffer[0] = (INEEDMD_LED_PROGRAM_SINGLE | INEEDMD_COMMS_RED_PWM);
         i2c_send_buffer[1] = 0x20;

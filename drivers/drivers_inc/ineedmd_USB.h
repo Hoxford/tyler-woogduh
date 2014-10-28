@@ -36,6 +36,15 @@ typedef enum eUSB_request_ID
   USB_REQUEST_LIMIT
 }eUSB_request_ID;
 
+//eUSB_connection_state enum used to identify the current connection state of the USB task
+typedef enum eUSB_Conn_State
+{
+  USB_CONN_NONE,
+  USB_CONN_PHYSICAL,
+  USB_CONN_DATA,
+  USB_CONN_LIMIT
+}eUSB_Conn_State;
+
 /******************************************************************************
 *public structures ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -53,6 +62,7 @@ typedef struct tUSB_req
 /******************************************************************************
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-ERROR_CODE eUSB_request_params_init (tUSB_req * tParams );
-ERROR_CODE eUSB_request             (tUSB_req * tRequest);
+ERROR_CODE      eUSB_request_params_init        (tUSB_req * tParams );
+ERROR_CODE      eUSB_request                    (tUSB_req * tRequest);
+eUSB_Conn_State eUSB_get_connection_task_state  (void);
 #endif //__INEEDMD_USB_H__

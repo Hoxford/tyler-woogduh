@@ -44,7 +44,12 @@
 ******************************************************************************/
 
 #define OSAL_SEM_WAIT_TIMEOUT_WAITFOREVER  BIOS_WAIT_FOREVER
+#define OSAL_SEM_WAIT_TIMEOUT_NO_WAIT      BIOS_NO_WAIT
+#define OSAL_SEM_WAIT_TIMEOUT_1TICK        1
 #define OSAL_SEM_WAIT_TIMEOUT_1SECOND      100000
+
+#define OSAL_MBOX_WAIT_TIMEOUT_WAITFOREVER  BIOS_WAIT_FOREVER
+#define OSAL_MBOX_WAIT_TIMEOUT_NO_WAIT      BIOS_NO_WAIT
 
 /******************************************************************************
 *public variables /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

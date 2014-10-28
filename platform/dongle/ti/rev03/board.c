@@ -2974,18 +2974,31 @@ ERROR_CODE  eGet_Radio_CTS_status(void)
 //  return bWas_physical_data_conn;
 //}
 //
-////*****************************************************************************
-//// name:
-//// description:
-//// param description:
-//// return value description:
-////*****************************************************************************
-//ERROR_CODE  ineedmd_usb_connected(void)
-//{
-//  ERROR_CODE eEC = ER_NOT_CONNECTED;
-//
-//  return eEC;
-//}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE  eBSP_USB_is_physical_connection(void)
+{
+  ERROR_CODE eEC = ER_NOT_CONNECTED;
+  uint32_t uiUSB_conn_pin_status = 0;
+
+  uiUSB_conn_pin_status = GPIO_read(EK_TM4C123GXL_USB_DETECT);
+  if(INEEDMD_USB_DET_PIN_SET == uiUSB_conn_pin_status)
+  {
+    eEC = ER_CONNECTED;
+  }
+  else
+  {
+    eEC = ER_NOT_CONNECTED;
+  }
+
+  return eEC;
+}
+
 //
 ////*****************************************************************************
 //// name: eBSP_Systick_Init

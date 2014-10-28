@@ -270,10 +270,15 @@
 //
   #define INEEDMD_USB                USB0_BASE
   #define INEEDMD_USB_SYSCTL_PERIPH  SYSCTL_PERIPH_USB0
-//USB pin mappings
+//USB interface pin mappings
   #define INEEDMD_USB_GPIO_PORT  GPIO_PORTD_BASE
   #define INEEDMD_USBDP_PIN      GPIO_PIN_5
   #define INEEDMD_USBDM_PIN      GPIO_PIN_4
+//USB detect pin mappings
+  #define INEEDMD_USB_DET_GPIO_PORT  GPIO_PORTB_BASE
+  #define INEEDMD_USB_DET_PIN        GPIO_PIN_4
+  #define INEEDMD_USB_DET_PIN_SET    GPIO_PIN_4
+  #define INEEDMD_USB_DET_PIN_CLEAR  0
 
 //SD card mappings ////////////////////
 //
@@ -617,18 +622,21 @@ ERROR_CODE  eGet_Radio_CTS_status(void);  //returns the radio UART cts status
 ERROR_CODE  eGet_Radio_CTS_INT_status(void);  //returns the radio UART CTS interrupt status
 void        LEDI2CEnable(void);
 void        XTALControlPin(void);
+
 void        USBPortEnable(void);
 void        USBPortDisable(void);
 void        vUSBServiceInt(uint32_t uiUSB_int_flags);
 bool        bIs_usb_physical_data_conn(bool bClear_Status);
-ERROR_CODE  ineedmd_usb_connected(void);
+ERROR_CODE  eBSP_USB_is_physical_connection(void);
+
 ERROR_CODE  eBSP_Systick_Init(void);
 void        PortFunctionInit(void);
 void        ConfigureSleep(void);
 void        ConfigureDeepSleep(void);
 void        LEDI2CDisable(void);
 ERROR_CODE  eBSP_LEDI2C_clock_set(void);
-void        USBPortDisable(void);
+
+
 
 ERROR_CODE  eBSP_ADC_Start(bool bStart);
 ERROR_CODE  eBSP_ADC_Hard_Reset(void);

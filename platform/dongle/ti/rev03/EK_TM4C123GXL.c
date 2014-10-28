@@ -98,7 +98,7 @@ __attribute__ ((aligned (1024)))
 static tDMAControlTable EK_TM4C123GXL_DMAControlTable[32];
 static bool DMA_initialized = false;
 
-extern void vUSB_Disconnect_callback(void);
+extern void vUSB_hardware_int_callback(void);
 
 /* Hwi_Struct used in the initDMA Hwi_construct call */
 static Hwi_Struct hwiStruct;
@@ -181,7 +181,7 @@ Hwi_Struct callbackHwi;
 /* GPIO callback structure to set callbacks for GPIO interrupts */
 const GPIO_Callbacks EK_TM4C123GXL_gpioPortBCallbacks = {
     GPIO_PORTB_BASE, INT_GPIOB, &callbackHwi,
-    {NULL, NULL, NULL, NULL, vUSB_Disconnect_callback, NULL, NULL, NULL}
+    {NULL, NULL, NULL, NULL, vUSB_hardware_int_callback, NULL, NULL, NULL}
 };
 
 /* GPIO config structure, must be called in order of the gpio name */

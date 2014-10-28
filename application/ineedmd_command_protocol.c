@@ -76,10 +76,6 @@ bool bDid_radio_rfd = false;
 bool bDid_radio_send_frame = false;
 bool bIs_radio_on = false;
 
-unsigned char status0x14[] = { 0x9C, 0x05, 0x17, 0x02, 0x00, 0x01, 0xD7, 0x68, 0x56, 0x00, 0x00, 0x00, 0x14, 0x00, 0x02, 0xD7, 0x68, 0xAA, 0x00, 0x00, 0x00, 0x60, 0xC9 }; //reply for high voltage query.
-unsigned char status0x17[] = { 0x9c, 0x03, 0x18, 0x16, 0x01, 0x03, 0x1B, 0x10, 0x00, 0x0A, 0x10, 0x9C, 0x22, 0xC9, 0x3C, 0xC9, 0xA5, 0x0E, 0x0B, 0x2C, 0x8C, 0x9C, 0x77, 0xC9 };
-unsigned char status0x15_Temp[] = { 0x9c, 0x05, 0x17, 0x02, 0x00, 0x01, 0xd7, 0x68, 0x56, 0x00, 0x00, 0x00, 0x14, 0x00, 0x02, 0xd7, 0x68, 0xAA, 0x00, 0x00, 0x00, 0x60, 0xc9 };
-
 //static uint8_t uiINMD_Protocol_frame[INMD_FRAME_BUFF_SIZE];
 ////static uint16_t uiINMD_Protocol_frame_len = 0;
 //
@@ -163,9 +159,20 @@ ERROR_CODE eValidatePacketType(eINMD_Cmnd_packet_type eProtocolFrameType);
 ERROR_CODE eValidateCommandID(eINMD_Cmnd_packet_type eProtocolFrameType, eINMD_protocol_command_id szRecCommand);
 ERROR_CODE eCommand_led_test(INMD_LED_COMMAND eInmd_LED_cmnd);
 
+ERROR_CODE eCommand_enable_test_signal(uint8_t signal);
+ERROR_CODE eCommand_stop_test_signal();
+ERROR_CODE eCommand_DFU_test();
+ERROR_CODE eCommand_reset_test();
+ERROR_CODE eCommand_set_status(uint8_t* statusToSet);
+ERROR_CODE eCommand_capture_data(uint8_t* duration);
+ERROR_CODE eCommand_get_data_set_info(uint8_t* dataSet);
+ERROR_CODE eCommand_transfer_data_set(uint8_t* dataSet);
+ERROR_CODE eCommand_erase_data_set(uint8_t* dataSet);
+ERROR_CODE eCommand_send_status();
+ERROR_CODE eCommand_stream_data_(uint8_t bRealTime);
 ////int debug_out(char * cOut_buff,...);
 
-//void writeDataToPort(unsigned char * cOut_buff, uint16_t uiLen);
+void writeDataToPort(unsigned char * cOut_buff, uint16_t uiLen);
 ERROR_CODE eCheckAlarmBytes(const unsigned char *Frame, int noPosh, int *ackFlag);
 ERROR_CODE eCheckTimeBytes(const unsigned char *Frame, int noPosh, int *ackFlag);
 #ifdef PrintCommand
@@ -278,29 +285,27 @@ ERROR_CODE eIneedmd_send_ack(void)
 ERROR_CODE eIneedmd_send_nack(void)
 {
   ERROR_CODE eEC = ER_FAIL;
-  uint8_t NACK_[4] = {0x9c, 0xFF, 0x04, 0xC9};
+  uint8_t NACK_[PROTOCOL_FRAME_NACK_LEN] = {0x9c, 0xFF, 0x04, 0xC9};
   tRadio_request tRequest;
   eEC = eIneedmd_radio_request_params_init (&tRequest);
 
   if(eEC == ER_OK)
   {
+    bDid_radio_send_frame = false;
     tRequest.eRequest = RADIO_REQUEST_SEND_FRAME;
     memcpy(tRequest.uiBuff, NACK_, PROTOCOL_FRAME_NACK_LEN);
     tRequest.uiBuff_size = PROTOCOL_FRAME_NACK_LEN;
     tRequest.eTX_Priority = TX_PRIORITY_QUEUE;
     tRequest.vBuff_sent_callback = &vRadio_sent_frame_callback;
     eEC = eIneedmd_radio_request(&tRequest);
-
-    if(eEC == ER_OK)
-    while(bDid_radio_send_frame == false)
-    {
-      //todo: need timeout
-      Task_sleep(1);
-    }
-
   }else{/*do nothing*/}
 
-  printf("NACK\n");
+  while(bDid_radio_send_frame == false)
+  {
+    Task_sleep(100);
+  }
+  vDEBUG("NACK\n");
+  //printf("NACK\n");
 
   return eEC;
 }
@@ -342,72 +347,6 @@ void writeDataToPort(unsigned char * cOut_buff, uint16_t uiLen)
   return;
 }
 
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE eCheckAlarmBytes(const unsigned char *Frame, int noPosh, int *ackFlag)
-{
-  //todo: do error code setting
-  ERROR_CODE eEC = ER_FAIL;
-
-  if (noPosh)
-  {
-    if ((0x00 == Frame[13]) && (0x00 == Frame[14]))
-    {
-      //indicates the alarm off combination.
-      //send the acknowledgement for that.
-      printf("\nReceived EXCLUSIVE request for ALARM OFF...");
-      //writeDataToPort(ACK);
-      (*ackFlag)++;
-    }
-    else
-    {
-      //when the interpretation of further combinations is procured, this will be filled.
-    }
-  }
-  else
-  {
-    //indicates that this is a combined request for 1 of POSH and alarm
-    if ((0x00 == Frame[13]) && (0x00 == Frame[14]))
-    {
-      //indicates the alarm off combination.
-      //send the acknowledgement for that.
-      printf("\nReceived COMBINED request for ALARM OFF...");
-      //writeDataToPort(ACK);
-      (*ackFlag)++;
-    }
-    else
-    {
-      //when the interpretation of further combinations is procured, this will be filled.
-    }
-
-  }
-
-  return eEC;
-}
-
-//*****************************************************************************
-// name:
-// description:
-// param description:
-// return value description:
-//*****************************************************************************
-ERROR_CODE eCheckTimeBytes(const unsigned char *Frame, int noPosh, int *ackFlag)
-{
-  //todo: do error code setting
-  ERROR_CODE eEC = ER_FAIL;
-  //bytes 9,10,11,12 indicate the time to be set (counting Frame from 0)
-  printf("\nTime to set: %X %X %X %X", Frame[9], Frame[10], Frame[11], Frame[12]);
-  //("\nSending Acknowledgement...");
-  //writeDataToPort(ACK);
-  *ackFlag = *ackFlag + 1;
-
-  return eEC;
-}
-
 /******************************************************************************
 * name: eParse_Protocol_Frame
 * description:
@@ -422,10 +361,9 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
   eINMD_Cmnd_packet_type    eProtocolFrameType;//dataPacketType;// = ucProtocol_Frame[1];
   unsigned char             ucProtocolFrameLength;//lengthPacket;  // = ucProtocol_Frame[2];
   eINMD_protocol_command_id eProtocolFrameCommandID;//actCommand;    // = ucProtocol_Frame[3];
-//  char replyToSend[100];
-  int noPosh = 0; //this is activated to indicate that the datagram received with parent command as 0x12, has no request related to hib, pow, sleep, on. it is just related to Off Alarm.
-  int ackFlag = 0;
-  unsigned char cntDataBytes;// = lengthPacket - 5;
+
+  //TODO: not needed?
+  //unsigned char cntDataBytes;
   tUI_request tUI_request_params;
   tRadio_request tRadio_request_Params;
 
@@ -435,7 +373,7 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
   eProtocolFrameType      = (eINMD_Cmnd_packet_type)   pRcvd_protocol_frame[PROTOCOL_FRAME_CMND_TYPE_INDEX];
   eProtocolFrameCommandID = (eINMD_protocol_command_id)pRcvd_protocol_frame[PROTOCOL_FRAME_CMND_ID_INDEX];
 
-  cntDataBytes = ucProtocolFrameLength - 5;
+  //cntDataBytes = ucProtocolFrameLength - 5;
 
   eEC = eValidatePacketType(eProtocolFrameType);
   if(eEC == ER_OK)
@@ -455,171 +393,113 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
     }
     else
     {
-      //when the control comes here, it is implicit that the packetType and also the actual command are very much valid.
+      //command ID good, length and packet check passed
       switch (eProtocolFrameCommandID)
       {
+
         case COMMAND_ID_SET_STATUS: //status
         {
-          /*
-          0th byte --> start Frame
-          1st byte --> datagram packet
-          2nd byte --> length
-          3rd byte --> actual command, which in this case is 0x12
-          4th byte --> Firmware version
-          5th byte --> battery voltage
-          6th byte --> operating mode (hibernate, sleep, on or highpower) all have been defined as macros.
-          */
-          switch (pRcvd_protocol_frame[6])
+
+          eEC = eCommand_set_status(&pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
+          if(eEC == ER_OK)
           {
-          case STATUS_HIBERNATE:
-            printf("\nReceived request for HIBERNATE...");
-            //PrintCommand(ucProtocol_Frame, frameCnt+1);
-            //writeDataToPort(ACK);
-            break;
-          case STATUS_SLEEP:
-            printf("\nReceived request for SLEEP...");
-            //PrintCommand(ucProtocol_Frame, frameCnt+1);
-            //writeDataToPort(ACK);
-            break;
-          case STATUS_ON:
-            printf("\nReceived request for ON...");
-            //PrintCommand(ucProtocol_Frame, frameCnt+1);
-            //writeDataToPort(ACK);
-            break;
-          case STATUS_POWER:
-            printf("\nReceived request for POWER...");
-            //PrintCommand(ucProtocol_Frame, frameCnt+1);
-            //writeDataToPort(ACK);
-            break;
-          default:
-            /*printf("\nNot a valid status request! Sending NACK!");
-            writeDataToPort(NACK);*/
-            noPosh = 1;
-            break;
-          }
-          //Processing the same frame for the alarm bytes
-          eCheckAlarmBytes(pRcvd_protocol_frame, noPosh, &ackFlag);
-          eCheckTimeBytes(pRcvd_protocol_frame, noPosh, &ackFlag); //in both these functions, ackFlag will act as __out__ parameter.
-          if (2 == ackFlag) // ackFlag will be hardcoded 2, because both these above functions increment it.
-          {
-            printf("\nSending Acknowledgement...");
             eIneedmd_send_ack();
-            //reset the ackFlag to 0 for further processing...
-            ackFlag = 0;
+          }
+          else
+          {
+            eIneedmd_send_nack();
+            eEC = ER_OK;
           }
           break;
         }
         case COMMAND_ID_CAPTURE_DATA_SET: //capture data set
         {
-  //        printf("\nCapture dataset... \nSending Acknowledgement...");
-          printf("Capture dataset...");
-          printf("Sending Acknowledgement...");
-          eIneedmd_send_ack();
-          //todo: need capture code
+
+          eEC = eCommand_capture_data(&pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
+
+          if(eEC == ER_OK)
+          {
+            eIneedmd_send_ack();
+          }
+          else
+          {
+            eIneedmd_send_nack();
+            eEC = ER_OK;
+          }
           break;
         }
         case COMMAND_ID_GET_DATA_SET_INFO: //get data set info
         {
-          printf("\nReceived request for data set info...");
-
-          PrintCommand(status0x14, 23);
-          printf("\nSending information about Data Sets...");
-          writeDataToPort(status0x14, STATUS_0X14_LEN);
-
+          eEC = eCommand_get_data_set_info(&pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
+          if(eEC == ER_OK)
+          {
+            eIneedmd_send_ack();
+          }
+          else
+          {
+            eIneedmd_send_nack();
+            eEC = ER_OK;
+          }
           break;
         }
         case COMMAND_ID_DATA_SET_TRANSFER://data set transfer command  --  NAK or (ACK + respective data set corresponding to the id sent). For now, ACK.
         {
-          //have to remove this hardcoded method in printing though.. later..
-          //we are sending the measurement dataset as a response to this command. Length of reply packet is 0x18 ie. 24
-          //hence we have to send status0x17[] as reply.
-          //minimum data of 4 bytes assumed. Confirm this later.
-          if (cntDataBytes<4)
+          eEC = eCommand_transfer_data_set(&pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
+          if(eEC == ER_OK)
           {
-            printf("\nData Set to transfer not mentioned!");
-            printf("\nSending NACK!");
-            eIneedmd_send_nack();
+            eIneedmd_send_ack();
           }
           else
           {
-            printf("\nReceived request for DataSet Transfer, with dataSetID: %X %X.\nSending Acknowledgement...", pRcvd_protocol_frame[7], pRcvd_protocol_frame[8]);
-
-            //todo: this needs to send hex not hex converted to ascii
-            writeDataToPort(status0x17, STATUS_0X17_LEN);
-
-            printf("\nSending transfer response...");
-            PrintCommand(status0x17, STATUS_0X17_LEN);
+            eIneedmd_send_nack();
+            eEC = ER_OK;
           }
           break;
         }
         case COMMAND_ID_ERASE_DATA_SET://erase data set
         {
-          //minimum data of say around 4 bytes is assumed. Confirm this.
-          if (cntDataBytes<4)
+
+          //data set ID, 2bytes
+          eEC = eCommand_erase_data_set(&pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
+          if(eEC == ER_OK)
           {
-            printf("\nData Set to transfer not mentioned!");
-            printf("\nSending NACK!");
-            eIneedmd_send_nack();
+            eIneedmd_send_ack();
           }
           else
           {
-            printf("\nReceived request for erasing dataset...\nSending Acknowledgement...");
-            eIneedmd_send_ack();
-            printf("\nErasing data set with ID: %X %X ", pRcvd_protocol_frame[7], pRcvd_protocol_frame[8]);
-            printf("\nAfter Deletion, sending...");
-            PrintCommand(status0x15_Temp, STATUS_0X15_LEN);
-
-            //todo: this needs to send hex not hex converted to ascii
-            writeDataToPort(status0x15_Temp, STATUS_0X15_LEN);
+            eIneedmd_send_nack();
+            eEC = ER_OK;
           }
           break;
         }
         case COMMAND_ID_REQUEST_STATUS://get status.
         {
-  //        printf("\nReceived request for status...\nSending status record...");
-          printf("Received request for status...");
-          printf("Building Status Packet...");
-
-          ucProtocol_Frame_resp = malloc(STATUS_LEN);
-          if(ucProtocol_Frame_resp != NULL)
+          eEC = eCommand_send_status();
+          if(eEC == ER_OK)
           {
-            OutGoingPacket_len = 0;
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x9c;
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x02;
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x12;
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x04; // hard coding the version number
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00; //todo: implement battery voltage function ineedmd_get_battery_voltage();
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = (char) (0xff & 0x00);//todo: implement unit temp function ineedmd_get_unit_tempoerature());
-
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // operating mode  - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // capture settings 1  - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // capture settings 2  - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 4 - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 3 - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 2 - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 1 - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 4  - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 3  - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 2  - no information to add yet
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 1  - no information to add yet
-
-            ucProtocol_Frame_resp[OutGoingPacket_len++] = 0xc9;
-
-            PrintCommand(ucProtocol_Frame_resp, ucProtocol_Frame_resp[2]); //this is just to display on our side, what reply we are sending.
-            printf("Sending status record...");
-
-            if(OutGoingPacket_len > 0x20)
-            {
-              printf("Packet len > 0x20! SYS HALT");
-              while(1){};
-            }else{/*do nothing*/}
-            writeDataToPort(ucProtocol_Frame_resp, OutGoingPacket_len);
-            free(ucProtocol_Frame_resp);
+            eIneedmd_send_ack();
           }
+          else
+          {
+            eIneedmd_send_nack();
+            eEC = ER_OK;
+          }
+          
+
           break;
         }
         case COMMAND_ID_STREAM_DATA:
         {
+          eEC = eCommand_stream_data(&pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
+          if(eEC == ER_OK)
+          {
+            eIneedmd_send_ack();
+          }
+          else
+          {
+            eIneedmd_send_nack();
+            eEC = ER_OK;
+          }
           //todo: this if statement is just a catch to prevent a "statement is unreachable" warning
           //Remove the if statement when COMMAND_ID_STREAM_DATA is implemented
           if(eProtocolFrameCommandID == COMMAND_ID_STREAM_DATA)
@@ -684,16 +564,25 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
 
           break;
         }
+        //todo: magic numbers
         case COMMAND_ID_REQUEST_TO_TEST://request to send test signal.
         {
           //printf("Received Request to Test");
-          if(pRcvd_protocol_frame[4] == EKG_TEST_PAT)
+          if(pRcvd_protocol_frame[COMMAND_DATA_BYTE] == EKG_TEST_PAT)
           {
-            printf("Received \"test\" request...");
-            //todo: implement enable test signal function
-  //          iIneedmd_waveform_enable_TestSignal();
+            printf("Received test signal request...");
+            eEC = eCommand_enable_test_signal((char)pRcvd_protocol_frame[5]);
+            if(eEC == ER_OK)
+            {
+              eIneedmd_send_ack();
+            }
+            else
+            {
+              eIneedmd_send_nack();
+              eEC = ER_OK;
+            }
           }
-          else if(pRcvd_protocol_frame[4] == LED_TEST_PATTERN)
+          else if(pRcvd_protocol_frame[COMMAND_DATA_BYTE] == LED_TEST_PATTERN)
           {
             printf("Received LED test request");
             eEC = eCommand_led_test((INMD_LED_COMMAND)pRcvd_protocol_frame[5]);
@@ -706,16 +595,37 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
             else
             {
               eIneedmd_send_nack();
+              eEC = ER_OK;
+            }
+            eEC = ER_OK;
+          }
+          else if(pRcvd_protocol_frame[COMMAND_DATA_BYTE] == STOP_EKG_TEST_PAT)
+          {
+            eEC = eCommand_stop_test_signal();
+            if(eEC == ER_OK)
+            {
+              eIneedmd_send_ack();
+            }
+            else
+            {
+              eIneedmd_send_nack();
+              eEC = ER_OK;
             }
           }
-          else if(pRcvd_protocol_frame[4] == STOP_EKG_TEST_PAT)
+          else if(pRcvd_protocol_frame[COMMAND_DATA_BYTE] == REQ_FOR_DFU)
           {
-            printf("Received \"test\" terminate...");
-            //todo implement disable waveform test signal
-  //          iIneedmd_waveform_disable_TestSignal();
-          }
-          else if(pRcvd_protocol_frame[4] == REQ_FOR_DFU)
-          {
+            eEC = eCommand_DFU_test();
+            if(eEC == ER_OK)
+            {
+              eIneedmd_send_ack();
+              eEC = ER_FAIL;    //tell radio to not expect any more commands
+            }
+            else
+            {
+              eIneedmd_send_nack();
+              eEC = ER_OK;
+            }
+            /*
             eEC = eIneedmd_UI_params_init(&tUI_request_params);
             eIneedmd_UI_params_init(&tUI_request_params);
             printf("Performing DFU...");
@@ -730,9 +640,23 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
             eIneedmd_UI_request(&tUI_request_params);
             Task_sleep(500);
             ineedmd_watchdog_doorbell();
+            */
           }
-          else if(pRcvd_protocol_frame[4] == REQ_FOR_RESET)
+          else if(pRcvd_protocol_frame[COMMAND_DATA_BYTE] == REQ_FOR_RESET)
           {
+            eEC = eCommand_reset_test();
+            if(eEC == ER_OK)
+            {
+              eIneedmd_send_ack();
+              ineedmd_watchdog_doorbell();
+              eEC = ER_FAIL;
+            }
+            else
+            {
+              eIneedmd_send_nack();
+              eEC = ER_OK;
+            }
+            /*
             eIneedmd_radio_request_params_init(&tRadio_request_Params);
             printf("Performing RESET..");
             //give the watchdog a long timeout timer
@@ -752,7 +676,7 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
               {
                 Task_sleep(500);
               }
-            }else{/*do nothing*/}
+            }else{}
 
             if(eEC == ER_OK)
             {
@@ -767,18 +691,20 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
             {
               eIneedmd_send_nack();
             }
+            */
           }
           else
           {
+            eIneedmd_send_nack();
             break;
           }
           printf("Done");
           break;
-        }
-      }
-    }
-  }
-  else
+        } //end test request switch
+      }//end command type switch
+    }//end command validate else/if
+  }//end error code check
+  else          //packet type not valid
   {
     printf("\nInvalid type of packet received!");
     printf("\nSending NACK!");
@@ -855,8 +781,226 @@ ERROR_CODE eValidateCommandID(eINMD_Cmnd_packet_type eProtocolFrameType, eINMD_p
   return eEC;
 }
 
+
+/******************************************************************************
+* name: eCommand_enable_test_signal
+* description: enables test signal
+* param description: char signal
+* signal can be one of the following test signals:
+*       EKG_TEST_PAT      0x01
+*       TRIANGLE_TEST_PAT 0x00
+*       SQUARE_TEST_PAT   0x01
+*       WAVEFORM_TEST_PAT 0x02
+* return value description: ERROR_CODE - ER_OK: The command id is valid for the packet type
+*                                        ER_FAIL: The command id is not valid for the packet type
+*                                        ER_NOT_ENABLED: the packet type or command is currently not supported
+******************************************************************************/
+ERROR_CODE eCommand_enable_test_signal(uint8_t signal)
+{
+  vDEBUG("Test Signal request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  switch(signal)
+  {
+    case TRIANGLE_TEST_PAT:
+      break;
+    case SQUARE_TEST_PAT:
+      break;
+    case WAVEFORM_TEST_PAT:
+      break;
+    default:
+      break;
+  }
+  return eEC;
+}
+
+
+/******************************************************************************
+* name: eCommand_stop_test_signal
+* description: stops test signal generation
+* param description: none
+* return value description: ERROR_CODE - ER_OK: The command id is valid for the packet type
+*                                        ER_FAIL: The command id is not valid for the packet type
+*                                        ER_NOT_ENABLED: the packet type or command is currently not supported
+******************************************************************************/
+ERROR_CODE eCommand_stop_test_signal()
+{
+  vDEBUG("Stop Test request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  return eEC;
+}
+
+/******************************************************************************
+* name: eCommand_DFU_test
+* description: puts device into DFU mode, requests UI sequence
+* param description: none
+* return value description: ERROR_CODE - ER_OK: The command id is valid for the packet type
+*                                        ER_FAIL: The command id is not valid for the packet type
+*                                        ER_NOT_ENABLED: the packet type or command is currently not supported
+******************************************************************************/
+ERROR_CODE eCommand_DFU_test()
+{
+  vDEBUG("DFU request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  return eEC;
+}
+
+/******************************************************************************
+* name: eCommand_reset_test
+* description: resets device, requests UI sequence
+* param description: none
+* return value description: ERROR_CODE - ER_OK: The command id is valid for the packet type
+*                                        ER_FAIL: The command id is not valid for the packet type
+*                                        ER_NOT_ENABLED: the packet type or command is currently not supported
+******************************************************************************/
+ERROR_CODE eCommand_reset_test()
+{
+  ERROR_CODE eEC = ER_FAIL;
+  tRadio_request tRadio_request_Params;
+  tUI_request tUI_request_params;
+  eIneedmd_radio_request_params_init(&tRadio_request_Params);
+  printf("Performing RESET..");
+  //give the watchdog a long timeout timer
+  ineedmd_watchdog_feed();
+
+  //todo: add new RESTART sequence enum to the params
+  eIneedmd_UI_request(&tUI_request_params);
+
+  //set the radio to factory defaults
+  tRadio_request_Params.eRequest = RADIO_REQUEST_CHANGE_SETTINGS;
+  tRadio_request_Params.eSetting = RADIO_SETTINGS_RFD;
+  tRadio_request_Params.vChange_setting_callback = vRadio_change_settings_callback;
+  eEC = eIneedmd_radio_request(&tRadio_request_Params);
+
+  if(eEC == ER_OK)
+  {
+    while(bDid_radio_rfd == false)
+    {
+      Task_sleep(500);
+    }
+  }else{}//do nothing
+
+  return eEC;
+}
+
+
+
+
+/******************************************************************************
+* name: eCommand_set_status
+* description: sets device status based on statusToSet
+* param description: statusToSet - pointer to status to set. should point to command packet
+* return value description: ERROR_CODE - ER_OK: The command id is valid for the packet type
+*                                        ER_FAIL: The command id is not valid for the packet type
+*                                        ER_NOT_ENABLED: the packet type or command is currently not supported
+******************************************************************************/
+ERROR_CODE eCommand_set_status(uint8_t* statusToSet)
+{
+  vDEBUG("status set request received\n");
+  //TODO: check if statusToSet is valid
+  //TODO: set staus
+  ERROR_CODE eEC = ER_FAIL;
+  return eEC;
+}
+
+ERROR_CODE eCommand_capture_data(uint8_t* time)
+{
+  vDEBUG("capture request received\n");
+  //TODO: check time/duration info
+  ERROR_CODE eEC = ER_FAIL;
+  return eEC;
+}
+
+ERROR_CODE eCommand_get_data_set_info(uint8_t* dataSet)
+{
+  vDEBUG("data set info request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  return eEC;
+}
+
+ERROR_CODE eCommand_transfer_data_set(uint8_t* dataSet)
+{
+  vDEBUG("transfer data request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  return eEC;
+}
+
+ERROR_CODE eCommand_erase_data_set(uint8_t* dataSet)
+{
+  vDEBUG("erase data set request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  return eEC;
+}
+
+ERROR_CODE eCommand_send_status()
+{
+  vDEBUG("status request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  //TODO: uint32_t?
+  unsigned char* ucProtocol_Frame_resp;
+  ucProtocol_Frame_resp = malloc(STATUS_LEN);
+  uint16_t OutGoingPacket_len = 0;
+  if(ucProtocol_Frame_resp != NULL)
+  {
+    OutGoingPacket_len = 0;
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x9c;
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x02;
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x12;
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x04; // hard coding the version number
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00; //todo: implement battery voltage function ineedmd_get_battery_voltage();
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = (char) (0xff & 0x00);//todo: implement unit temp function ineedmd_get_unit_tempoerature());
+
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // operating mode  - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // capture settings 1  - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // capture settings 2  - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 4 - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 3 - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 2 - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Time 1 - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 4  - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 3  - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 2  - no information to add yet
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0x00;  // Alarm 1  - no information to add yet
+
+    ucProtocol_Frame_resp[OutGoingPacket_len++] = 0xc9;
+
+    PrintCommand(ucProtocol_Frame_resp, ucProtocol_Frame_resp[2]); //this is just to display on our side, what reply we are sending.
+    printf("Sending status record...");
+
+    if(OutGoingPacket_len > 0x20)
+    {
+      printf("Packet len > 0x20! SYS HALT");
+      while(1){};
+    }else{}
+    writeDataToPort(ucProtocol_Frame_resp, OutGoingPacket_len);
+    free(ucProtocol_Frame_resp);
+    eEC = ER_OK;
+  }
+  return eEC;
+}
+
+ERROR_CODE eCommand_stream_data(uint8_t realTime)
+{
+  vDEBUG("stream data request received\n");
+  ERROR_CODE eEC = ER_FAIL;
+  if(realTime == 0xFF)
+  {
+    eEC = ER_FAIL;
+  }
+  else if (realTime == 0x00)
+  {
+    eEC = ER_FAIL;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
+  return eEC;
+}
+
 ERROR_CODE eCommand_led_test(INMD_LED_COMMAND eInmd_LED_cmnd)
 {
+  vDEBUG("LED Test request received\n");
   ERROR_CODE eEC = ER_FAIL;
   tUI_request tUI_request_params;
 
@@ -877,74 +1021,132 @@ ERROR_CODE eCommand_led_test(INMD_LED_COMMAND eInmd_LED_cmnd)
           tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
           tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
           tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
-
           break;
         case INMD_LED_CMND_POWER_ON_BATT_LOW:
           printf("POWER_ON_BATT_LOW");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
+          tUI_request_params.ePower_led_sequence = POWER_LED_POWER_ON_25to50;
           break;
         case INMD_LED_CMND_POWER_ON_BATT_GOOD:
           printf("POWER_ON_BATT_GOOD");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
+          tUI_request_params.ePower_led_sequence = POWER_LED_POWER_ON_90to100;
           break;
         case INMD_LED_CMND_BATT_CHARGING:
           printf("BATT_CHARGING");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
+          tUI_request_params.ePower_led_sequence = POWER_LED_POWER_ON_CHARGE_50to90;
           break;
         case INMD_LED_CMND_BATT_CHARGING_LOW:
           printf("BATT_CHARGING_LOW");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
+          tUI_request_params.ePower_led_sequence = POWER_LED_POWER_ON_CHARGE_0to25;
           break;
         case INMD_LED_CMND_LEAD_LOOSE:
           printf("LEAD_LOOSE");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_LEAD_OFF_NO_DATA;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_LEAD_GOOD_UPLOADING:
           printf("LEAD_GOOD_UPLOADING");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_LEAD_ON;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_DIG_FLATLINE:
           printf("DIG_FLATLINE");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_DIGITAL_FLATLINE;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_UI_OFF;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_BT_CONNECTED:
           printf("BT_CONNECTED");
-          //todo: set UI request params
+          //todo: update once 3 led
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_BLUETOOTH_CONNECTION_SUCESSFUL;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_BT_ATTEMPTING:
           printf("BT_ATTEMPTING");
-          //todo: set UI request params
+          //todo: update once 3 led
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_BT_FAILED:
           printf("BT_FAILED");
-          //todo: set UI request params
+          //todo: update once 3 led
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_BLUETOOTH_PAIRING_FAILIED;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_USB_CONNECTED:
           printf("USB_CONNECTED");
-          //todo: set UI request params
+          //todo: update once 3 led
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_USB_CONNECTION_SUCESSFUL;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_USB_FAILED:
           printf("USB_FAILED");
-          //todo: set UI request params
+          //todo: update once 3 led
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_USB_CONNECTION_FAILED;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_DATA_TRANSFER:
           printf("DATA_TRANSFER");
-          //todo: set UI request params
+          //todo: update once 3 led
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_DATA_TRANSFERING_FROM_DONGLE;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_TRANSFER_DONE:
           printf("TRANSFER_DONE");
-          //todo: set UI request params
+          //todo: update once 3 led
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_DATA_TRANSFER_SUCESSFUL;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_STORAGE_WARNING:
           printf("STORAGE_WARNING");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_DONGLE_STORAGE_WARNING;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_ERASING:
           printf("ERASING");
-          //todo: set UI request params
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_ERASING_STORED_DATA;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           break;
         case INMD_LED_CMND_ERASE_DONE:
           printf("ERASE_DONE");
+          tUI_request_params.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED);// | INMD_UI_ELEMENT_POWER_LED);
+          tUI_request_params.eHeart_led_sequence = HEART_LED_UI_OFF;
+          tUI_request_params.eComms_led_sequence = COMMS_LED_ERASE_COMPLETE;
+          tUI_request_params.ePower_led_sequence = POWER_LED_UI_OFF;
           //todo: set UI request params
           break;
         case INMD_LED_CMND_DFU_MODE:
@@ -967,7 +1169,7 @@ ERROR_CODE eCommand_led_test(INMD_LED_COMMAND eInmd_LED_cmnd)
           printf("HIBERNATE");
           //todo: set UI request params
           //todo: implement battery check function
-    //              check_battery();
+          //check_battery();
           break;
         case INMD_LED_CMND_LEADS_ON:
           printf("LEADS_ON");
@@ -1009,7 +1211,6 @@ ERROR_CODE eCommand_led_test(INMD_LED_COMMAND eInmd_LED_cmnd)
       }
     }else{/*do nothing*/}
   }
-
   return eEC;
 }
 
@@ -1329,12 +1530,14 @@ void vIneedmd_command_task(UArg a0, UArg a1)
         case CMND_MSG_PROTOCOL_FRAME:
           vDEBUG("Proto cmndr, got proto frame");
           eEC = eParse_Protocol_Frame(tProtocol_msg.uiCmnd_Frame, tProtocol_msg.uiCmnd_Frame_len);
+
           if(eEC == ER_OK)
           {
             eIneedmd_radio_request_params_init (&tRadio_request);
             tRadio_request.eRequest = RADIO_REQUEST_RECEIVE_FRAME;
             eIneedmd_radio_request(&tRadio_request);
           }
+
           break;
         case CMND_MSG_INTERFACE_ESTABLISHED:
           break;

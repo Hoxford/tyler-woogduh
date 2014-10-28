@@ -73,25 +73,21 @@
 #include "USBMSCD.h"
 #include "board.h"
 
-
 /* Static variables and handles */
+
+void (* vUSB_MSCD_change_cb)(void) = NULL;
 
 /* Typedefs */
-typedef volatile enum USBMSD_USBstate
-{
-    USBMSD_STATE_IDLE = 0,
-    USBMSD_STATE_INIT,
-    USBMSD_STATE_UNCONFIGURED
-} USBMSD_USBState;
 
 /* Static variables and handles */
-static volatile USBMSD_USBState state;
+static volatile USBMSD_USBState eUSBMSD_state;
 
 static volatile struct {
     unsigned int drive;
 } driveInformation;
 
 static GateMutex_Handle gateUSBWait;
+static Semaphore_Handle semUSB_Phys_Connected;
 static Semaphore_Handle semUSB_Connected;
 static Semaphore_Handle semUSB_Disconnected;
 static Hwi_Handle hwi;
@@ -263,7 +259,11 @@ static unsigned int cbMSCHandler(void *cbData, unsigned int event,
     /* Determine what event has happened */
     switch (event) {
         case USB_EVENT_CONNECTED:
-          Semaphore_post(semUSB_Connected);
+          eUSBMSD_state = USBMSD_STATE_IDLE;
+          if(vUSB_MSCD_change_cb != NULL)
+          {
+            vUSB_MSCD_change_cb();
+          }
             break;
 
         case USB_EVENT_DISCONNECTED:
@@ -289,8 +289,7 @@ static unsigned int cbMSCHandler(void *cbData, unsigned int event,
  */
 static void close(void *drv)
 {
-    /* Nothing needs to be done here */
-  Semaphore_post(semUSB_Disconnected);
+  /* Nothing needs to be done here */
   return;
 }
 
@@ -305,11 +304,34 @@ void USBMSCD_hwiHandler(UArg arg0)
   return;
 }
 
-void vUSB_Disconnect_callback(void)
+void vUSB_hardware_int_callback(void)
 {
-  GPIO_clearInt(EK_TM4C123GXL_USB_DETECT);
-  Semaphore_post(semUSB_Disconnected);
+  ERROR_CODE eEC = ER_FAIL;
 
+  GPIO_clearInt(EK_TM4C123GXL_USB_DETECT);
+
+  //read the USB connection pin to determin which semaphore to post
+  eEC = eBSP_USB_is_physical_connection();
+  if(eEC == ER_CONNECTED)
+  {
+    /* Set MSD state to unconfigured */
+    eUSBMSD_state = USBMSD_STATE_UNCONFIGURED;
+
+    GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_FALLING);
+
+  }
+  else
+  {
+    /* Set MSD state to none */
+    eUSBMSD_state = USBMSD_STATE_NONE;
+    GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_RISING);
+
+  }
+
+  if(vUSB_MSCD_change_cb != NULL)
+  {
+    vUSB_MSCD_change_cb();
+  }
   return;
 }
 
@@ -325,7 +347,6 @@ static uint32_t numBlocks(void *drv)
   return (sectorCount);
 }
 
-//uint32_t (*pfnBlockSize)(void *pvDrive);
 static uint32_t blockSize(void *drv)
 {
   uint32_t uiDisk_Blk_size = 0;
@@ -384,73 +405,77 @@ static uint32_t write(void *drv, unsigned char *data, unsigned int sector, unsig
     return (0);
 }
 
-ERROR_CODE eUSB_MassStorage_waitForConnect(void)
+/******************************************************************************
+* name: eUSB_MassStorage_waitForConnect
+* description:
+* param description: type - value: value description (in order from left to right)
+*                    bool - true: do action when set to true
+* return value description: ERROR_CODE - ER_CONNECTED: if USB was connected in the timout period
+*                                      - ER_NOT_CONNECTED: if USB was not connected in the timeout period
+*
+******************************************************************************/
+
+ERROR_CODE eUSB_MassStorage_data_connection(void)
 {
   ERROR_CODE eEC = ER_FAIL;
-  bool bDid_sem_pend = false;
-  unsigned int key;
 
-  /* Need exclusive access to prevent a race condition */
-  key = GateMutex_enter(gateUSBWait);
-
-  if (state == USBMSD_STATE_UNCONFIGURED)
+  if(eUSBMSD_state == USBMSD_STATE_IDLE)
   {
-    vDEBUG("USB Waiting for connection");
-    bDid_sem_pend = Semaphore_pend(semUSB_Connected, OSAL_SEM_WAIT_TIMEOUT_WAITFOREVER);
-//    if (!Semaphore_pend(semUSB_Connected, uiTimeout))
-    if(bDid_sem_pend == false)
-    {
-//      ret = false;
-      eEC = ER_FAIL;
-    }
-    else
-    {
-      state = USBMSD_STATE_IDLE;
-      vDEBUG("USB connected");
-      eEC = ER_OK;
-      /* Enable upd detect interrupts */
-      GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_FALLING);
-    }
+    eEC = ER_CONNECTED;
   }
-
-  GateMutex_leave(gateUSBWait, key);
+  else
+  {
+    eEC = ER_NOT_CONNECTED;
+  }
 
   return eEC;
 }
 
-ERROR_CODE eUSB_MassStorage_waitForDisonnect(void)
+USBMSD_USBState  eUSB_MassStorage_state(void)
+{
+  return eUSBMSD_state;
+}
+
+ERROR_CODE eUSB_MSCD_register_cb(void (* vUSB_MSCD_change_callback)(void))
 {
   ERROR_CODE eEC = ER_FAIL;
-  bool bDid_sem_pend = false;
-  unsigned int key;
-
-  /* Need exclusive access to prevent a race condition */
-  key = GateMutex_enter(gateUSBWait);
-
-  if (state == USBMSD_STATE_IDLE)
+  if(vUSB_MSCD_change_callback != NULL)
   {
-    vDEBUG("USB Waiting for disconnection");
-    bDid_sem_pend = Semaphore_pend(semUSB_Disconnected, OSAL_SEM_WAIT_TIMEOUT_WAITFOREVER);
-//    if (!Semaphore_pend(semUSB_Connected, uiTimeout))
-    if(bDid_sem_pend == false)
-    {
-//      ret = false;
-      eEC = ER_FAIL;
-    }
-    else
-    {
-      state = USBMSD_STATE_UNCONFIGURED;
-      vDEBUG("USB disconnected");
-      eEC = ER_OK;
-      /* Ensure the interrupt is disabled */
-      GPIO_disableInt(EK_TM4C123GXL_USB_DETECT);
-    }
+    vUSB_MSCD_change_cb = vUSB_MSCD_change_callback;
+    eEC = ER_OK;
   }
-
-  GateMutex_leave(gateUSBWait, key);
+  else
+  {
+    eEC = ER_FAIL;
+  }
 
   return eEC;
 }
+
+ERROR_CODE eUSB_MSCD_check_physical_connection(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  //read the USB physical connect pin to determine if already physically plugged in
+  eEC = eBSP_USB_is_physical_connection();
+//  if(eEC == ER_CONNECTED)
+//  {
+//    /* Set MSD state to unconfigured */
+//    eUSBMSD_state = USBMSD_STATE_UNCONFIGURED;
+//
+//    GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_FALLING);
+//    Semaphore_post(semUSB_Phys_Connected);
+//  }
+//  else
+//  {
+//    /* Set MSD state to none */
+//    eUSBMSD_state = USBMSD_STATE_NONE;
+//    GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_RISING);
+//  }
+
+  return eEC;
+}
+
 
 /*
  *  ======== USBMSCD_init ========
@@ -458,6 +483,7 @@ ERROR_CODE eUSB_MassStorage_waitForDisonnect(void)
 void USBMSCD_init(void)
 {
     Error_Block eb;
+    ERROR_CODE eEC = ER_FAIL;
     Semaphore_Params semParams;
 
     uDMAControlBaseSet(&DMAControlTable[0]);
@@ -473,29 +499,34 @@ void USBMSCD_init(void)
         System_abort("Can't create USB Hwi");
     }
 
-    semUSB_Connected = Semaphore_create(0, &semParams, &eb);
-    if (semUSB_Connected == NULL) {
-        System_abort("Can't create USB semaphore");
-    }
-
-    semUSB_Disconnected = Semaphore_create(0, &semParams, &eb);
-    if (semUSB_Disconnected == NULL) {
-        System_abort("Can't create USB semaphore");
-    }
-
     gateUSBWait = GateMutex_create(NULL, &eb);
     if (gateUSBWait == NULL) {
         System_abort("Could not create USB Wait gate");
     }
 
-    /* State specific variables */
-    state = USBMSD_STATE_UNCONFIGURED;
-
-    /* Initialize interrupts for all ports that need them */
+    /* Set up the GPIO callbacks for USB */
     GPIO_setupCallbacks(&Board_gpioCallbacks0);
 
-    /* Ensure the interrupt is disabled */
-    GPIO_disableInt(EK_TM4C123GXL_USB_DETECT);
+    //read the USB physical connect pin to determine if already physically plugged in
+    eEC = eBSP_USB_is_physical_connection();
+    if(eEC == ER_CONNECTED)
+    {
+      /* Set MSD state to unconfigured */
+      eUSBMSD_state = USBMSD_STATE_UNCONFIGURED;
+
+      GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_FALLING);
+
+      if(vUSB_MSCD_change_cb != NULL)
+      {
+        vUSB_MSCD_change_cb();
+      }
+    }
+    else
+    {
+      /* Set MSD state to none */
+      eUSBMSD_state = USBMSD_STATE_NONE;
+      GPIO_enableInt(EK_TM4C123GXL_USB_DETECT, GPIO_INT_RISING);
+    }
 
     /* Set the USB stack mode to Device mode with VBUS monitoring */
     USBStackModeSet(0, eUSBModeDevice, 0);
