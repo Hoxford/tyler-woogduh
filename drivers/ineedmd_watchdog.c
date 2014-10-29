@@ -240,6 +240,25 @@ ERROR_CODE ineedmd_watchdog_doorbell(void)
 #endif
 }
 
+ERROR_CODE ineedmd_watchdog_barkcollar(void)
+{
+  ERROR_CODE eEC = ER_FAIL;
+
+  if(handle == NULL)
+  {
+    //no watchdog the shut down, set the error code
+    eEC = ER_OK;
+  }
+  else
+  {
+    Watchdog_close((Watchdog_Handle)handle);
+    eEC = ER_OK;
+  }
+
+  return eEC;
+
+}
+
 ERROR_CODE ineedmd_watchdog_debug_mode(void)
 {
 #ifdef USING_TIRTOS

@@ -350,6 +350,8 @@ int ineedmd_adc_Check_Update();
 
 void ineedmd_adc_Set_Sample_Rate(uint32_t SPS);
 void ineedmd_adc_Enable_Lead_Detect();
-ERROR_CODE eADC_setup(void); //sets up the A to D driver
+
+int         iADC_get_unit_temperature(void); //returns the current system temperature
+ERROR_CODE  eADC_setup(void); //sets up the A to D driver
 
 #endif //#define __INEEDMD_ADC_H__

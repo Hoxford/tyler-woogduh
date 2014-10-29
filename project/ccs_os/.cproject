@@ -44,6 +44,7 @@
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.GCC.262898916" name="Enable support for GCC extensions (--gcc)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.GCC" value="true" valueType="boolean"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.DEFINE.1756809720" name="Pre-define NAME (--define, -D)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.DEFINE" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="ccs=&quot;ccs&quot;"/>
+									<listOptionValue builtIn="false" value="TARGET_IS_TM4C123_RA3"/>
 									<listOptionValue builtIn="false" value="PART_TM4C1233H6PM"/>
 									<listOptionValue builtIn="false" value="DEBUG"/>
 									<listOptionValue builtIn="false" value="TIVAWARE"/>
@@ -111,7 +112,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/main.c|drivers/UI.c|drivers/SDcard.c|drivers/LED.c|drivers/bluetooth.c|drivers/battery.c|EK_TM4C123GXL.c|platform/dongle/ti/rev03/usblib|platform/dongle/ti/rev03/driverlib|platform/dongle/ti/rev03/driverlib/udma.c|platform/dongle/ti/rev03/driverlib/sysexc.c|platform/dongle/ti/rev03/driverlib/sw_crc.c|platform/dongle/ti/rev03/driverlib/shamd5.c|platform/dongle/ti/rev03/driverlib/qei.c|platform/dongle/ti/rev03/driverlib/pwm.c|platform/dongle/ti/rev03/driverlib/onewire.c|platform/dongle/ti/rev03/driverlib/mpu.c|platform/dongle/ti/rev03/driverlib/lcd.c|platform/dongle/ti/rev03/driverlib/hibernate.c|platform/dongle/ti/rev03/driverlib/fpu.c|platform/dongle/ti/rev03/driverlib/flash.c|platform/dongle/ti/rev03/driverlib/epi.c|platform/dongle/ti/rev03/driverlib/emac.c|platform/dongle/ti/rev03/driverlib/eeprom.c|platform/dongle/ti/rev03/driverlib/des.c|platform/dongle/ti/rev03/driverlib/crc.c|platform/dongle/ti/rev03/driverlib/comp.c|platform/dongle/ti/rev03/driverlib/can.c|platform/dongle/ti/rev03/driverlib/aes.c|utils/file_system.c|utils/fswrapper.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/main.c|drivers/UI.c|drivers/SDcard.c|drivers/LED.c|drivers/bluetooth.c|drivers/battery.c|EK_TM4C123GXL.c|platform/dongle/ti/rev03/usblib|platform/dongle/ti/rev03/driverlib|platform/dongle/ti/rev03/driverlib/udma.c|platform/dongle/ti/rev03/driverlib/sysexc.c|platform/dongle/ti/rev03/driverlib/sw_crc.c|platform/dongle/ti/rev03/driverlib/shamd5.c|platform/dongle/ti/rev03/driverlib/qei.c|platform/dongle/ti/rev03/driverlib/pwm.c|platform/dongle/ti/rev03/driverlib/onewire.c|platform/dongle/ti/rev03/driverlib/mpu.c|platform/dongle/ti/rev03/driverlib/lcd.c|platform/dongle/ti/rev03/driverlib/hibernate.c|platform/dongle/ti/rev03/driverlib/fpu.c|platform/dongle/ti/rev03/driverlib/flash.c|platform/dongle/ti/rev03/driverlib/epi.c|platform/dongle/ti/rev03/driverlib/emac.c|platform/dongle/ti/rev03/driverlib/eeprom.c|platform/dongle/ti/rev03/driverlib/des.c|platform/dongle/ti/rev03/driverlib/crc.c|platform/dongle/ti/rev03/driverlib/comp.c|platform/dongle/ti/rev03/driverlib/can.c|platform/dongle/ti/rev03/driverlib/aes.c|utils/file_system.c|utils/fswrapper.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -209,7 +210,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_power_modes.c|application/ineedmd_command_protocol.c|application/main.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="application/ineedmd_watchdog.c|application/ineedmd_test_waveforms.c|application/ineedmd_command_protocol.c|application/main.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

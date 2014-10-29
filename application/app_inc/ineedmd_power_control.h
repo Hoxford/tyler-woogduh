@@ -1,11 +1,12 @@
-/******************************************************************************
-*
-* ineedmd_USB.h - USB include file
-* Copyright (c) notice
-*
-******************************************************************************/
-#ifndef __INEEDMD_USB_H__
-#define __INEEDMD_USB_H__
+/*
+ * ineedmd_power_modes.h
+ *
+ *  Created on: Jul 30, 2014
+ *      Author: BrianS
+ */
+
+#ifndef INEEDMD_POWER_MODES_H_
+#define INEEDMD_POWER_MODES_H_
 /******************************************************************************
 * includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -25,37 +26,18 @@
 /******************************************************************************
 *public enums /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-//eUSB_request_ID enum that will be part of the USB request. ID's denote specific usb request to perform
-typedef enum eUSB_request_ID
-{
-  USB_REQUEST_NONE,
-  USB_REQUEST_REGISTER_CONN_CALLBACK,   //register a connection notification callback function
-  USB_REQUEST_UNREGISTER_CONN_CALLBACK, //un-register a connection notification callback function
-  USB_REQUEST_FORCE_ENABLE,             //force the usb peripheral on
-  USB_REQUEST_FORCE_DISABLE,            //force the usb peripheral off
-  USB_REQUEST_FORCE_DISCONNECT,         //force the USB to disconnect from an external host
-  USB_REQUEST_RECONNECT,                //request the USB to attempt reconnect with an external host
-  USB_REQUEST_LIMIT
-}eUSB_request_ID;
 
-//eUSB_connection_state enum used to identify the current connection state of the USB task
-typedef enum eUSB_Conn_State
+//power control task state used to identify what state the task is in
+typedef enum ePower_Control_Task_state
 {
-  USB_CONN_NONE,
-  USB_CONN_PHYSICAL,
-  USB_CONN_DATA,
-  USB_CONN_LIMIT
-}eUSB_Conn_State;
+  PWR_CTRL_TASK_NONE,
+  PWR_CTRL_TASK_IDLE,
+  PWR_CTRL_TASK_LIMIT
+}ePower_Control_state;
 
 /******************************************************************************
 *public structures ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-//tUSB_req USB request structure
-typedef struct tUSB_req
-{
-  eUSB_request_ID eRequest;
-  void (* vUSB_connection_callback) (bool bUSB_Physical_connection, bool bUSB_Data_connection);
-}tUSB_req;
 
 /******************************************************************************
 * external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,7 +46,12 @@ typedef struct tUSB_req
 /******************************************************************************
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-ERROR_CODE      eUSB_request_params_init        (tUSB_req * tParams );
-ERROR_CODE      eUSB_request                    (tUSB_req * tRequest);
-eUSB_Conn_State eUSB_get_connection_task_state  (void);
-#endif //__INEEDMD_USB_H__
+int uiPower_Control_Get_Supply_Voltage(void);
+ePower_Control_state ePower_Control_Get_Task_State(void);
+
+//void shut_it_all_down(void);
+//void sleep_for_tenths(int);
+//void ineedmd_sleep(void);
+//void hold_until_short_removed(void);
+
+#endif /* INEEDMD_POWER_MODES_H_ */

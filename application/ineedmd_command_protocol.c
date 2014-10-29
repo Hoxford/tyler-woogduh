@@ -17,7 +17,21 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_gpio.h"
+#include "inc/hw_nvic.h"
 #include "driverlib/rom.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/gpio.h"
+#include "driverlib/uart.h"
+#include "driverlib/timer.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/adc.h"
+
 #include "utils_inc/error_codes.h"
 #include "board.h"
 
@@ -28,9 +42,11 @@
 #include "app_inc/ineedmd_watchdog.h"
 #include "app_inc/ineedmd_UI.h"
 #include "drivers_inc/ineedmd_bluetooth_radio.h"
+#include "drivers_inc/ineedmd_adc.h"
+#include "drivers_inc/ineedmd_USB.h"
 #include "utils_inc/proj_debug.h"
 
-#include "app_inc/ineedmd_power_modes.h"
+#include "app_inc/ineedmd_power_control.h"
 
 #include "utils_inc/osal.h"
 
@@ -68,6 +84,11 @@
   #define debug_out(c,...)
 #endif //DEBUG
 
+#define DFU_REQ_MAX_TEMP    1000
+#define DFU_REQ_MIN_TEMP    340
+#define DFU_REQ_EKG_HALT_TIMEOUT    100
+#define DFU_REQ_EKG_SHTDWN_TIMEOUT    100
+
 /******************************************************************************
 * variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -75,6 +96,8 @@ bool bIs_protocol_connection = false;
 bool bDid_radio_rfd = false;
 bool bDid_radio_send_frame = false;
 bool bIs_radio_on = false;
+bool bDid_ekg_halt = false;
+bool bDid_ekg_shtdwn = false;
 
 //static uint8_t uiINMD_Protocol_frame[INMD_FRAME_BUFF_SIZE];
 ////static uint16_t uiINMD_Protocol_frame_len = 0;
@@ -148,10 +171,12 @@ typedef struct tProtocol_msg_struct
 /******************************************************************************
 * private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-void vRadio_connection_callback(eRadio_connection_state eRadio_conn);
-void vRadio_change_settings_callback(eRadio_Settings eRadio_Setting);
-void vRadio_sent_frame_callback(uint32_t uiCount);
-void vRadio_setup_callback(eRadio_setup_state eState);
+void       vRadio_connection_callback      (eRadio_connection_state eRadio_conn);
+void       vRadio_change_settings_callback (eRadio_Settings eRadio_Setting);
+void       vRadio_sent_frame_callback      (uint32_t uiCount);
+void       vRadio_setup_callback(eRadio_setup_state eState);
+void       vEKG_halt_request_callback(uint32_t uiData, bool bEKG_running);
+void       vEKG_shtdwn_request_callback(uint32_t uiData, bool bEKG_on);
 ERROR_CODE eIneedmd_send_ack(void);  //send protocol acknowledgement
 ERROR_CODE eIneedmd_send_nack(void);  //send protocol fail acknowledgement
 ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd_frame_len);
@@ -161,7 +186,7 @@ ERROR_CODE eCommand_led_test(INMD_LED_COMMAND eInmd_LED_cmnd);
 
 ERROR_CODE eCommand_enable_test_signal(uint8_t signal);
 ERROR_CODE eCommand_stop_test_signal();
-ERROR_CODE eCommand_DFU_test();
+ERROR_CODE eCommand_DFU(void);
 ERROR_CODE eCommand_reset_test();
 ERROR_CODE eCommand_set_status(uint8_t* statusToSet);
 ERROR_CODE eCommand_capture_data(uint8_t* duration);
@@ -169,7 +194,7 @@ ERROR_CODE eCommand_get_data_set_info(uint8_t* dataSet);
 ERROR_CODE eCommand_transfer_data_set(uint8_t* dataSet);
 ERROR_CODE eCommand_erase_data_set(uint8_t* dataSet);
 ERROR_CODE eCommand_send_status();
-ERROR_CODE eCommand_stream_data_(uint8_t bRealTime);
+ERROR_CODE eCommand_stream_data(uint8_t bRealTime);
 ////int debug_out(char * cOut_buff,...);
 
 void writeDataToPort(unsigned char * cOut_buff, uint16_t uiLen);
@@ -224,7 +249,6 @@ void vRadio_sent_frame_callback(uint32_t uiCount)
   return;
 }
 
-
 void vRadio_setup_callback(eRadio_setup_state eState)
 {
   if(eState == RDIO_SETUP_READY)
@@ -238,6 +262,33 @@ void vRadio_setup_callback(eRadio_setup_state eState)
 
 }
 
+void vEKG_halt_request_callback(uint32_t uiData, bool bEKG_running)
+{
+  if(bEKG_running == false)
+  {
+    bDid_ekg_halt = true;
+  }
+  else
+  {
+    bDid_ekg_halt = false;
+  }
+
+  return;
+}
+
+void vEKG_shtdwn_request_callback(uint32_t uiData, bool bEKG_on)
+{
+  if(bEKG_on == false)
+  {
+    bDid_ekg_shtdwn = true;
+  }
+  else
+  {
+    bDid_ekg_shtdwn = false;
+  }
+
+  return;
+}
 
 /******************************************************************************
 * name: eIneedmd_send_ack
@@ -265,12 +316,15 @@ ERROR_CODE eIneedmd_send_ack(void)
     eEC = eIneedmd_radio_request(&tRequest);
   }else{/*do nothing*/}
 
-  while(bDid_radio_send_frame == false)
+  if(eEC == ER_OK)
   {
-    Task_sleep(100);
+    while(bDid_radio_send_frame == false)
+    {
+      Task_sleep(100);
+    }
   }
 
-  vDEBUG("ACK\n");
+  vDEBUG("ACK");
 
   return eEC;
 }
@@ -356,19 +410,13 @@ void writeDataToPort(unsigned char * cOut_buff, uint16_t uiLen)
 ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd_frame_len)
 {
   ERROR_CODE eEC = ER_FAIL;
-  uint16_t OutGoingPacket_len = 0;  //maximum length of an outgoing packet is 0x20
-  unsigned char *            ucProtocol_Frame_resp = NULL;
   eINMD_Cmnd_packet_type    eProtocolFrameType;//dataPacketType;// = ucProtocol_Frame[1];
-  unsigned char             ucProtocolFrameLength;//lengthPacket;  // = ucProtocol_Frame[2];
   eINMD_protocol_command_id eProtocolFrameCommandID;//actCommand;    // = ucProtocol_Frame[3];
 
   //TODO: not needed?
   //unsigned char cntDataBytes;
   tUI_request tUI_request_params;
   tRadio_request tRadio_request_Params;
-
-  //Copy the recieved protocol frame into a local buffer
-  ucProtocolFrameLength = pRcvd_protocol_frame[PROTOCOL_FRAME_CMND_LEN_INDEX];
 
   eProtocolFrameType      = (eINMD_Cmnd_packet_type)   pRcvd_protocol_frame[PROTOCOL_FRAME_CMND_TYPE_INDEX];
   eProtocolFrameCommandID = (eINMD_protocol_command_id)pRcvd_protocol_frame[PROTOCOL_FRAME_CMND_ID_INDEX];
@@ -490,7 +538,7 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
         }
         case COMMAND_ID_STREAM_DATA:
         {
-          eEC = eCommand_stream_data(&pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
+          eEC = eCommand_stream_data(pRcvd_protocol_frame[COMMAND_DATA_BYTE]);
           if(eEC == ER_OK)
           {
             eIneedmd_send_ack();
@@ -614,7 +662,7 @@ ERROR_CODE eParse_Protocol_Frame(uint8_t * pRcvd_protocol_frame, uint32_t uiRcvd
           }
           else if(pRcvd_protocol_frame[COMMAND_DATA_BYTE] == REQ_FOR_DFU)
           {
-            eEC = eCommand_DFU_test();
+            eEC = eCommand_DFU();
             if(eEC == ER_OK)
             {
               eIneedmd_send_ack();
@@ -830,17 +878,238 @@ ERROR_CODE eCommand_stop_test_signal()
 }
 
 /******************************************************************************
-* name: eCommand_DFU_test
+* name: eCommand_DFU
 * description: puts device into DFU mode, requests UI sequence
 * param description: none
 * return value description: ERROR_CODE - ER_OK: The command id is valid for the packet type
 *                                        ER_FAIL: The command id is not valid for the packet type
 *                                        ER_NOT_ENABLED: the packet type or command is currently not supported
 ******************************************************************************/
-ERROR_CODE eCommand_DFU_test()
+ERROR_CODE eCommand_DFU(void)
 {
   vDEBUG("DFU request received\n");
   ERROR_CODE eEC = ER_FAIL;
+  ERROR_CODE eEC_safety_checks = ER_FAIL;
+  ERROR_CODE eEC_sys_prep = ER_FAIL;
+  tINMD_EKG_req tEKG_req;
+  eEKG_Task_state eEKG_state;
+  tUSB_req tUSB_request;
+  tUI_request tUI_req;
+  tRadio_request tRadio_req;
+  int iSupply_Voltage = 0;
+  int iUnit_Temp = 0;
+  uint32_t uiEKG_halt_timeout = 0;
+  uint32_t uiEKG_shtdwn_timeout = 0;
+
+  //Perform safety checks//////////////
+  //
+  //Check if EKG is in a patient monitoring state
+  eEKG_state = eIneedmd_EKG_get_task_state();
+  if(eEKG_state == EKG_TASK_MONITOR)
+  {
+    eEC_safety_checks = ER_FAIL;
+  }
+  else
+  {
+    eEC_safety_checks = ER_OK;
+  }
+
+  //Check the current battery voltage
+  if(eEC_safety_checks == ER_OK)
+  {
+    iSupply_Voltage = uiPower_Control_Get_Supply_Voltage();
+    if((iSupply_Voltage == 0)   |\
+       (iSupply_Voltage == -1)  |\
+       (iSupply_Voltage <= 3300))
+    {
+      eEC_safety_checks = ER_FAIL;
+    }
+    else
+    {
+      eEC_safety_checks = ER_OK;
+    }
+  }
+
+  //Check the current system temperature
+  if(eEC_safety_checks == ER_OK)
+  {
+    iUnit_Temp = iADC_get_unit_temperature();
+    if((iUnit_Temp >=  DFU_REQ_MAX_TEMP) |\
+       (iUnit_Temp <=  DFU_REQ_MIN_TEMP))
+    {
+      eEC_safety_checks = ER_FAIL;
+    }
+    else
+    {
+      eEC_safety_checks = ER_OK;
+    }
+  }
+
+  //Check if the safety checks passed
+  if(eEC_safety_checks == ER_FAIL)
+  {
+    //safety checks failed, set the error code to not ready to perform DFU yet
+    eEC = ER_NOT_READY;
+  }
+  else
+  {
+    //Safety check passed, perform system prep
+    //
+    //Get the current EKG state
+    eEKG_state = eIneedmd_EKG_get_task_state();
+    //check if the EKG is in a "running" state
+    if(eEKG_state == EKG_TASK_NONE)
+    {
+      //ekg not even started, nothing to shutdown
+      eEC_sys_prep = ER_OK;
+    }
+    else if(eEKG_state != EKG_TASK_IDLE)
+    {
+
+      eIneedmd_EKG_request_param_init(&tEKG_req);
+      tEKG_req.eReq_ID = EKG_REQUEST_EKG_HALT;
+      tEKG_req.vEKG_read_callback = &vEKG_halt_request_callback;
+      eEC = eIneedmd_EKG_request(&tEKG_req);
+      if(eEC == ER_OK)
+      {
+        //wait for the EKG task to finish halting
+        while(bDid_ekg_halt == false)
+        {
+          Task_sleep(100);
+          uiEKG_halt_timeout++;
+          if(uiEKG_halt_timeout >= DFU_REQ_EKG_HALT_TIMEOUT)
+          {
+            eEC_sys_prep = ER_FAIL;
+            break;
+          }
+
+          //Get the current EKG state
+          eEKG_state = eIneedmd_EKG_get_task_state();
+        }
+        eEC_sys_prep = ER_OK;
+      }
+      else
+      {
+        eEC_sys_prep = ER_FAIL;
+      }
+    }
+
+    //If EKG is in an idle state, request it to shut down completly
+    if(eEKG_state == EKG_TASK_IDLE)
+    {
+      eIneedmd_EKG_request_param_init(&tEKG_req);
+      tEKG_req.eReq_ID = EKG_REQUEST_EKG_SHUTDOWN;
+      tEKG_req.vEKG_read_callback = &vEKG_shtdwn_request_callback;
+      eEC = eIneedmd_EKG_request(&tEKG_req);
+      if(eEC == ER_OK)
+      {
+        //wait for the EKG task to finish shutting down
+        while(bDid_ekg_shtdwn == false)
+        {
+          Task_sleep(100);
+          uiEKG_shtdwn_timeout++;
+          if(uiEKG_shtdwn_timeout >= DFU_REQ_EKG_SHTDWN_TIMEOUT)
+          {
+            eEC_sys_prep = ER_FAIL;
+            break;
+          }
+        }
+        eEC_sys_prep = ER_OK;
+      }
+      else
+      {
+        //EKG request to shut down failed, set the error code
+        eEC_sys_prep = ER_FAIL;
+      }
+    }
+
+    //turn on the USB interface
+    if(eEC_sys_prep == ER_OK)
+    {
+      eUSB_request_params_init(&tUSB_request);
+      tUSB_request.eRequest = USB_REQUEST_FORCE_ENABLE;
+      eEC = eUSB_request(&tUSB_request);
+      if(eEC == ER_OK)
+      {
+        eEC_sys_prep = ER_OK;
+      }
+      else
+      {
+        eEC_sys_prep = ER_FAIL;
+      }
+    }
+
+    if(eEC_sys_prep == ER_OK)
+    {
+      ineedmd_watchdog_barkcollar();
+      eEC_sys_prep = ER_OK;
+    }
+  }
+
+  //check if safety and system checks passed
+  if((eEC_safety_checks == ER_OK) & \
+     (eEC_sys_prep == ER_OK))
+  {
+    //put the system into DFU
+
+    eIneedmd_UI_params_init(&tUI_req);
+    tUI_req.uiUI_element = (INMD_UI_ELEMENT_HEART_LED | INMD_UI_ELEMENT_COMMS_LED | INMD_UI_ELEMENT_POWER_LED);
+    tUI_req.eComms_led_sequence = COMMS_LED_DFU;
+    tUI_req.eHeart_led_sequence = HEART_LED_DFU;
+    tUI_req.ePower_led_sequence = POWER_LED_DFU;
+    eIneedmd_UI_request(&tUI_req);
+
+    eIneedmd_send_ack();
+
+    //todo: protocol interface shutdown, note: procol interface shutdown may not be needed since ack'ing a DFU command the remote device should assume protocol connection will terminate
+
+    eIneedmd_radio_request_params_init (&tRadio_req);
+    tRadio_req.eRequest = RADIO_REQUEST_POWER_OFF;
+    eEC = eIneedmd_radio_request(&tRadio_req);
+
+    Task_sleep(1000);
+
+    ROM_IntMasterDisable();
+    ROM_SysTickIntDisable();
+    ROM_SysTickDisable();
+    uint32_t ui32SysClock;
+    ROM_SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+    SYSCTL_XTAL_16MHZ);
+    ui32SysClock = ROM_SysCtlClockGet();
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+    ROM_GPIOPinTypeUSBAnalog(GPIO_PORTD_BASE, GPIO_PIN_4 | GPIO_PIN_5);
+    ROM_SysTickPeriodSet(ROM_SysCtlClockGet() / 100);
+    HWREG(NVIC_DIS0) = 0xffffffff;
+    HWREG(NVIC_DIS1) = 0xffffffff;
+    HWREG(NVIC_DIS2) = 0xffffffff;
+    HWREG(NVIC_DIS3) = 0xffffffff;
+    HWREG(NVIC_DIS4) = 0xffffffff;
+    int ui32Addr;
+    for(ui32Addr = NVIC_PRI0; ui32Addr <= NVIC_PRI34; ui32Addr+=4)
+    {
+      HWREG(ui32Addr) = 0;
+    }
+    HWREG(NVIC_SYS_PRI1) = 0;
+    HWREG(NVIC_SYS_PRI2) = 0;
+    HWREG(NVIC_SYS_PRI3) = 0;
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_USB0);
+    ROM_SysCtlPeripheralReset(SYSCTL_PERIPH_USB0);
+    ROM_SysCtlUSBPLLEnable();
+    ROM_SysCtlDelay(ui32SysClock*2 / 3);
+    ROM_IntMasterEnable();
+    ROM_UpdateUSB(0);
+    while(1){}
+  }
+  else
+  {
+    //safety and system checks failed restore the system to previoius operation mode
+
+
+    eEC = ER_FAIL;
+  }
+
+
+  //system restore
   return eEC;
 }
 

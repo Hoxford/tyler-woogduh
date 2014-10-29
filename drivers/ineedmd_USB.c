@@ -45,6 +45,7 @@
 #define USB_MBOX_TIMEOUT_SHORT  10
 
 #define USB_CB_ARRAY_LIMIT      3
+
 /******************************************************************************
 * variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -311,8 +312,20 @@ ERROR_CODE eUSB_request(tUSB_req * tRequest)
           break;
         }
         case USB_REQUEST_FORCE_DISCONNECT:
+          eEC = ER_NOT_ENABLED;
           break;
         case USB_REQUEST_RECONNECT:
+          eEC = ER_NOT_ENABLED;
+          break;
+        case USB_REQUEST_FORCE_ENABLE:
+          //todo: add force enable request code
+
+          //NOTE: error code is set to OK since USB is already enabled, will need to be re-evaluated when the "todo: add force enable request code" is implemented
+          eEC = ER_OK;
+          break;
+        case USB_REQUEST_FORCE_DISABLE:
+          //todo: add force disable request code
+          eEC = ER_NOT_ENABLED;
           break;
         default:
           eEC = ER_REQUEST;

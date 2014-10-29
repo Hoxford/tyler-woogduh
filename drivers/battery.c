@@ -338,35 +338,3 @@ ineedmd_get_battery_voltage(void)
 
 }
 
-uint32_t
-ineedmd_get_unit_tempoerature()
-{
-
-
-  uint32_t TempValueC;
-  uint32_t temp_adc_return_value;
-
-  TemperatureMeasureADCEnable();
-
-  ADCProcessorTrigger(TEMPERATURE_ADC, 3);
-  //
-  // Wait for conversion to be completed.
-  //
-  while(!ADCIntStatus(TEMPERATURE_ADC, 3, false))
-  {
-  }
-  //
-  // Clear the ADC interrupt flag.
-  //
-  ADCIntClear(TEMPERATURE_ADC, 3);
-  //
-  // Read ADC Value.
-  //
-  ADCSequenceDataGet(TEMPERATURE_ADC, 3, &temp_adc_return_value);
-
-  TemperatureMeasureADCDisable();
-  TempValueC = ((1475 * 1023) - (2250 * temp_adc_return_value)) / 10230;
-
-  return TempValueC;
-
-}

@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <inc/hw_ints.h>
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_gpio.h"
@@ -22,11 +23,13 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/ssi.h"
 #include "driverlib/gpio.h"
+#include "driverlib/adc.h"
 
 #include "utils_inc/error_codes.h"
 #include "drivers_inc/ineedmd_adc.h"
 #include "board.h"
 #include "app_inc/ineedmd_power_modes.h"
+#include "utils_inc/osal.h"
 
 /******************************************************************************
 * defines /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,9 +51,12 @@ bool bIs_adc_powered_on = false;
 * structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 
+static Hwi_Handle tADC_uPtemp_hwi;
+
 /******************************************************************************
 * external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+extern Void ADCIsr(UArg a0);
 
 /******************************************************************************
 * private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -825,6 +831,46 @@ void ineedmd_adc_12_Lead_Config()
 
 #endif //NOT_NOW
 
+/******************************************************************************
+* name: iADC_get_unit_tempoerature
+* description: returns the current system temperature in tenths of a degree
+*              fahrenheit resolution.
+* param description: none
+*
+* return value description: int - 0: temperature not read
+*                               - -1: temperature read failure
+*                               - integer: temperature in tenths of a degree fahrenheit
+******************************************************************************/
+int iADC_get_unit_temperature(void)
+{
+  uint32_t TempValueC = 720;
+//  uint32_t temp_adc_return_value;
+//
+//  eBSP_TemperatureMeasureADCEnable();
+//
+//  ADCProcessorTrigger(TEMPERATURE_ADC, 3);
+//  //
+//  // Wait for conversion to be completed.
+//  //
+//  while(!ADCIntStatus(TEMPERATURE_ADC, 3, false))
+//  {
+//  }
+//  //
+//  // Clear the ADC interrupt flag.
+//  //
+//  ADCIntClear(TEMPERATURE_ADC, 3);
+//  //
+//  // Read ADC Value.
+//  //
+//  ADCSequenceDataGet(TEMPERATURE_ADC, 3, &temp_adc_return_value);
+//
+//  eBSP_TemperatureMeasureADCDisable();
+//  TempValueC = ((1475 * 1023) - (2250 * temp_adc_return_value)) / 10230;
+
+  return (int)TempValueC;
+
+}
+
 //*****************************************************************************
 // name: iADC_setup
 // description: sets up the A to D converter driver
@@ -833,8 +879,15 @@ void ineedmd_adc_12_Lead_Config()
 //*****************************************************************************
 ERROR_CODE eADC_setup(void)
 {
+  Error_Block eb;
   ERROR_CODE eEC = ER_FAIL;
   uint32_t regVal;
+
+  /* Install interrupt handler */
+//  tADC_uPtemp_hwi = Hwi_create(INT_ADC1SS0, ADCIsr, NULL, &eb);
+//  if (tADC_uPtemp_hwi == NULL) {
+//      System_abort("Can't create USB Hwi");
+//  }
 
   eEC = eBSP_ADC_SPI_Enable();
 
@@ -854,15 +907,14 @@ ERROR_CODE eADC_setup(void)
     eEC = eBSP_ADC_Hard_Reset();
   }
 
+
   if(eEC == ER_OK)
   {
+    //turn off continuous conversion for register read/writes
     eEC = eBSP_ADC_Continuous_Conv(false);
   }
 
 #ifdef NOT_YET
-  //turn off continuous conversion for register read/writes
-  ineedmd_adc_Stop_Continuous_Conv();
-
   ineedmd_adc_Enable_Lead_Detect();
 
   //increase comparator threshold for lead off detect

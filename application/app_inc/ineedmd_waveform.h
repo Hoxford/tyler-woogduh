@@ -1,6 +1,6 @@
 //*****************************************************************************
 //
-// ineedmd_waveform.c - waveform application for the patient EKG data processing
+// ineedmd_waveform.h - waveform application for the patient EKG data processing
 //
 // Copyright (c) notice
 //
@@ -35,7 +35,21 @@ typedef enum eEKG_Request_ID
   EKG_REQUEST_SHIPPING_HOLD,
   EKG_REQUEST_TEST_PATTERN,
   EKG_REQUEST_EKG_MONITOR,
+  EKG_REQUEST_EKG_HALT,
+  EKG_REQUEST_EKG_SHUTDOWN,
+  EKG_REQUEST_LIMIT
 }eEKG_Request_ID;
+
+//EKG task state
+typedef enum eEKG_Task_state
+{
+  EKG_TASK_NONE,
+  EKG_TASK_IDLE,
+  EKG_TASK_TEST_PATTERN,
+  EKG_TASK_MONITOR,
+  EKG_TASK_LIMIT
+}eEKG_Task_state;
+
 /******************************************************************************
 * public structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -57,6 +71,7 @@ typedef struct tINMD_EKG_req
 //int iIneedmd_waveform_disable_TestSignal(void);
 //bool iIneedmd_is_test_running(void);
 //void ineedmd_measurement_ramp(void);
+eEKG_Task_state eIneedmd_EKG_get_task_state(void);
 ERROR_CODE eIneedmd_EKG_request_param_init(tINMD_EKG_req * ptRequest);
 ERROR_CODE eIneedmd_EKG_request(tINMD_EKG_req * ptRequest);
 #endif// __INEEDMD_WAVEFORM_H__

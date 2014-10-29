@@ -87,8 +87,6 @@ static volatile struct {
 } driveInformation;
 
 static GateMutex_Handle gateUSBWait;
-static Semaphore_Handle semUSB_Phys_Connected;
-static Semaphore_Handle semUSB_Connected;
 static Semaphore_Handle semUSB_Disconnected;
 static Hwi_Handle hwi;
 

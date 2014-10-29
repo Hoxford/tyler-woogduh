@@ -57,19 +57,14 @@
 			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_command_protocol.c</locationURI>
 		</link>
 		<link>
-			<name>application/ineedmd_power_modes.c</name>
+			<name>application/ineedmd_power_control.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_power_modes.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_power_control.c</locationURI>
 		</link>
 		<link>
 			<name>application/ineedmd_test_waveforms.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_test_waveforms.c</locationURI>
-		</link>
-		<link>
-			<name>application/ineedmd_watchdog.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/application/ineedmd_watchdog.c</locationURI>
 		</link>
 		<link>
 			<name>application/ineedmd_waveform.c</name>

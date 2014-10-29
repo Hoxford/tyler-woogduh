@@ -269,10 +269,8 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
   #define vDEBUG_INMD_UI_REQ(a)
 #endif
   ERROR_CODE eEC = ER_FAIL;
-  bool bDid_message_post = false;
   tUI_request tUI_Msg;
   uint16_t uiElement = ptUI_Request->uiUI_element;
-  bool bDo_immediatly = ptUI_Request->bPerform_Immediatly;
   eHEART_LED_UI eHeart_led_seq = ptUI_Request->eHeart_led_sequence;
   eCOMMS_LED_UI eComms_led_seq = ptUI_Request->eComms_led_sequence;
   ePOWER_LED_UI ePower_led_seq = ptUI_Request->ePower_led_sequence;
@@ -305,6 +303,11 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
         break;
       case HEART_LED_DIGITAL_FLATLINE:
         tUI_Msg.eHeart_led_sequence = HEART_LED_DIGITAL_FLATLINE;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
+        eEC = ER_OK;
+        break;
+      case HEART_LED_DFU:
+        tUI_Msg.eHeart_led_sequence = HEART_LED_DFU;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_HEART_LED;
         eEC = ER_OK;
         break;
@@ -387,6 +390,11 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
         break;
       case COMMS_LED_ERASE_COMPLETE:
         tUI_Msg.eComms_led_sequence = COMMS_LED_ERASE_COMPLETE;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
+        eEC = ER_OK;
+        break;
+      case COMMS_LED_DFU:
+        tUI_Msg.eComms_led_sequence = COMMS_LED_DFU;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_COMMS_LED;
         eEC = ER_OK;
         break;
@@ -475,6 +483,11 @@ ERROR_CODE eIneedmd_UI_request(tUI_request * ptUI_Request)
         break;
       case POWER_LED_POWER_ON_CHARGE_0to25:
         tUI_Msg.ePower_led_sequence = POWER_LED_POWER_ON_CHARGE_0to25;
+        tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
+        eEC = ER_OK;
+        break;
+      case POWER_LED_DFU:
+        tUI_Msg.ePower_led_sequence = POWER_LED_DFU;
         tUI_Msg.uiUI_element = INMD_UI_ELEMENT_POWER_LED;
         eEC = ER_OK;
         break;
@@ -769,6 +782,13 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
             ePower_last_sequence =  POWER_LED_POWER_ON_BLIP_0to25;
             bPower_led_flashing = false;
             break;
+          case POWER_LED_DFU:
+            eIneedmd_LED_pattern(POWER_LED_PINK);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bPower_led_on = true;
+            ePower_last_sequence =  POWER_LED_DFU;
+            bPower_led_flashing = false;
+            break;
           default:
             eIneedmd_LED_pattern(UI_ALL_OFF);
             uiTimer_period = UI_TIMER_PERIOD_NONE;
@@ -934,6 +954,13 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
             eComms_last_sequence = COMMS_LED_ERASE_COMPLETE;
             bComms_led_flashing = false;
             break;
+          case COMMS_LED_DFU:
+            eIneedmd_LED_pattern(COMMS_LED_PINK);
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bComms_led_on = true;
+            eComms_last_sequence = COMMS_LED_DFU;
+            bComms_led_flashing = false;
+            break;
           default:
             eIneedmd_LED_pattern(UI_ALL_OFF);
             uiTimer_period = UI_TIMER_PERIOD_NONE;
@@ -1051,6 +1078,13 @@ void vIneedmd_UI_task(UArg a0, UArg a1)
               uiTimer_period = UI_TIMER_PERIOD_500mSEC;
               bHeart_led_on = false;
             }
+            break;
+          case HEART_LED_DFU:
+            tUI_Process.comms_led_last_UI_request = COMMS_LED_DFU;
+            uiTimer_period = UI_TIMER_PERIOD_NONE;
+            bHeart_led_on = true;
+            eHeart_last_sequence = HEART_LED_DFU;
+            bHeart_led_flashing = false;
             break;
           default:
             eIneedmd_LED_pattern(UI_ALL_OFF);

@@ -2944,7 +2944,6 @@ void vIneedMD_radio_read_cb(UART_Handle sHandle, void *buf, int count)
 {
   tRadio_request tParams;
   uint8_t * c = (uint8_t * )buf;
-  eRadio_connection_state eConn_state;
   if(count == 3)
   {
     eIneedmd_radio_request_params_init(&tParams);
@@ -3165,6 +3164,11 @@ ERROR_CODE eIneedmd_radio_request(tRadio_request * tRequest)
             {
               tRequest->vSetup_state_callback(RDIO_SETUP_READY);
             }
+          case RADIO_REQUEST_POWER_OFF:
+            //power off the radio
+            ineedmd_radio_power(false);
+            eEC = ER_OFF;
+            break;
           default:
             bDid_message_post = false;
             break;

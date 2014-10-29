@@ -41,7 +41,7 @@ bool bTest_Mode = false;
 /******************************************************************************
 * enums ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-
+eEKG_Task_state eCurrent_EKG_Task_state = EKG_TASK_IDLE;
 /******************************************************************************
 * structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
@@ -53,10 +53,28 @@ bool bTest_Mode = false;
 /******************************************************************************
 * private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+ERROR_CODE eIneedmd_EKG_set_task_state(eEKG_Task_state eState);
 
 /******************************************************************************
 * private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
+
+ERROR_CODE eIneedmd_EKG_set_task_state(eEKG_Task_state eState)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  eCurrent_EKG_Task_state = eState;
+
+  if(eCurrent_EKG_Task_state == eState)
+  {
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
+  return eEC;
+}
 
 #ifdef NOT_NOW
 /******************************************************************************
@@ -107,13 +125,16 @@ void ineedmd_measurement_ramp(void)
 #define PACKET_LENGTH 0x18
 
   uint16_t uiSys_Tick_value = 0;//MAP_SysTickValueGet();
+  int16_t signed_systick
   unsigned char highbyte = 0;
   unsigned char lowbyte = 0;
   char test_packet[PACKET_LENGTH];
 
   eBSP_Get_Current_ms(&uiSys_Tick_value);
-  highbyte = uiSys_Tick_value >> 8;
-  lowbyte = uiSys_Tick_value;
+  signed_systick= uiSys_Tick_value-32767;
+  lowbyte = (unsigned char)(0xff & ( signed_systick ));
+  highbyte = (unsigned char)(0xff & ( signed_systicks >> 8 ));
+
 
   test_packet[0x00] = 0x9C;
   test_packet[0x01] = 0x04;
@@ -167,16 +188,45 @@ void ineedmd_measurement_ramp(void)
 * public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 
+eEKG_Task_state eIneedmd_EKG_get_task_state(void)
+{
+  return eCurrent_EKG_Task_state;
+}
+
 ERROR_CODE eIneedmd_EKG_request_param_init(tINMD_EKG_req * ptRequest)
 {
   ERROR_CODE eEC = ER_FAIL;
 
-  eEC = ER_NOT_READY;
-  if(eEC == ER_NOT_READY)
+  //verify that the pointer to use is valid
+  if(ptRequest == NULL)
   {
-    vDEBUG("SYS HALT, eIneedmd_EKG_request_param_init not implemented yet");
-    while(1){};
+    //pointer is invalid
+    eEC = ER_PARAM;
   }
+  else
+  {
+    //pointer is valid
+    //
+    //Init params
+    ptRequest->eReq_ID = EKG_REQUEST_NONE;
+    ptRequest->vEKG_read_callback = NULL;
+
+
+    //Check if params were properly set
+    if((ptRequest->eReq_ID == EKG_REQUEST_NONE)  &\
+       (ptRequest->vEKG_read_callback == NULL))
+    {
+      //Params were properly set
+      eEC = ER_OK;
+    }
+    else
+    {
+      //Params were not properly set
+      eEC = ER_FAIL;
+    }
+  }
+
+  //return the error code
   return eEC;
 }
 
@@ -184,11 +234,54 @@ ERROR_CODE eIneedmd_EKG_request(tINMD_EKG_req * ptRequest)
 {
   ERROR_CODE eEC = ER_FAIL;
 
-  eEC = ER_NOT_READY;
-  if(eEC == ER_NOT_READY)
+  if(ptRequest == NULL)
   {
-    vDEBUG("SYS HALT, eIneedmd_EKG_request not implemented yet");
-    while(1){};
+    eEC = ER_PARAM;
+  }
+  else
+  {
+    //check if the request ID is valid
+    if((ptRequest->eReq_ID >= EKG_REQUEST_LIMIT) |\
+       (ptRequest->eReq_ID == EKG_REQUEST_NONE))
+    {
+      vDEBUG("eIneedmd_EKG_request request invalid");
+      eEC = ER_INVALID;
+    }
+    else
+    {
+      switch(ptRequest->eReq_ID)
+      {
+        case EKG_REQUEST_EKG_HALT:
+        {
+          //todo do EKG halt
+          if(ptRequest->vEKG_read_callback != NULL)
+          {
+            ptRequest->vEKG_read_callback(0,false);
+          }
+          eEC = ER_OK;
+          break;
+        }
+        case EKG_REQUEST_EKG_SHUTDOWN:
+        {
+          //todo do EKG shut down
+          if(ptRequest->vEKG_read_callback != NULL)
+          {
+            ptRequest->vEKG_read_callback(0,false);
+          }
+          eEC = ER_OK;
+          break;
+        }
+        case EKG_REQUEST_SHORTING_BAR:
+        case EKG_REQUEST_DFU:
+        case EKG_REQUEST_SHIPPING_HOLD:
+        case EKG_REQUEST_TEST_PATTERN:
+        case EKG_REQUEST_EKG_MONITOR:
+        default:
+          vDEBUG("eIneedmd_EKG_request request not implemented yet");
+          eEC = ER_REQUEST;
+          break;
+      }
+    }
   }
   return eEC;
 }

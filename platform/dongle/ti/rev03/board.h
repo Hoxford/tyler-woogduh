@@ -79,6 +79,7 @@
 #define Board_UART0                 EK_TM4C123GXL_UART0
 
 #define Board_WATCHDOG0             EK_TM4C123GXL_WATCHDOG0
+#define Board_WATCHDOG1             EK_TM4C123GXL_WATCHDOG1
 
 #define Board_WIFI                  EK_TM4C123GXL_WIFI
 
@@ -415,7 +416,7 @@ typedef enum EK_TM4C123GXL_USBMode {
  */
 typedef enum EK_TM4C123GXL_WatchdogName {
     EK_TM4C123GXL_WATCHDOG0 = 0,
-
+    EK_TM4C123GXL_WATCHDOG1,
     EK_TM4C123GXL_WATCHDOGCOUNT
 } EK_TM4C123GXL_WatchdogName;
 
@@ -575,8 +576,8 @@ void        GPIODisable(void);
 ERROR_CODE  BatMeasureADCEnable(void);
 int         BatMeasureADCDisable(void);
 ERROR_CODE  eBSP_ADCMeasureBatt(uint32_t * puiBatt_voltage);
-ERROR_CODE  TemperatureMeasureADCEnable(void);
-ERROR_CODE  TemperatureMeasureADCDisable(void);
+ERROR_CODE  eBSP_TemperatureMeasureADCEnable(void);
+ERROR_CODE  eBSP_TemperatureMeasureADCDisable(void);
 bool        bIs_battery_low(void);
 int         EKGSPIEnable(void);
 int         EKGSPIDisable(void);

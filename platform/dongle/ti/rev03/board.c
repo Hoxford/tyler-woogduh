@@ -1492,44 +1492,42 @@ ERROR_CODE set_system_speed (eSYSTEM_SPEED_INDEX eHow_Fast)
 //  return eEC;
 //}
 //
-//
-//ERROR_CODE
-//TemperatureMeasureADCEnable(void)
-//{
-//
-//    //uint32_t uiData;
-//
-//    //Enable the ADC Clock
-//    MAP_SysCtlPeripheralEnable(TEMPERATURE_SYSCTL_PERIPH_ADC);
-//
-//    MAP_ADCSequenceDisable(TEMPERATURE_ADC, 3);
-//    MAP_ADCSequenceConfigure(TEMPERATURE_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
-//    MAP_ADCSequenceStepConfigure(TEMPERATURE_ADC, 3, 0, TEMPERATURE_ADC_CTL | ADC_CTL_IE | ADC_CTL_END );
-//    MAP_ADCIntClear(TEMPERATURE_ADC, 3);
-//
-//    MAP_ADCSequenceEnable(TEMPERATURE_ADC, 3);
-//
-//    //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
-//
-//
-//    return ER_OK;
-//}
-//
-////*****************************************************************************
-//// name:
-//// description:
-//// param description:
-//// return value description:
-////*****************************************************************************
-//ERROR_CODE
-//TemperatureMeasureADCDisable(void)
-//{
-//    while(!SysCtlPeripheralReady(TEMPERATURE_SYSCTL_PERIPH_ADC));
-//   //Disable the ADC Clock
-//    MAP_SysCtlPeripheralDisable(TEMPERATURE_SYSCTL_PERIPH_ADC);
-//    return ER_OK;
-//}
-//
+
+ERROR_CODE eBSP_TemperatureMeasureADCEnable(void)
+{
+
+    //uint32_t uiData;
+
+    //Enable the ADC Clock
+    MAP_SysCtlPeripheralEnable(TEMPERATURE_SYSCTL_PERIPH_ADC);
+
+    MAP_ADCSequenceDisable(TEMPERATURE_ADC, 3);
+    MAP_ADCSequenceConfigure(TEMPERATURE_ADC, 3, ADC_TRIGGER_PROCESSOR, 0);
+    MAP_ADCSequenceStepConfigure(TEMPERATURE_ADC, 3, 0, TEMPERATURE_ADC_CTL | ADC_CTL_IE | ADC_CTL_END );
+    MAP_ADCIntClear(TEMPERATURE_ADC, 3);
+
+    MAP_ADCSequenceEnable(TEMPERATURE_ADC, 3);
+
+    //MAP_ADCSequenceDataGet(BATTERY_ADC, 3, &uiData);
+
+
+    return ER_OK;
+}
+
+//*****************************************************************************
+// name:
+// description:
+// param description:
+// return value description:
+//*****************************************************************************
+ERROR_CODE eBSP_TemperatureMeasureADCDisable(void)
+{
+    while(!SysCtlPeripheralReady(TEMPERATURE_SYSCTL_PERIPH_ADC));
+   //Disable the ADC Clock
+    MAP_SysCtlPeripheralDisable(TEMPERATURE_SYSCTL_PERIPH_ADC);
+    return ER_OK;
+}
+
 ////*****************************************************************************
 //// name:
 //// description:
@@ -3686,6 +3684,7 @@ ERROR_CODE eBSP_Board_init(void)
   Board_initSPI();
   Board_initSDSPI();
   Board_initUSB(EK_TM4C123GXL_USBDEVICE);
+
 //  Board_initUSBMSCHFatFs();
 
   set_system_speed (INEEDMD_CPU_SPEED_FULL_EXTERNAL);
