@@ -16,68 +16,69 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "inc/hw_memmap.h"
-
+//#include "EK_TM4C123GXL.h"
 #include "driverlib/gpio.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/rom_map.h"
+#include "driverlib/rom.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
+#include <xdc/std.h>
+#include <xdc/runtime/System.h>
 
 #include "utils_inc/proj_debug.h"
+#include "utils_inc/error_codes.h"
+#include "utils_inc/osal.h"
 
-//*****************************************************************************
-// defines
-//*****************************************************************************
-// Debug uart mappings
-//
-#define  DEBUG_SYSCTL_PERIPH_GPIO  SYSCTL_PERIPH_GPIOE
-#define  DEBUG_SYSCTL_PERIPH_UART  SYSCTL_PERIPH_UART5
-#define  DEBUG_UART                UART5_BASE
-#define  DEBUG_UART_PIN_PORT       GPIO_PORTE_BASE
-#define  DEBUG_TX_PIN_MUX_MODE     GPIO_PE5_U5TX
-#define  DEBUG_RX_PIN_MUX_MODE     GPIO_PE4_U5RX
-#define  DEBUG_TX_PIN              GPIO_PIN_5
-#define  DEBUG_RX_PIN              GPIO_PIN_4
+#include "board.h"
 
-#define  DEBUG_BAUD                115200
-#define  DEBUG_UART_CONFIG         (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE)
+/******************************************************************************
+* defines /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-//Debug pin 1 mappings
-//
-#define DEBUG_GPIO_PORT_1  GPIO_PORTD_BASE
-#define DEBUG_GPIO_PIN_1   GPIO_PIN_1
-#define DEBUG_GPIO_PIN_SET_1   GPIO_PIN_1
-#define DEBUG_GPIO_PIN_CLR_1   ~GPIO_PIN_1
+#define SYS_HALT_MSG  "****!!!!SYS HALT!!!!****\r\n"
+#define SYS_ASSERT_RST_MSG  "****!!!!SYS ASSERT RESET!!!!****\r\n"
 
-//*****************************************************************************
-// variables
-//*****************************************************************************
+/******************************************************************************
+* variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+bool bIs_xmit_done = false;
+/******************************************************************************
+* external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-//*****************************************************************************
-// external variables
-//*****************************************************************************
+/******************************************************************************
+* enums ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-//*****************************************************************************
-// enums
-//*****************************************************************************
+/******************************************************************************
+* structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+//UART parameters
+UART_Handle sDebug_UART_handle;
+UART_Params sDebug_UART_params;
 
-//*****************************************************************************
-// structures
-//*****************************************************************************
+/******************************************************************************
+* external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
-//*****************************************************************************
-// external functions
-//*****************************************************************************
-
-//*****************************************************************************
-// function declarations
-//*****************************************************************************
-
-//*****************************************************************************
-// functions
-//*****************************************************************************
+/******************************************************************************
+* private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+ void vDEBUG_CALLBACK(UART_Handle sHandle, void *buf, size_t  count);
+/******************************************************************************
+* private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+void vDEBUG_CALLBACK(UART_Handle sHandle, void *buf, size_t  count)
+{
+  bIs_xmit_done = true;
+}
+/******************************************************************************
+* public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 
 void __error__(char *pcFilename, uint32_t ui32Line)
 {
@@ -103,19 +104,65 @@ void vUSB_driverlib_out(char *pcFilename, uint32_t ui32Line)
 //*****************************************************************************
 void vDEBUG(char * cMsg, ...)
 {
+  ERROR_CODE eEC_Is_OS_Running = ER_FALSE;
+  uint16_t uiLen = 0;
+  uiLen = strlen(cMsg);
 
-  uint32_t i, uiMsg_len;
-  uiMsg_len = strlen(cMsg);
+  eEC_Is_OS_Running = eOSAL_Is_OS_Running();
 
-  for (i = 0; i<uiMsg_len; i++)
+  if(eEC_Is_OS_Running == ER_FALSE)
   {
-    UARTCharPut(DEBUG_UART, cMsg[i]);
+    UART_writePolling(sDebug_UART_handle, cMsg, uiLen);
+    UART_writePolling(sDebug_UART_handle, "\r\n", strlen("\r\n"));
   }
-
-  UARTCharPut(DEBUG_UART, '\r');
-  UARTCharPut(DEBUG_UART, '\n');
-
+  else
+  {
+    UART_write(sDebug_UART_handle, cMsg, uiLen);
+    UART_write(sDebug_UART_handle, "\r\n", strlen("\r\n"));
+  }
   return;
+}
+
+void vDEBUG_ASSERT(char * cMsg,int iAssert)
+{
+  ERROR_CODE eEC;
+  uint16_t uiLen = 0;
+  uiLen = 0;
+
+  if(iAssert)
+  {
+    return;
+  }
+  else
+  {
+    eEC = eBSP_debugger_detect();
+    if(eEC == ER_OK)
+    {
+      uiLen = strlen(cMsg);
+      UART_writePolling(sDebug_UART_handle, SYS_HALT_MSG, strlen(SYS_HALT_MSG));
+      UART_writePolling(sDebug_UART_handle, cMsg, uiLen);
+      UART_writePolling(sDebug_UART_handle, "\r\n", strlen("\r\n"));
+
+      System_printf(SYS_HALT_MSG);
+      System_flush();
+      System_abort(cMsg);
+
+      ROM_IntMasterDisable();
+      ROM_SysTickIntDisable();
+      ROM_SysTickDisable();
+      while(1){};
+    }
+    else
+    {
+      uiLen = strlen(cMsg);
+      UART_writePolling(sDebug_UART_handle, SYS_ASSERT_RST_MSG, strlen(SYS_ASSERT_RST_MSG));
+      UART_writePolling(sDebug_UART_handle, cMsg, uiLen);
+      UART_writePolling(sDebug_UART_handle, "\r\n", strlen("\r\n"));
+
+      ROM_IntMasterDisable();
+      ROM_SysCtlReset();
+    }
+  }
 }
 
 /******************************************************************************
@@ -126,7 +173,7 @@ void vDEBUG(char * cMsg, ...)
 ******************************************************************************/
 void vDEBUG_GPIO_SET_1(void)
 {
-  MAP_GPIOPinWrite(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1, DEBUG_GPIO_PIN_SET_1);
+  GPIO_write(EK_TM4C123GXL_DEBUG, DEBUG_GPIO_PIN_SET_1);
   return;
 }
 
@@ -138,7 +185,7 @@ void vDEBUG_GPIO_SET_1(void)
 ******************************************************************************/
 void vDEBUG_GPIO_CLR_1(void)
 {
-  MAP_GPIOPinWrite(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1, DEBUG_GPIO_PIN_CLR_1);
+  GPIO_write(EK_TM4C123GXL_DEBUG, DEBUG_GPIO_PIN_CLR_1);
   return;
 }
 
@@ -150,10 +197,7 @@ void vDEBUG_GPIO_CLR_1(void)
 ******************************************************************************/
 void vDEBUG_GPIO_TOGGLE_1(void)
 {
-  if(MAP_GPIOPinRead(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1) == DEBUG_GPIO_PIN_SET_1)
-    vDEBUG_GPIO_CLR_1();
-  else
-    vDEBUG_GPIO_SET_1();
+  GPIO_toggle(EK_TM4C123GXL_DEBUG);
 
   return;
 }
@@ -166,46 +210,35 @@ void vDEBUG_GPIO_TOGGLE_1(void)
 ******************************************************************************/
 void vDEBUG_init(void)
 {
+  ERROR_CODE eEC;
 
-  //Enable the peripheral gpio, all must be enabled and in order
-  //
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-  MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+  sDebug_UART_params.readMode       = UART_MODE_BLOCKING;  /*!< Mode for all read calls */
+  sDebug_UART_params.writeMode      = UART_MODE_BLOCKING;  /*!< Mode for all write calls */
+  sDebug_UART_params.readTimeout    = BIOS_WAIT_FOREVER;   /*!< Timeout for read semaphore */
+  sDebug_UART_params.writeTimeout   = BIOS_WAIT_FOREVER;   /*!< Timeout for write semaphore */
+  sDebug_UART_params.readCallback   = vDEBUG_CALLBACK;     /*!< Pointer to read callback */
+  sDebug_UART_params.writeCallback  = vDEBUG_CALLBACK;     /*!< Pointer to write callback */
+  sDebug_UART_params.readReturnMode = UART_RETURN_FULL;    /*!< Receive return mode */
+  sDebug_UART_params.readDataMode   = UART_DATA_BINARY;    /*!< Type of data being read */
+  sDebug_UART_params.writeDataMode  = UART_DATA_BINARY;    /*!< Type of data being written */
+  sDebug_UART_params.readEcho       = UART_ECHO_OFF;       /*!< Echo received data back */
+  sDebug_UART_params.baudRate       = 115200;              /*!< Baud rate for UART */
+  sDebug_UART_params.dataLength     = UART_LEN_8;          /*!< Data length for UART */
+  sDebug_UART_params.stopBits       = UART_STOP_ONE;       /*!< Stop bits for UART */
+  sDebug_UART_params.parityType     = UART_PAR_NONE;       /*!< Parity bit type for UART */
 
-  //Init debug gpio pin/pins
-  //
-  MAP_GPIOPinTypeGPIOOutput(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1);
-  MAP_GPIOPinWrite(DEBUG_GPIO_PORT_1, DEBUG_GPIO_PIN_1, DEBUG_GPIO_PIN_CLR_1);
+  sDebug_UART_handle = UART_open(EK_TM4C123GXL_UART3, &sDebug_UART_params);
 
-  //Enable the debug uart
-  //
-  MAP_SysCtlPeripheralEnable(DEBUG_SYSCTL_PERIPH_UART);
+  eEC = eBSP_debugger_detect();
+  if(eEC == ER_OK)
+  {
+    vDEBUG("Debugger connected!");
+  }
+  else
+  {
+    vDEBUG("Debugger NOT connected!");
+  }
 
-  // Configure the debug port pins
-  //
-  MAP_GPIOPinConfigure(DEBUG_TX_PIN_MUX_MODE);
-  MAP_GPIOPinConfigure(DEBUG_RX_PIN_MUX_MODE);
-
-  // Set the pin types
-  //
-  MAP_GPIOPinTypeUART(DEBUG_UART_PIN_PORT, DEBUG_TX_PIN);
-  MAP_GPIOPinTypeUART(DEBUG_UART_PIN_PORT, DEBUG_RX_PIN);
-
-  //Set the clock source for the uart
-  //
-  UARTClockSourceSet(DEBUG_UART, UART_CLOCK_PIOSC);
-
-  //Configure the uart
-  //
-  UARTConfigSetExpClk(DEBUG_UART, 16000000, DEBUG_BAUD, DEBUG_UART_CONFIG);
-
-  //Enable the debug UART
-  //
-  UARTEnable(DEBUG_UART);
   return;
 }
 #endif //__PROJ_DEBUG_C__

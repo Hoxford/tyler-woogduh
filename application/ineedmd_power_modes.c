@@ -184,8 +184,6 @@ void ineedmd_sleep(void)
 
   //turn the radio off
   iRadio_Power_Off();
-  //eBSP_Radio_Reset();
-  //eBSP_Radio_Disable();
 
   // Set a timer to wake the processor out of sleep at a specified interval
   //
@@ -202,7 +200,6 @@ void ineedmd_sleep(void)
 
   // Slow the system speed to conserve power
   set_system_speed (INEEDMD_CPU_SPEED_SLOW_INTERNAL);
-  //set_system_speed (INEEDMD_CPU_SPEED_REALLY_SLOW);
   uiCurrent_sys_clock = MAP_SysCtlClockGet();
 
   //Set the timer to timeout based on the new system speed
@@ -218,7 +215,7 @@ void ineedmd_sleep(void)
   while(eEC_did_timer_expire == ER_FALSE)
   {
     i += iHW_delay(1);
-    if(i >= 20000)
+    if(i >= 1000)
     {
       break;
     }
@@ -247,7 +244,7 @@ void ineedmd_sleep(void)
   }
 
   //power the radio back on
-//  iRadio_Power_On();
+  iRadio_Power_On();
 
   //re-enable master interrupts
   eMaster_int_enable();

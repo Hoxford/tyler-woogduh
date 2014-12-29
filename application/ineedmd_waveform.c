@@ -7,240 +7,317 @@
 //*****************************************************************************
 #ifndef __INEEDMD_WAVEFORM_C__
 #define __INEEDMD_WAVEFORM_C__
-//*****************************************************************************
-// includes
-//*****************************************************************************
+/******************************************************************************
+* includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "utils_inc/error_codes.h"
+#include "utils_inc/osal.h"
+
 #include "board.h"
-#include "ineedmd_bluetooth_radio.h"
+
+#include "app_inc/ineedmd_command_protocol.h"
+#include "drivers_inc/ineedmd_bluetooth_radio.h"
+#include "drivers_inc/ineedmd_adc.h"
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
-#include "app_inc/ineedmd_command_protocol.h"
-
 #include "app_inc/ineedmd_waveform.h"
-
-//*****************************************************************************
-// defines
-//*****************************************************************************
-#define NO_TEST_PAT 0x00
+#include "app_inc/ineedmd_UI.h"
+#include "utils_inc/proj_debug.h"
 
 /******************************************************************************
-* variables
+* defines /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
-static bool bTest_Mode = false;
-static int Test_Mode_Waveform = NO_TEST_PAT;
+//for ramp test waveform
+#define ADC_1MV_GAIN_12_VREF_24      163
+//todo: more defines if using different gain/reference
+#define DATAPACKET_DATA_START 0x07
 
-static int sample_data [164][8] =
+#define MEASUREMNT_DATA_START 0x03   //index to the measurement packet where the measurement is
+#define MEASURMENTS_IN_PACKET 0x02   //measurements count for packets in the datagram  0x00 is 1 measurement...  0x02 is 3
+#define DATA_LENGTH           0x10
+#define DATAPACKET_TOTAL_LENGTH      (((MEASURMENTS_IN_PACKET+1)*DATA_LENGTH)+8)
+
+#define LEADS_OFF_CLOCK_TIMEOUT 1000
+
+
+/******************************************************************************
+* variables ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+bool bTest_Mode = false;
+uint8_t uiCB_Data[19];
+
+uint16_t uiLead_Off_Data = 0;
+bool bIs_Radio_Ready = false;
+bool bIs_Radio_On = false;
+bool bIs_Carrier_Connection = false;
+bool bIs_Protocol_Connection = false;
+bool bSend_Error_Packet = false;
+static int iTriangle_wave_count = 0;
+
+eEKG_Task_state eCurrent_EKG_Task_state = EKG_TASK_IDLE;
+
+/******************************************************************************
+* external variables //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+extern Mailbox_Handle tEKG_mailbox;
+extern Timer_Handle tWaveform_test_pattern_timer;
+extern Clock_Handle tWaveform_leads_off_timer;
+
+/******************************************************************************
+* enums ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+typedef enum EKG_MSG_ID
+{
+  EKG_MSG_NONE,
+  EKG_MSG_DATA_READ,
+  EKG_MSG_LEAD_OFF_READ,
+  EKG_MSG_LIMIT
+}EKG_MSG_ID;
+
+/******************************************************************************
+* structures //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+typedef struct tEKG_msg_struct
+{
+  EKG_MSG_ID eMsg;
+}tEKG_msg_struct;
+
+typedef struct tWAVEFORM_Activity_state
+{
+  bool bTest_Mode;
+  uint8_t uiCB_Data[19];
+
+  uint16_t uiLead_Off_Data;
+  bool bIs_Radio_Ready;
+  bool bIs_Radio_On;
+  bool bIs_Carrier_Connection;
+  bool bIs_Protocol_Connection;
+
+  eHEART_LED_UI eHeart_led_sequence;
+  eEKG_Task_state eCurrent_EKG_Task_state;
+}tWAVEFORM_Activity_state;
+
+tWAVEFORM_Activity_state tWF_Activity_state =
+{
+    false, //bool bTest_Mode =
+    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, //uint8_t uiCB_Data[19];
+    0x0000, //uint16_t uiLead_Off_Data =
+    false, //bool bIs_Radio_Ready =
+    false, //bool bIs_Radio_On =
+    false, //bool bIs_Carrier_Connection =
+    false, //bool bIs_Protocol_Connection =
+
+    HEART_LED_NO_UI, //eHEART_LED_UI eHeart_led_sequence = ;
+
+    EKG_TASK_IDLE, //eEKG_Task_state eCurrent_EKG_Task_state = ;
+};
+
+/******************************************************************************
+* external functions //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+/******************************************************************************
+* private function declarations ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+ERROR_CODE eIneedmd_EKG_set_task_state(eEKG_Task_state eState);
+void    vEKG_continuous_read_cb(uint8_t * uiData);
+//radio callbacks
+void       vEKG_Radio_connection_callback      (bool bRadio_Carrier_Connection, bool bRadio_Protocol_Connection);
+void       vEKG_Radio_change_settings_callback (bool bDid_Setting_Change);
+void       vEKG_Radio_sent_frame_callback      (uint32_t uiCount);
+void       vEKG_Radio_rcv_frame_callback(uint8_t * pBuff, uint32_t uiRcvd_len);
+void       vEKG_Radio_setup_callback(bool bRadio_Ready, bool bRadio_On);
+//todo: declarations
+/******************************************************************************
+* private functions ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+void vWaveform_timer_INT_Service(void)
+{
+  tEKG_msg_struct tEKG_msg;
+  eEKG_Task_state eTask_state = eIneedmd_EKG_get_task_state();
+  if(eTask_state == EKG_TASK_TEST_PATTERN_TRIANGLE)
   {
-      {-5647,   -4853,   -2684,   551,   -5404,   -4191,   5368,   1544  },
-      {-5353,   -4412,   -625,   2463,   -5846,   -4044,   6250,   3456  },
-      {-3368,   -2132,   3199,   5625,   -2684,   -1691,   5809,   5368  },
-      {-574,   1324,   9301,   10772,   625,   1397,   4706,   8015  },
-      {4353,   6471,   16654,   16728,   6875,   6544,   1397,   10956  },
-      {11044,   12721,   23566,   21728,   13346,   10735,   -2941,   13015  },
-      {16926,   17868,   28787,   25478,   19669,   13897,   -7279,   14559  },
-      {20750,   20221,   31581,   27243,   23860,   15368,   -10074,   15147  },
-      {21118,   18824,   28419,   23272,   21360,   16029,   -11176,   10515  },
-      {18691,   15147,   19154,   13787,   13640,   12279,   -10221,   3456  },
-      {12368,   8309,   9669,   6728,   5699,   3382,   -4706,   2574  },
-      {3765,   -147,   3199,   4596,   3640,   -4779,   1765,   6544  },
-      {-59,   -3456,   772,   3419,   3419,   -7059,   3897,   7206  },
-      {-941,   -3824,   -699,   1581,   1434,   -6471,   4191,   5147  },
-      {-1456,   -4191,   -2316,   -699,   -331,   -5588,   3309,   2279  },
-      {-1382,   -4118,   -3493,   -2390,   625,   -4632,   1250,   0  },
-      {-1382,   -3676,   -3713,   -2978,   -37,   -4118,   956,   -1176  },
-      {-1382,   -3235,   -3640,   -3125,   -699,   -3603,   956,   -1691  },
-      {-1750,   -3529,   -3566,   -2831,   -2022,   -3235,   1397,   -1471  },
-      {-2485,   -4265,   -3419,   -2463,   -3566,   -3088,   2059,   -735  },
-      {-2632,   -4706,   -3566,   -2757,   -2831,   -2794,   1912,   -882  },
-      {-2559,   -4559,   -3860,   -3125,   -3125,   -3088,   1544,   -1103  },
-      {-2485,   -4412,   -4154,   -3566,   -2757,   -3456,   1029,   -1544  },
-      {-2044,   -3603,   -4081,   -3640,   -2243,   -4191,   1250,   -1544  },
-      {-1382,   -2647,   -3713,   -3346,   -2684,   -4118,   1765,   -1176  },
-      {-1162,   -2500,   -3787,   -3566,   -2022,   -3382,   1544,   -1250  },
-      {-1750,   -3015,   -4228,   -4228,   -1801,   -3235,   1029,   -1765  },
-      {-2485,   -3971,   -4154,   -4154,   -1507,   -3015,   1103,   -1618  },
-      {-2044,   -3824,   -3051,   -3125,   -2316,   -1765,   2353,   -441  },
-      {-1162,   -2721,   -2390,   -2463,   -2390,   -1765,   2794,   74  },
-      {-1456,   -2868,   -2757,   -2978,   -1287,   -2059,   1912,   -662  },
-      {-1676,   -3162,   -3051,   -3272,   -1875,   -2353,   1397,   -1176  },
-      {-1603,   -3235,   -2757,   -2904,   -2757,   -2426,   1765,   -735  },
-      {-1162,   -2868,   -2610,   -2757,   -3787,   -2500,   1912,   -735  },
-      {-1015,   -2794,   -2610,   -2831,   -2831,   -2132,   1324,   -956  },
-      {-1603,   -3382,   -2978,   -3199,   -1287,   -2500,   809,   -1250  },
-      {-1015,   -2574,   -2610,   -2904,   -1728,   -1912,   1029,   -882  },
-      {-426,   -1471,   -2169,   -2610,   -1287,   -1397,   1103,   -588  },
-      {-868,   -1765,   -1949,   -2390,   -1728,   -1765,   1250,   -368  },
-      {-426,   -1324,   -1654,   -2096,   -3787,   -2574,   1397,   -147  },
-      {-353,   -1176,   -1654,   -2096,   -2978,   -2574,   1029,   -221  },
-      {-500,   -1250,   -1360,   -1949,   -1581,   -1838,   662,   -294  },
-      {-647,   -1544,   -1066,   -1949,   -1654,   -1471,   515,   -368  },
-      {-426,   -1691,   -551,   -1581,   -478,   -809,   662,   -74  },
-      {-206,   -1618,   37,   -1066,   -551,   -441,   956,   294  },
-      {-132,   -1765,   551,   -772,   -1654,   -441,   882,   515  },
-      {-132,   -1250,   846,   -551,   -1801,   -956,   662,   662  },
-      {15,   -588,   919,   -478,   -1213,   -1397,   368,   809  },
-      {603,   221,   1066,   -331,   -1507,   -809,   74,   735  },
-      {1044,   662,   1507,   -110,   -1949,   -74,   74,   882  },
-      {971,   441,   2316,   551,   -2096,   221,   368,   1618  },
-      {603,   -147,   2316,   551,   -1581,   74,   74,   1618  },
-      {750,   0,   2610,   699,   -1287,   -515,   -221,   1765  },
-      {824,   441,   3051,   993,   -551,   -221,   -662,   1838  },
-      {824,   662,   3346,   1360,   -404,   74,   -956,   2059  },
-      {971,   809,   3934,   1801,   551,   588,   -1176,   2426  },
-      {897,   662,   4449,   2316,   772,   1029,   -1397,   2868  },
-      {676,   221,   4890,   2684,   625,   1176,   -1618,   3162  },
-      {1485,   1324,   5772,   3419,   1213,   1250,   -1912,   3750  },
-      {1926,   2279,   6728,   4081,   1360,   1250,   -2206,   4191  },
-      {2662,   3088,   7316,   4522,   1213,   1985,   -2426,   4412  },
-      {3176,   3676,   8051,   4963,   2316,   2941,   -2868,   4779  },
-      {3471,   3971,   8566,   5184,   2463,   2941,   -3235,   5000  },
-      {3250,   3824,   8860,   5331,   3051,   3088,   -3603,   5221  },
-      {3397,   3971,   9154,   5478,   4301,   4191,   -4118,   5368  },
-      {2735,   3603,   9007,   5478,   4963,   4706,   -4485,   5294  },
-      {2221,   3015,   8419,   5257,   4375,   4044,   -4853,   5000  },
-      {2074,   3015,   7684,   4963,   3346,   3456,   -5147,   4485  },
-      {2294,   3088,   7390,   4743,   3346,   3235,   -5221,   4191  },
-      {2441,   3015,   6581,   3934,   3419,   3603,   -5368,   3382  },
-      {2074,   2574,   5331,   3272,   3419,   3456,   -5515,   2500  },
-      {1559,   1838,   3934,   2316,   3199,   2721,   -5368,   1691  },
-      {1412,   1544,   2904,   1360,   2537,   1985,   -5000,   1029  },
-      {1412,   1324,   1581,   257,   1213,   1324,   -4853,   147  },
-      {1118,   882,   625,   -699,   404,   515,   -4485,   -515  },
-      {824,   441,   110,   -1581,   331,   294,   -4191,   -956  },
-      {676,   74,   -257,   -2243,   110,   -147,   -3676,   -1176  },
-      {529,   -294,   -846,   -2831,   -331,   -735,   -3162,   -1471  },
-      {382,   -588,   -1507,   -3346,   -625,   -1103,   -2721,   -1618  },
-      {162,   -956,   -2022,   -3934,   -699,   -1397,   -2500,   -1985  },
-      {-574,   -1838,   -2978,   -4596,   -1066,   -2279,   -2574,   -2721  },
-      {-1235,   -2500,   -3934,   -4449,   -37,   -2206,   -3015,   -3309  },
-      {-1309,   -2647,   -4449,   -4154,   -184,   -2647,   -2721,   -3162  },
-      {-500,   -1985,   -4816,   -3934,   -1581,   -2647,   -2059,   -2794  },
-      {-132,   -1397,   -5257,   -3640,   -1801,   -2206,   -1324,   -2132  },
-      {162,   -1250,   -5551,   -3272,   -1213,   -1618,   -662,   -1324  },
-      {456,   -1250,   -5919,   -3346,   -1801,   -1765,   -441,   -1250  },
-      {750,   -882,   -6213,   -3493,   -1360,   -1397,   -662,   -1471  },
-      {162,   -1176,   -6801,   -3934,   -1140,   -2132,   -1176,   -1985  },
-      {15,   -1176,   -6801,   -3713,   -1801,   -2794,   -882,   -1838  },
-      {382,   -809,   -6581,   -3346,   -1654,   -1912,   -956,   -1765  },
-      {824,   -515,   -5993,   -3125,   -1287,   -1029,   -956,   -1691  },
-      {1118,   -221,   -5551,   -2684,   -1949,   -368,   -662,   -1544  },
-      {1118,   -368,   -5478,   -2463,   -2169,   -74,   -735,   -1691  },
-      {676,   -882,   -5625,   -2831,   -1875,   -515,   -1029,   -1912  },
-      {382,   -1324,   -5625,   -2978,   -1728,   -662,   -1250,   -1985  },
-      {382,   -1618,   -5551,   -3051,   -1434,   -588,   -1324,   -2059  },
-      {456,   -1691,   -5478,   -3051,   -1360,   -882,   -1324,   -2279  },
-      {603,   -1691,   -5257,   -2684,   -1507,   -1471,   -1324,   -2353  },
-      {897,   -1471,   -5037,   -2390,   -2243,   -1691,   -1250,   -2279  },
-      {1044,   -1618,   -5037,   -2316,   -2831,   -2426,   -1176,   -2353  },
-      {1191,   -1838,   -5110,   -2243,   -2757,   -2500,   -1250,   -2500  },
-      {1265,   -1985,   -4816,   -2022,   -1949,   -2059,   -1471,   -2647  },
-      {1485,   -1765,   -4228,   -1434,   -772,   -1324,   -1397,   -2353  },
-      {1853,   -1765,   -4007,   -1066,   -1287,   -1324,   -1176,   -2353  },
-      {1926,   -1985,   -3787,   -993,   -2537,   -1838,   -956,   -2279  },
-      {1412,   -2500,   -3860,   -993,   -1875,   -1765,   -1029,   -2279  },
-      {1485,   -2426,   -3566,   -772,   -1728,   -1471,   -1103,   -2279  },
-      {1853,   -2279,   -3346,   -772,   -1949,   -1029,   -1176,   -2426  },
-      {2809,   -1691,   -2831,   -625,   -2169,   -662,   -1029,   -2206  },
-      {3397,   -1176,   -2390,   -404,   -2537,   -735,   -662,   -1838  },
-      {3618,   -1103,   -2169,   -478,   -2463,   -1103,   -588,   -1691  },
-      {3471,   -1250,   -2243,   -625,   -1801,   -882,   -882,   -1912  },
-      {3250,   -1471,   -2022,   -699,   -2463,   -956,   -735,   -1765  },
-      {3544,   -1324,   -1654,   -551,   -2904,   -1397,   -515,   -1397  },
-      {3985,   -956,   -1434,   -772,   -3125,   -882,   -441,   -1324  },
-      {4500,   -441,   -1287,   -919,   -3125,   -735,   -515,   -1324  },
-      {4721,   -221,   -993,   -1066,   -3051,   -809,   -441,   -1250  },
-      {4574,   -441,   -993,   -1213,   -2537,   -809,   -588,   -1324  },
-      {4206,   -809,   -919,   -1287,   -2316,   -956,   -809,   -1397  },
-      {3985,   -1103,   -919,   -1507,   -2757,   -956,   -1103,   -1618  },
-      {4206,   -1103,   -551,   -1287,   -2096,   -515,   -1176,   -1397  },
-      {4279,   -1029,   -184,   -1360,   -1654,   -368,   -1250,   -1103  },
-      {3985,   -1103,   37,   -1507,   -2610,   -221,   -1176,   -882  },
-      {3838,   -1103,   184,   -993,   -2316,   294,   -1471,   -882  },
-      {3838,   -1176,   404,   110,   -1434,   809,   -1838,   -882  },
-      {3544,   -1471,   331,   184,   -919,   1250,   -2574,   -1103  },
-      {3985,   -1029,   625,   110,   -1287,   1765,   -2941,   -956  },
-      {4868,   -294,   772,   257,   -2463,   1544,   -2721,   -662  },
-      {5088,   74,   625,   625,   -2684,   2059,   -2868,   -588  },
-      {5162,   147,   772,   1140,   -1581,   2721,   -3235,   -662  },
-      {4941,   147,   772,   993,   -846,   3456,   -3676,   -1103  },
-      {4794,   0,   699,   551,   -919,   2794,   -3676,   -1324  },
-      {5162,   441,   1140,   404,   -1581,   2868,   -3750,   -1250  },
-      {5676,   882,   1581,   404,   -1287,   2794,   -4191,   -1397  },
-      {5824,   882,   1801,   257,   -404,   3015,   -4926,   -1544  },
-      {5750,   735,   1728,   -37,   -37,   3603,   -5515,   -1765  },
-      {5456,   368,   1581,   -257,   404,   3676,   -5662,   -1838  },
-      {4868,   -147,   1434,   -331,   478,   2353,   -5294,   -1765  },
-      {4647,   -368,   1140,   -625,   110,   882,   -4853,   -1912  },
-      {4206,   -662,   110,   -1360,   -110,   0,   -4779,   -2353  },
-      {4059,   -809,   -404,   -1581,   331,   -294,   -4485,   -2353  },
-      {4721,   -294,   -478,   -1434,   772,   441,   -4338,   -2206  },
-      {5235,   221,   -404,   -1140,   625,   662,   -3824,   -1912  },
-      {5456,   515,   -331,   -1066,   -1507,   662,   -2868,   -1618  },
-      {5015,   147,   -846,   -1581,   -2390,   662,   -2500,   -2059  },
-      {4426,   -368,   -1360,   -2096,   -2022,   956,   -2426,   -2426  },
-      {4721,   -74,   -1287,   -2022,   -2390,   1103,   -1985,   -2279  },
-      {4279,   -294,   -1287,   -1875,   -2904,   735,   -1471,   -1912  },
-      {3176,   -1324,   -1581,   -1949,   -1949,   -147,   -1397,   -1912  },
-      {2000,   -2206,   -2022,   -2463,   -2904,   -1985,   -1250,   -2206  },
-      {2441,   -1691,   -2243,   -2757,   -3934,   -1691,   -1250,   -2500  },
-      {3324,   -588,   -1801,   -2316,   -4816,   -956,   -882,   -1985  },
-      {3618,   -368,   -1287,   -1581,   -4963,   -956,   -441,   -1324  },
-      {3176,   -1103,   -1434,   -1581,   -3125,   -1397,   -515,   -1324  },
-      {2588,   -1618,   -2096,   -2096,   -2463,   -1471,   -956,   -1912  },
-      {1926,   -1838,   -2684,   -2610,   -3125,   -588,   -1324,   -2353  },
-      {2221,   -1471,   -2537,   -2463,   -3566,   809,   -1250,   -2132  },
-      {1853,   -1912,   -2463,   -2316,   -4154,   1397,   -1324,   -1838  },
-      {309,   -3235,   -2904,   -2463,   -3787,   1324,   -1176,   -1544  },
-      {-868,   -4191,   -2978,   -2096,   -4301,   515,   -74,   -441  },
-      {-941,   -4191,   -2684,   -1434,   -5772,   147,   1324,   662  },
-      {-1088,   -3824,   -2243,   -772,   -6875,   -368,   2500,   1324  },
-      {-1162,   -3382,   -993,   551,   -6287,   -441,   3162,   2721  }
+    tINMD_EKG_req tEKG_req;
+    eIneedmd_EKG_request_param_init(&tEKG_req);
+    tEKG_msg.eMsg = EKG_MSG_DATA_READ;
+
+    Mailbox_post(tEKG_mailbox, &tEKG_msg, BIOS_NO_WAIT);
+  }
+}
+
+void vWaveform_leads_off_INT_service(void)
+{
+  tEKG_msg_struct tEKG_msg;
+
+  eEKG_Task_state eTask_state = eIneedmd_EKG_get_task_state();
+  if(eTask_state == EKG_TASK_LEADS_OFF_ONLY)
+  {
+    //tell task to check lead status
+    tINMD_EKG_req tEKG_req;
+    eIneedmd_EKG_request_param_init(&tEKG_req);
+    tEKG_req.eReq_ID = EKG_REQUEST_LEAD_OFF_READ;
+
+    tEKG_msg.eMsg = EKG_MSG_LEAD_OFF_READ;
+
+//    Mailbox_post(tEKG_mailbox, &tEKG_req, BIOS_NO_WAIT);
+    Mailbox_post(tEKG_mailbox, &tEKG_msg, BIOS_NO_WAIT);
+  }
+}
+
+void       vEKG_Radio_connection_callback      (bool bRadio_Carrier_Connection, bool bRadio_Protocol_Connection)
+{
+  eEKG_Task_state eTask_State;
+  tINMD_EKG_req tEKG_req;
+  if(bRadio_Protocol_Connection == false)
+  {
+    if(bIs_Protocol_Connection == true)
+    {
+      eTask_State = eIneedmd_EKG_get_task_state();
+      if(eTask_State != EKG_TASK_IDLE)
+      {
+        tEKG_req.eReq_ID = EKG_REQUEST_IDLE;
+		tEKG_req.uiLeadOffData = NULL;
+		tEKG_req.vEKG_read_callback = NULL;
+		eIneedmd_EKG_request(&tEKG_req);
+
+        vDEBUG("vEKG_Radio_connection_callback, Stream stopped");
+      }
+    }
+  }
+  else if(bRadio_Protocol_Connection == true)
+  {
+    if(bIs_Protocol_Connection == false)
+    {
+      eIneedmd_EKG_request_param_init(&tEKG_req);
+      tEKG_req.eReq_ID = EKG_REQUEST_LEADS_OFF_ONLY;
+      tEKG_req.uiLeadOffData = NULL;
+      tEKG_req.vEKG_read_callback = NULL;
+      eIneedmd_EKG_request(&tEKG_req);
+
+      vDEBUG("vEKG_Radio_connection_callback, Lead off detection started");
+    }
+  }
+
+  bIs_Carrier_Connection = bRadio_Carrier_Connection;
+  bIs_Protocol_Connection = bRadio_Protocol_Connection;
+}
+
+void       vEKG_Radio_change_settings_callback (bool bDid_Setting_Change)
+{
+}
+
+void       vEKG_Radio_sent_frame_callback      (uint32_t uiCount)
+{
+}
+
+void       vEKG_Radio_rcv_frame_callback(uint8_t * pBuff, uint32_t uiRcvd_len)
+{
+}
+
+void       vEKG_Radio_setup_callback(bool bRadio_Ready, bool bRadio_On)
+{
+  bIs_Radio_Ready = bRadio_Ready;
+  bIs_Radio_On = bRadio_On;
+}
+
+void vInit_Data_Packet(uint8_t* pDataPacket)
+{
+  memset(pDataPacket, 0x00, DATAPACKET_TOTAL_LENGTH );
+  //hardcoding packet headers
+  pDataPacket[0] = 0x9c;
+  pDataPacket[1] = 0x03;
+  pDataPacket[2] = DATAPACKET_TOTAL_LENGTH;
+  pDataPacket[6] = MEASURMENTS_IN_PACKET + 1;
+  pDataPacket[(DATAPACKET_TOTAL_LENGTH-1)] = 0xC9;
+}
+
+bool bIs_Radio_Available()
+{
+  if(bIs_Protocol_Connection && bIs_Carrier_Connection && bIs_Radio_Ready && bIs_Radio_On)
+  {
+    return true;
+  }
+  return false;
+}
+
+ERROR_CODE eIneedmd_EKG_set_task_state(eEKG_Task_state eState)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  eCurrent_EKG_Task_state = eState;
+
+  if(eCurrent_EKG_Task_state == eState)
+  {
+    eEC = ER_OK;
+  }
+  else
+  {
+    eEC = ER_FAIL;
+  }
+
+  return eEC;
+}
+
+void vEKG_continuous_read_cb(uint8_t * pData)
+{
+  tEKG_msg_struct tEKG_msg;
+
+  tEKG_msg.eMsg = EKG_MSG_DATA_READ;
+
+  Mailbox_post(tEKG_mailbox, &tEKG_msg, BIOS_NO_WAIT);
+  return;
+}
+
+/******************************************************************************
+* name: vIneedmd_triangle_wave
+* description: Triangle waveform generator
+* param description:
+* 	pDataPacket - pointer to the data packet to fill
+* 	measurement_position is the sample sequence in the super packet in the range 0-3 for BT packets
+* return value description:
+******************************************************************************/
+void vIneedmd_triangle_wave(uint8_t* pDataPacket, uint16_t measurment_position)
+{
+  //uint32_t gain = 12;
+  //todo: get current gain from adc
+  iTriangle_wave_count++;
+  int i = 0;
+
+  if(iTriangle_wave_count > ADC_1MV_GAIN_12_VREF_24)
+  {
+    iTriangle_wave_count = -1*ADC_1MV_GAIN_12_VREF_24;
+  }
+
+  //put data into datapacket
+  for(i = 0; i <= 7; i++)
+  {
+    pDataPacket[(i*2) + (measurment_position*DATA_LENGTH) + DATAPACKET_DATA_START +1] = iTriangle_wave_count & 0xFF;
+    pDataPacket[(i*2) + (measurment_position*DATA_LENGTH) + DATAPACKET_DATA_START ] = (iTriangle_wave_count >> 8) & 0xFF;
+  }
+}
 
 
-  };
 
-//*****************************************************************************
-// external variables
-//*****************************************************************************
-
-//*****************************************************************************
-// enums
-//*****************************************************************************
-
-//*****************************************************************************
-// structures
-//*****************************************************************************
-
-//*****************************************************************************
-// external functions
-//*****************************************************************************
-
-//*****************************************************************************
-// function declarations
-//*****************************************************************************
-
-//*****************************************************************************
-// functions
-//*****************************************************************************
-
+#ifdef NOT_NOW
 /******************************************************************************
 * name:
 * description:
 * param description:
 * return value description:
 ******************************************************************************/
-int iIneedmd_waveform_enable_TestSignal(int which_waveform)
+int iIneedmd_waveform_enable_TestSignal(void)
 {
 
   set_system_speed (INEEDMD_CPU_SPEED_FULL_INTERNAL);
   bTest_Mode = true;
-  Test_Mode_Waveform = which_waveform;
   return 1;
 }
 
@@ -254,7 +331,6 @@ int iIneedmd_waveform_disable_TestSignal(void)
 {
   set_system_speed (INEEDMD_CPU_SPEED_DEFAULT);
   bTest_Mode = false;
-  Test_Mode_Waveform = NO_TEST_PAT;
   return 1;
 }
 
@@ -268,123 +344,643 @@ bool iIneedmd_is_test_running(void)
 {
   return bTest_Mode;
 }
+#endif //#ifdef NOT_NOW
 
-/* ineedmd_measurement_ramp
- * Sends a set of measurement ramps... full scale..
- *
- * This function simply outputs a set of saw tooth measurement packets to test the display.
- */
-void ineedmd_test_waveform(void)
+/******************************************************************************
+* public functions ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+******************************************************************************/
+
+eEKG_Task_state eIneedmd_EKG_get_task_state(void)
 {
-#define PACKET_LENGTH 0x14
-
-  static uint8_t record_no = 0;
-  static uint8_t slow_down = 0;
-  char test_packet[PACKET_LENGTH];
-
-
-  if (slow_down > 3)
-  {
-  if ( record_no > 163 )
-  {
-    record_no = 0;
-  }
-
-  test_packet[0x00] = 0x9C;
-  test_packet[0x01] = 0x04;
-  test_packet[0x02] = PACKET_LENGTH;
-  test_packet[PACKET_LENGTH-1] = 0xC9;
-
-
-    //V6 measurements
-    test_packet[0x03] = (char) ((0xff00 & sample_data[record_no][0]) >>8);
-    test_packet[0x04] = (char) ((0x00ff & sample_data[record_no][0]) >>0);
-    //V5 measurements
-    test_packet[0x05] = (char) ((0xff00 & sample_data[record_no][1]) >>8);
-    test_packet[0x06] = (char) ((0x00ff & sample_data[record_no][1]) >>0);
-    //V4 measurements
-    test_packet[0x07] = (char) ((0xff00 & sample_data[record_no][2]) >>8);
-    test_packet[0x08] = (char) ((0x00ff & sample_data[record_no][2]) >>0);
-    //V3 measurements
-    test_packet[0x09] = (char) ((0xff00 & sample_data[record_no][3]) >>8);
-    test_packet[0x0a] = (char) ((0x00ff & sample_data[record_no][3]) >>0);
-    //I measurements
-    test_packet[0x0b] = (char) ((0xff00 & sample_data[record_no][4]) >>8);
-    test_packet[0x0c] = (char) ((0x00ff & sample_data[record_no][4]) >>0);
-    //II measurements
-    test_packet[0x0d] = (char) ((0xff00 & sample_data[record_no][5]) >>8);
-    test_packet[0x0e] = (char) ((0x00ff & sample_data[record_no][5]) >>0);
-    //V2 measurements
-    test_packet[0x0f] = (char) ((0xff00 & sample_data[record_no][6]) >>8);
-    test_packet[0x10] = (char) ((0x00ff & sample_data[record_no][6]) >>0);
-    //V1 measurements
-    test_packet[0x11] = (char) ((0xff00 & sample_data[record_no][7]) >>8);
-    test_packet[0x12] = (char) ((0x00ff & sample_data[record_no][7]) >>0);
-
-    record_no++;
-    slow_down=0;
-
-    ineedmd_radio_send_frame((uint8_t *)test_packet, PACKET_LENGTH);
-  }
-  slow_down++;
-
-
-//    }
-//  }
+  return eCurrent_EKG_Task_state;
 }
 
-void ineedmd_measurement_ramp(void)
+ERROR_CODE eIneedmd_EKG_get_leads_off(uint16_t * uiLeadStat)
 {
-#define PACKET_LENGTH 0x14
+  ERROR_CODE eEC = ER_FAIL;
+  eEKG_Task_state eTask_State = eIneedmd_EKG_get_task_state();
 
-  uint16_t uiSys_Tick_value = 0;//MAP_SysTickValueGet();
-  int value_of_measurement;
-  unsigned char highbyte = 0;
-  unsigned char lowbyte = 0;
-  char test_packet[PACKET_LENGTH];
+  if(eTask_State == EKG_TASK_IDLE)
+  {
+	 vDEBUG("EKG get leads off, EKG TASK IDLE no lead information");
+     return eEC;
+  }
+  else
+  {
 
-  eBSP_Get_Current_ms(&uiSys_Tick_value);
-  uiSys_Tick_value = uiSys_Tick_value<<6;
-  value_of_measurement = (int) (uiSys_Tick_value - 0x8000);
-  lowbyte = (char)(0x00ff & value_of_measurement);
-  highbyte = (char)(0x00ff & (value_of_measurement >> 8));
+     *uiLeadStat = uiLead_Off_Data;
+     eEC = ER_OK;
+  }
 
-  test_packet[0x00] = 0x9C;
-  test_packet[0x01] = 0x04;
-  test_packet[0x02] = PACKET_LENGTH;
-  test_packet[PACKET_LENGTH-1] = 0xC9;
-
-
-      //V6 measurements
-      test_packet[0x03] = highbyte;
-      test_packet[0x04] = lowbyte;
-      //V5 measurements
-      test_packet[0x05] = highbyte;
-      test_packet[0x06] = lowbyte;
-      //V4 measurements
-      test_packet[0x07] = highbyte;
-      test_packet[0x08] = lowbyte;
-      //V3 measurements
-      test_packet[0x09] = highbyte;
-      test_packet[0x0a] = lowbyte;
-      //I measurements
-      test_packet[0x0b] = highbyte;
-      test_packet[0x0c] = lowbyte;
-      //II measurements
-      test_packet[0x0d] = highbyte;
-      test_packet[0x0e] = lowbyte;
-      //V2 measurements
-      test_packet[0x0f] = highbyte;
-      test_packet[0x10] = lowbyte;
-      //V1 measurements
-      test_packet[0x11] = highbyte;
-      test_packet[0x12] = lowbyte;
-
-      ineedmd_radio_send_frame((uint8_t *)test_packet, PACKET_LENGTH);
-
+  return eEC;
 }
 
+ERROR_CODE eIneedmd_EKG_request_param_init(tINMD_EKG_req * ptRequest)
+{
+  ERROR_CODE eEC = ER_FAIL;
 
+  //verify that the pointer to use is valid
+  if(ptRequest == NULL)
+  {
+    //pointer is invalid
+    eEC = ER_PARAM;
+  }
+  else
+  {
+    //pointer is valid
+    //
+    //Init params
+    ptRequest->eReq_ID = EKG_REQUEST_NONE;
+    ptRequest->vEKG_read_callback = NULL;
+    ptRequest->uiLeadOffData = NULL;
+    ptRequest->uiADS_Setting = NULL;
+
+    //Check if params were properly set
+    if((ptRequest->eReq_ID == EKG_REQUEST_NONE)  &\
+       (ptRequest->vEKG_read_callback == NULL)  &\
+       (ptRequest->uiLeadOffData == NULL)	&\
+       (ptRequest->uiADS_Setting == NULL))
+    {
+      //Params were properly set
+      eEC = ER_OK;
+    }
+    else
+    {
+      //Params were not properly set
+      eEC = ER_FAIL;
+    }
+  }
+
+  //return the error code
+  return eEC;
+}
+
+ERROR_CODE eIneedmd_EKG_request(tINMD_EKG_req * ptRequest)
+{
+  ERROR_CODE eEC = ER_FAIL;
+  tINMD_EKG_req tEKG_req;
+  eEKG_Task_state eTask_state = EKG_TASK_NONE;
+  ADC_REQUEST tADC_req;
+
+  eTask_state = eIneedmd_EKG_get_task_state();
+  if(ptRequest == NULL)
+  {
+    eEC = ER_PARAM;
+  }
+  else
+  {
+    //check if the request ID is valid
+    if((ptRequest->eReq_ID >= EKG_REQUEST_LIMIT) |\
+       (ptRequest->eReq_ID == EKG_REQUEST_NONE))
+    {
+      vDEBUG("eIneedmd_EKG_request request invalid");
+      eEC = ER_INVALID;
+    }
+    else
+    {
+      switch(ptRequest->eReq_ID)
+      {
+        case EKG_REQUEST_IDLE:
+        {
+        	if(eTask_state == EKG_TASK_IDLE)
+          {
+            vDEBUG("ECG already in leads off only mode\n");
+          }
+          else
+          {
+            Timer_stop(tWaveform_test_pattern_timer);
+            Clock_stop(tWaveform_leads_off_timer);
+
+            //stop any waveform
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+            eEC = eADC_Request(&tADC_req);
+
+            //turn off continuous mode - not sending any dataright now
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+            eEC = eADC_Request(&tADC_req);
+            eADC_Request_param_init(&tADC_req);
+
+            //mux inputs to ecg by default
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_INPUT_ECG;
+            eEC = eADC_Request(&tADC_req);
+
+            eIneedmd_EKG_set_task_state(EKG_TASK_IDLE);
+          }
+    	    break;
+        }
+
+        case EKG_REQUEST_LEADS_OFF_ONLY:
+        {
+          if(eTask_state == EKG_TASK_LEADS_OFF_ONLY)
+          {
+            vDEBUG("ECG already in leads off only mode\n");
+          }
+          else
+          {
+            Timer_stop(tWaveform_test_pattern_timer);
+            Clock_stop(tWaveform_leads_off_timer);
+
+            //stop any waveforms so we can change settings
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+            eEC = eADC_Request(&tADC_req);
+
+            //turn off continuous mode - not sending any dataright now
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+            eEC = eADC_Request(&tADC_req);
+            eADC_Request_param_init(&tADC_req);
+
+            //mux inputs to ecg so lead detection works
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_INPUT_ECG;
+            eEC = eADC_Request(&tADC_req);
+
+            //start pin so lead detection works
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+            eEC = eADC_Request(&tADC_req);
+
+            Clock_setTimeout(tWaveform_leads_off_timer, LEADS_OFF_CLOCK_TIMEOUT);
+            Clock_start(tWaveform_leads_off_timer);
+
+            eIneedmd_EKG_set_task_state(EKG_TASK_LEADS_OFF_ONLY);
+          }
+          break;
+        }
+
+        case EKG_REQUEST_START_ECG_STREAM:
+        {
+          if(eTask_state == EKG_TASK_WAVEFORM_CAPTURE)
+          {
+            vDEBUG("ECG stream already running\n");
+          }
+          else
+          {
+            Clock_stop(tWaveform_leads_off_timer);
+            Timer_stop(tWaveform_test_pattern_timer);
+
+            //setup adc
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+            eEC = eADC_Request(&tADC_req);
+
+            //turn off continuous mode - not sending any dataright now
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+            eEC = eADC_Request(&tADC_req);
+            eADC_Request_param_init(&tADC_req);
+
+            //mux inputs to ecg
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_INPUT_ECG;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_SAMPLE_RATE;
+            tADC_req.eADS_sample_rate = ADS_SAMPLE_RATE_500SPS;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+            tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+            eEC = eADC_Request(&tADC_req);
+
+            eIneedmd_EKG_set_task_state(EKG_TASK_WAVEFORM_CAPTURE);
+
+            vDEBUG("ECG stream started\n");
+          }
+
+          break;
+        }
+
+        case EKG_REQUEST_START_SQUARE_WAVE_STREAM:
+        {
+          if(eTask_state == EKG_TASK_TEST_PATTERN_SQUARE)
+          {
+            vDEBUG("ECG test stream already running\n");
+          }
+          else
+          {
+            Clock_stop(tWaveform_leads_off_timer);
+            Timer_stop(tWaveform_test_pattern_timer);
+            //setup adc
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+            eEC = eADC_Request(&tADC_req);
+            eADC_Request_param_init(&tADC_req);
+
+            //mux inputs
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_INPUT_SQUARE;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+            tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_SAMPLE_RATE;
+            tADC_req.eADS_sample_rate = ADS_SAMPLE_RATE_500SPS;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+            eEC = eADC_Request(&tADC_req);
+
+            eIneedmd_EKG_set_task_state(EKG_TASK_TEST_PATTERN_SQUARE);
+
+            vDEBUG("Square wave started\n");
+          }
+          break;
+        }
+
+        case EKG_REQUEST_START_TRIANGLE_WAVE_STREAM:
+        {
+          if(eTask_state == EKG_TASK_TEST_PATTERN_TRIANGLE)
+          {
+            vDEBUG("ECG Triangle Wave  already running\n");
+          }
+          else
+          {
+            Clock_stop(tWaveform_leads_off_timer);
+            Timer_stop(tWaveform_test_pattern_timer);
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+            eEC = eADC_Request(&tADC_req);
+            //setup adc
+            Timer_start(tWaveform_test_pattern_timer);
+
+            eIneedmd_EKG_set_task_state(EKG_TASK_TEST_PATTERN_TRIANGLE);
+
+            vDEBUG("Triangle wave started\n");
+          }
+          break;
+        }
+
+        case EKG_REQUEST_STOP_STREAM:
+        {
+          eTask_state = eIneedmd_EKG_get_task_state();
+          if(eTask_state != EKG_TASK_IDLE)
+          {
+            //stop stream, default to IDLE state
+            Clock_stop(tWaveform_leads_off_timer);
+            Timer_stop(tWaveform_test_pattern_timer);
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+            eEC = eADC_Request(&tADC_req);
+
+            eADC_Request_param_init(&tADC_req);
+            tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+            eEC = eADC_Request(&tADC_req);
+            
+            if(ptRequest->vEKG_read_callback != NULL)
+            {
+              ptRequest->vEKG_read_callback(0, false);
+            }
+            eIneedmd_EKG_set_task_state(EKG_TASK_IDLE);
+
+            vDEBUG("Stream stopped");
+          }
+          else
+          {
+            if(ptRequest->vEKG_read_callback != NULL)
+            {
+              ptRequest->vEKG_read_callback(0, false);
+            }
+            vDEBUG("Stream already stopped or not running");
+            eEC = ER_OK;
+          }
+
+          break;
+        }
+
+        case EKG_REQUEST_SAMPLE_RATE:
+        {
+           //check current state of waveform task
+          switch(eTask_state)
+          {
+            case EKG_TASK_TEST_PATTERN_TRIANGLE:
+              vDEBUG("ER: Can't change triangle wave SPS");
+              //todo: change timer load value
+              break;
+
+            case EKG_TASK_TEST_PATTERN_SQUARE:
+              //stop ads to make register read/writes
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+              eEC = eADC_Request(&tADC_req);
+
+              //adc request, change sample rate
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_SAMPLE_RATE;
+              tADC_req.eADS_sample_rate = (ADC_SAMPLE_ADS_RATE)*(ptRequest->uiADS_Setting);
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+              tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+              eEC = eADC_Request(&tADC_req);
+
+              //start ads
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+              eEC = eADC_Request(&tADC_req);
+              break;
+
+            case EKG_TASK_WAVEFORM_CAPTURE:
+              //stop ads to make register read/writes
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+              eEC = eADC_Request(&tADC_req);
+
+              //adc request, change sample rate
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_SAMPLE_RATE;
+              tADC_req.eADS_sample_rate = (ADC_SAMPLE_ADS_RATE)*(ptRequest->uiADS_Setting);
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+              tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+              eEC = eADC_Request(&tADC_req);
+
+              //start ads
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+              eEC = eADC_Request(&tADC_req);
+              break;
+
+            case EKG_TASK_LEADS_OFF_ONLY:
+              vDEBUG("ER: EKG Not streaming");
+              break;
+
+            case EKG_TASK_IDLE:
+              vDEBUG("ER: EKG Not streaming");
+              break;
+
+            default:
+              vDEBUG("ER: EKG Task in unknown state =");
+              break;
+          }
+          break;
+        }
+
+        case EKG_REQUEST_REFERENCE:
+        {
+          //check current state of waveform task
+          switch(eTask_state)
+          {
+            case EKG_TASK_TEST_PATTERN_TRIANGLE:
+              vDEBUG("ER: Can't change triangle wave reference");
+              //todo: change timer load value
+              break;
+
+            case EKG_TASK_TEST_PATTERN_SQUARE:
+            {
+              //stop ads to make register read/writes
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+              eEC = eADC_Request(&tADC_req);
+
+              //adc request, change sample rate
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_CHANGE_REFERENCE;
+              tADC_req.eVREF_source = (ptRequest->uiADS_Setting);
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+              tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+              eEC = eADC_Request(&tADC_req);
+
+              //start ads
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+              eEC = eADC_Request(&tADC_req);
+              vDEBUG("Changing EKG reference");
+              break;
+            }
+
+            case EKG_TASK_WAVEFORM_CAPTURE:
+            {
+              //stop ads to make register read/writes
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+              eEC = eADC_Request(&tADC_req);
+
+              //adc request, change sample rate
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_CHANGE_REFERENCE;
+              tADC_req.eVREF_source = (ptRequest->uiADS_Setting);
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+              tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+              eEC = eADC_Request(&tADC_req);
+
+              //start ads
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+              eEC = eADC_Request(&tADC_req);
+              vDEBUG("Changing EKG reference");
+              break;
+            }
+
+            case EKG_TASK_LEADS_OFF_ONLY:
+              //adc request, change sample rate
+              Clock_stop(tWaveform_leads_off_timer);
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_CHANGE_REFERENCE;
+              tADC_req.eVREF_source = (ptRequest->uiADS_Setting);
+              eEC = eADC_Request(&tADC_req);
+              vDEBUG("Changing EKG reference");
+              Clock_start(tWaveform_leads_off_timer);
+              break;
+
+            case EKG_TASK_IDLE:
+              //adc request, change sample rate
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_CHANGE_REFERENCE;
+              tADC_req.eVREF_source = (ptRequest->uiADS_Setting);
+              eEC = eADC_Request(&tADC_req);
+              vDEBUG("Changing EKG reference");
+              break;
+
+            default:
+              vDEBUG("ER: EKG Task in unknown state =");
+              break;
+          }
+          break;
+        }
+
+        case EKG_REQUEST_CHANGE_GAIN:
+        {
+          //check current state of waveform task
+          switch(eTask_state)
+          {
+            case EKG_TASK_TEST_PATTERN_TRIANGLE:
+              vDEBUG("ER: Can't change triangle wave gain");
+              break;
+
+            case EKG_TASK_TEST_PATTERN_SQUARE:
+              //stop ads to make register read/writes
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_SINGLE;
+              eEC = eADC_Request(&tADC_req);
+
+              //adc request, change sample rate
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_CHANGE_GAIN;
+              tADC_req.eADC_gain = ptRequest->uiADS_Setting;
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+              tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+              eEC = eADC_Request(&tADC_req);
+
+              //start ads
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+              eEC = eADC_Request(&tADC_req);
+              break;
+
+            case EKG_TASK_WAVEFORM_CAPTURE:
+              //stop ads to make register read/writes
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_STOP;
+              eEC = eADC_Request(&tADC_req);
+
+              //adc request, change sample rate
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_CHANGE_GAIN;
+              tADC_req.eADC_gain = ptRequest->uiADS_Setting;
+              eEC = eADC_Request(&tADC_req);
+
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_SET_CONVERSION_MODE_CONTINUOUS;
+              tADC_req.ADC_continuous_conversion_callback = vEKG_continuous_read_cb;
+              eEC = eADC_Request(&tADC_req);
+
+              //start ads
+              eADC_Request_param_init(&tADC_req);
+              tADC_req.eRequest_ID = ADC_REQUEST_ADS_START;
+              eEC = eADC_Request(&tADC_req);
+              break;
+
+            case EKG_TASK_LEADS_OFF_ONLY:
+              vDEBUG("ER: EKG Not streaming");
+              break;
+
+            case EKG_TASK_IDLE:
+              vDEBUG("ER: EKG Not streaming");
+              break;
+
+            default:
+              vDEBUG("ER: EKG Task in unknown state =");
+              break;
+          }
+          break;
+        }
+        case EKG_REQUEST_DATA_READ:
+        {
+          vDEBUG_ASSERT("eIneedmd_EKG_request EKG_REQUEST_DATA_READ not supported", 0);
+          eIneedmd_EKG_request_param_init(&tEKG_req);
+          tEKG_req.eReq_ID = EKG_REQUEST_DATA_READ;
+          tEKG_req.uiLeadOffData = NULL;
+          tEKG_req.vEKG_read_callback = NULL;
+          eEC = ER_OK;
+          break;
+        }
+        case EKG_REQUEST_ERROR_PACKET:
+        {
+          //check current state of waveform task
+		  switch(eTask_state)
+		  {
+			case EKG_TASK_TEST_PATTERN_TRIANGLE:
+			  //set error flag
+			  bSend_Error_Packet = true;
+			  eEC = ER_OK;
+			  break;
+
+			case EKG_TASK_TEST_PATTERN_SQUARE:
+			  //set error flag
+			  bSend_Error_Packet = true;
+			  eEC = ER_OK;
+			  break;
+
+			case EKG_TASK_WAVEFORM_CAPTURE:
+			  bSend_Error_Packet = true;
+			  eEC = ER_OK;
+			  break;
+
+			case EKG_TASK_LEADS_OFF_ONLY:
+			  vDEBUG("ER: EKG Not streaming");
+			  break;
+
+			case EKG_TASK_IDLE:
+			  vDEBUG("ER: EKG Not streaming");
+			  break;
+
+			default:
+			  vDEBUG("ER: EKG Task in unknown state =");
+			  break;
+		  }
+		  break;
+		}
+        case EKG_REQUEST_EKG_SHUTDOWN:
+        {
+          //todo do EKG shut down
+          if(ptRequest->vEKG_read_callback != NULL)
+          {
+            ptRequest->vEKG_read_callback(0,false);
+          }
+          eEC = ER_OK;
+          break;
+        }
+        default:
+          vDEBUG_ASSERT("eIneedmd_EKG_request invalid request" ,0);
+          eEC = ER_REQUEST;
+          break;
+      }
+    }
+  }
+  return eEC;
+}
 
 /******************************************************************************
 * name:
@@ -392,47 +988,218 @@ void ineedmd_measurement_ramp(void)
 * param description:
 * return value description:
 ******************************************************************************/
-int iIneedmd_waveform_process(void)
+void vIneedmd_waveform_task(UArg a0, UArg a1)
 {
-  bool bDid_sys_tick = false;
-  static uint32_t count_ticks;
+  ERROR_CODE eEC = ER_FAIL;
+  ADC_REQUEST tADC_req;
+  tRadio_request tRadio_req;
+  tINMD_EKG_req tEKG_req;
+  tEKG_msg_struct tEKG_msg;
 
-  if(( bTest_Mode == true))
+  uint16_t measurement_packet_count = 0;
+
+  uint16_t uiMsg_size = sizeof(tEKG_msg_struct);
+  uint16_t uiMbox_size = 0;
+
+  uint8_t uiAdcDataRead[19];
+  uint8_t uiDataPacket[DATAPACKET_TOTAL_LENGTH];
+
+  uint16_t uiLead_off_read = 0;
+  tINMD_protocol_req_notify eCommand_Request;
+  uint32_t uiClock_time_stop = 0;
+
+  memset(uiAdcDataRead, 0x00, 19);
+
+  uiMbox_size = Mailbox_getMsgSize(tEKG_mailbox);
+  vDEBUG_ASSERT("vIneedmd_waveform_task invalid mailbox msg size!", (uiMsg_size == uiMbox_size));
+
+  eADC_Request_param_init(&tADC_req);
+
+  tADC_req.eRequest_ID = ADC_REQUEST_SETUP;
+  eEC = eADC_Request(&tADC_req);
+  vDEBUG_ASSERT("vIneedmd_waveform_task SYS HALT, ADC setup failure!", (eEC == ER_OK));
+
+  eIneedmd_radio_request_params_init (&tRadio_req);
+  tRadio_req.eRequest                    = RADIO_REQUEST_REGISTER_CALLBACKS;
+  tRadio_req.vBuff_sent_callback         = &vEKG_Radio_sent_frame_callback;
+  tRadio_req.vBuff_receive_callback      = &vEKG_Radio_rcv_frame_callback;
+  tRadio_req.vChange_setting_callback    = &vEKG_Radio_change_settings_callback;
+  tRadio_req.vConnection_status_callback = &vEKG_Radio_connection_callback;
+  tRadio_req.vSetup_state_callback       = &vEKG_Radio_setup_callback;
+  eIneedmd_radio_request(&tRadio_req);
+
+  vInit_Data_Packet(uiDataPacket);
+
+  eEC = eIneedmd_EKG_request_param_init(&tEKG_req);
+  tEKG_req.eReq_ID = EKG_REQUEST_IDLE;
+  tEKG_req.uiLeadOffData = NULL;
+  tEKG_req.vEKG_read_callback = NULL;
+  eEC = eIneedmd_EKG_request(&tEKG_req);
+
+  while(1)
   {
-    bDid_sys_tick = bWaveform_did_timer_tick();
-
-
-    if(bDid_sys_tick == true)
+    if(Mailbox_pend(tEKG_mailbox, &tEKG_msg, BIOS_WAIT_FOREVER) == true)
     {
-      if (Test_Mode_Waveform == NO_TEST_PAT)
-       {
+      switch(tEKG_msg.eMsg)
+      {
+        case EKG_MSG_DATA_READ:
+        {
+          eEC = ER_FAIL;
+          if(bIs_Radio_Available())
+          {
+            eEKG_Task_state eTask_state = eIneedmd_EKG_get_task_state();
+            //for ECG stream or square wave, get reading from ADC, send to radio
+            if(eTask_state == EKG_TASK_WAVEFORM_CAPTURE || eTask_state == EKG_TASK_TEST_PATTERN_SQUARE)
+            {
+              //read data from adc
+              memset(uiAdcDataRead, 0x00, 19);
+              eEC = eBSP_ADC_Data_frame_read(uiAdcDataRead, INEEDMD_ADC_DATA_SIZE);
+              vDEBUG_ASSERT("EKG_MSG_DATA_READ ADC read fail", eEC == ER_OK);
+              if(eEC == ER_OK)
+              {
+                //copy received data from front end into data packet
+                memcpy((void*)&uiDataPacket[(DATAPACKET_DATA_START+(measurement_packet_count*DATA_LENGTH))], (void*)&uiAdcDataRead[MEASUREMNT_DATA_START], DATA_LENGTH);
 
-       }
-      else if  (Test_Mode_Waveform == TRIANGLE_TEST_PAT)
-      {
-        ineedmd_measurement_ramp();
+                if (measurement_packet_count >= MEASURMENTS_IN_PACKET)
+                {
+                  //if streaming EKG, do lead off checking. If its a square wave, lead off info will be wrong.
+                  if(eTask_state == EKG_TASK_WAVEFORM_CAPTURE)
+                  {
+                    if(Clock_getTicks() >= uiClock_time_stop)
+                    {
+                      uiLead_off_read = 0xFFFF & ((uiAdcDataRead[0]<<12) | (uiAdcDataRead[1]<<4) | ((uiAdcDataRead[2] & 0xF0)>>4));
+                      if(uiLead_off_read != uiLead_Off_Data)
+                      {
+                        uiLead_Off_Data = uiLead_off_read;
+                        //leads are off, notify command protocol
+                        eIneedmd_cmnd_Proto_ReqNote_params_init(&eCommand_Request);
+                        eCommand_Request.eReq_Notify = CMND_NOTIFY_LEADS_OFF;
+                        eIneedmd_cmnd_Proto_Request_Notify(&eCommand_Request);
+                      }else{/*do nothing*/}
+                      //set stop time to recheck leads in 1 second
+                      uiClock_time_stop = Clock_getTicks() + 1000;
+                    }else{/*do nothing*/}
+                  }
+                  else
+                  {
+                    //for square wave, lead off info is wrong. assume all leads are on
+                    uiLead_Off_Data = 0;
+                  }
+
+                  //done with leads off checking, request the radio to send the data packet
+                  eEC = eIneedmd_radio_request_params_init(&tRadio_req);
+                  if(eEC == ER_OK)
+                  {
+                    tRadio_req.eRequest = RADIO_REQUEST_SEND_FRAME;
+                    //copy local data packet into the radio request
+                    //if an error packet test request was received, send an error packet
+                    if(bSend_Error_Packet)
+                    {
+                      //copy everything except the last four bytes
+                      memcpy((void*)tRadio_req.uiBuff,(void*)uiDataPacket, DATAPACKET_TOTAL_LENGTH - 4);
+                      tRadio_req.uiBuff_size = DATAPACKET_TOTAL_LENGTH - 4;
+                      //copy end of packet byte, since it wasn't copied in memcpy operation
+                      tRadio_req.uiBuff[(DATAPACKET_TOTAL_LENGTH - 4) - 1] = 0xC9;
+                      eEC = eIneedmd_radio_request(&tRadio_req);
+                      //reset error flag
+                      bSend_Error_Packet = false;
+                    }
+                    //no error request
+                    else
+                    {
+                      //send packet
+                      memcpy((void*)tRadio_req.uiBuff,(void*)uiDataPacket, DATAPACKET_TOTAL_LENGTH);
+                      tRadio_req.uiBuff_size = DATAPACKET_TOTAL_LENGTH;
+                      eEC = eIneedmd_radio_request(&tRadio_req);
+                    }
+                  }
+                  //reset the counter
+                  measurement_packet_count = 0;
+                }
+                else
+                {
+                  measurement_packet_count++;
+                }
+              }
+              else
+              {
+                //error in receiving data
+                //eIneedmd_set_EKG_led(HEART_LED_LEAD_OFF_NO_DATA);
+              }
+            }
+
+            //for triangle test pattern, generate the next reading, send to radio
+            else if(eTask_state == EKG_TASK_TEST_PATTERN_TRIANGLE)
+            {
+              //get data
+              //setup frame, send to radio
+              vIneedmd_triangle_wave(uiDataPacket, measurement_packet_count);
+
+              uiLead_Off_Data = 0;
+
+              if (measurement_packet_count >= MEASURMENTS_IN_PACKET)
+              {
+                eEC = eIneedmd_radio_request_params_init(&tRadio_req);
+                if(eEC == ER_OK)
+                {
+                  tRadio_req.eRequest = RADIO_REQUEST_SEND_FRAME;
+                  //radio request is initailized, check if error packet request was received
+                  if(bSend_Error_Packet)
+                  {
+                	//send an error in packet
+                    //copy everything except the last four bytes
+                	memcpy((void*)tRadio_req.uiBuff,(void*)uiDataPacket, DATAPACKET_TOTAL_LENGTH - 4);
+                	tRadio_req.uiBuff_size = DATAPACKET_TOTAL_LENGTH - 4;
+                	//copy end of packet byte, since it wasn't copied in memcpy operation
+                	tRadio_req.uiBuff[(DATAPACKET_TOTAL_LENGTH - 4) - 1] = 0xC9;
+                	eEC = eIneedmd_radio_request(&tRadio_req);
+                	//reset error flag
+                	bSend_Error_Packet = false;
+                  }
+                  //no error request
+                  else
+                  {
+                	//send packet
+                	memcpy((void*)tRadio_req.uiBuff,(void*)uiDataPacket, DATAPACKET_TOTAL_LENGTH);
+                	tRadio_req.uiBuff_size = DATAPACKET_TOTAL_LENGTH;
+                	eEC = eIneedmd_radio_request(&tRadio_req);
+                  }
+                }
+                //reset the counter
+                measurement_packet_count = 0;
+              }
+              else
+              {
+                measurement_packet_count++;
+              }
+            }
+          }
+          break;
+        }
+
+        case EKG_MSG_LEAD_OFF_READ:
+        {
+          //request from adc
+          eADC_Request_param_init(&tADC_req);
+          tADC_req.eRequest_ID = ADC_REQUEST_ADS_LEAD_DETECT;
+          tADC_req.uiLeadStatus = &uiLead_off_read;
+          eEC = eADC_Request(&tADC_req);
+          //check if any leads are off
+          if(uiLead_off_read != uiLead_Off_Data)
+          {
+            uiLead_Off_Data = uiLead_off_read;
+            //leads are off, notify command protocol
+            eIneedmd_cmnd_Proto_ReqNote_params_init(&eCommand_Request);
+            eCommand_Request.eReq_Notify = CMND_NOTIFY_LEADS_OFF;
+            eIneedmd_cmnd_Proto_Request_Notify(&eCommand_Request);
+          }
+          break;
+        }
+        default:
+          break;
       }
-      else if  (Test_Mode_Waveform == SQUARE_TEST_PAT)
-      {
-        ineedmd_measurement_ramp();
-      }
-      else if  (Test_Mode_Waveform == WAVEFORM_TEST_PAT)
-      {
-        ineedmd_test_waveform();
-      }
-            count_ticks++;
-    }
-    if(count_ticks >= 10000)
-    {
-      ineedmd_send_status();
-      count_ticks = 0;
     }
   }
-  return 1;
-}
-
-int iIneedmd_sysinfo_process(void)
-{ return 1;
 }
 
 /******************************************************************************
