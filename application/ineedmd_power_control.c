@@ -10,10 +10,13 @@
 * includes ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ******************************************************************************/
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
-//#include "utils_inc/proj_debug.h"
+#include <stdarg.h>
+#include <stdlib.h>
+
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_gpio.h"
@@ -356,7 +359,7 @@ void vPower_Control_task(UArg a0, UArg a1)
 {
   ERROR_CODE    eEC = ER_FAIL;
   tPC_Message    tPC_Msg;
-  tRadio_request tRadio_request;
+  tRadio_request * tRadio_req;
   tUSB_req       tUSB_request;
   ADC_REQUEST    tADC_req;
   tUI_request    tUI_req;
@@ -364,14 +367,17 @@ void vPower_Control_task(UArg a0, UArg a1)
   uint32_t uiMsg_size = sizeof(tPC_Message);
   vDEBUG_ASSERT("vPower_Control_task, invalid mailbox msg size!",(uiMsg_size == Mailbox_getMsgSize(tPC_mailbox)));
 
-  eIneedmd_radio_request_params_init (&tRadio_request);
-  tRadio_request.eRequest                    = RADIO_REQUEST_REGISTER_CALLBACKS;
-  tRadio_request.vBuff_sent_callback         = &vPC_Radio_sent_frame_callback;
-  tRadio_request.vBuff_receive_callback      = &vPC_Radio_rcv_frame_callback;
-  tRadio_request.vChange_setting_callback    = &vPC_Radio_change_settings_callback;
-  tRadio_request.vConnection_status_callback = &vPC_Radio_connection_callback;
-  tRadio_request.vSetup_state_callback       = &vPC_Radio_setup_callback;
-  eIneedmd_radio_request(&tRadio_request);
+  tRadio_req = (tRadio_request * )calloc(sizeof(tRadio_request), sizeof(char));
+
+  eIneedmd_radio_request_params_init (tRadio_req);
+  tRadio_req->eRequest                    = RADIO_REQUEST_REGISTER_CALLBACKS;
+  tRadio_req->vBuff_sent_callback         = &vPC_Radio_sent_frame_callback;
+  tRadio_req->vBuff_receive_callback      = &vPC_Radio_rcv_frame_callback;
+  tRadio_req->vChange_setting_callback    = &vPC_Radio_change_settings_callback;
+  tRadio_req->vConnection_status_callback = &vPC_Radio_connection_callback;
+  tRadio_req->vSetup_state_callback       = &vPC_Radio_setup_callback;
+  eIneedmd_radio_request(tRadio_req);
+  free(tRadio_req);
 
   eUSB_request_params_init(&tUSB_request);
   tUSB_request.eRequest = USB_REQUEST_REGISTER_CONN_CALLBACK;
@@ -385,18 +391,6 @@ void vPower_Control_task(UArg a0, UArg a1)
       switch(tPC_Msg.eMessage)
       {
         case PC_MESSAGE_FORCE_SHUTDOWN:
-          //shut off radio
-          //
-
-          eIneedmd_radio_request_params_init (&tRadio_request);
-          tRadio_request.eRequest = RADIO_REQUEST_PERMANENT_POWER_OFF;
-          eEC = eIneedmd_radio_request(&tRadio_request);
-          for(i = 0; ((eEC == ER_NOT_READY) & (i < 10)); i++)
-          {
-            Task_sleep(1000);
-            eEC = eIneedmd_radio_request(&tRadio_request);
-          }
-
           //shut off all UI elements
           //
           eIneedmd_UI_params_init(&tUI_req);
@@ -407,6 +401,20 @@ void vPower_Control_task(UArg a0, UArg a1)
           tUI_req.ePower_led_sequence = POWER_LED_UI_PERMANENT_OFF;
           tUI_req.eAlert_sound = ALERT_SOUND_UI_PERMANENT_OFF;
           eIneedmd_UI_request(&tUI_req);
+
+          //shut off radio
+          //
+
+          tRadio_req = (tRadio_request * )calloc(sizeof(tRadio_request), sizeof(char));
+          eIneedmd_radio_request_params_init (tRadio_req);
+          tRadio_req->eRequest = RADIO_REQUEST_PERMANENT_POWER_OFF;
+          eEC = eIneedmd_radio_request(tRadio_req);
+          for(i = 0; ((eEC == ER_NOT_READY) & (i < 10)); i++)
+          {
+            Task_sleep(1000);
+            eEC = eIneedmd_radio_request(tRadio_req);
+          }
+          free(tRadio_req);
 
           //shut off ADS
           //
